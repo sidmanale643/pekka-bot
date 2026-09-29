@@ -1,0 +1,46 @@
+import type { ToolCall } from "../model/model.ts";
+import type { Tool, ToolContext } from "../tools/tool.ts";
+
+export interface ToolCallResult {
+  output: string;
+  isError: boolean;
+}
+
+/**
+ * Runs one tool call from the model. Every failure (unknown tool, bad JSON,
+ * invalid input, a tool that throws) becomes an error message for the model
+ * instead of an exception, so the model can see what went wrong and retry.
+ */
+export async function executeToolCall(
+  call: ToolCall,
+  tools: Tool[],
+  context: ToolContext,
+): Promise<ToolCallResult> {
+  const tool = tools.find((candidate) => candidate.name === call.function.name);
+  if (!tool) return failure(`unknown tool "${call.function.name}"`);
+
+  const args = parseJson(call.function.arguments);
+  if (args === undefined) return failure("arguments were not valid JSON");
+
+  const input = tool.input.safeParse(args);
+  if (!input.success) return failure(`invalid arguments: ${input.error.message}`);
+
+  try {
+    return { output: await tool.run(input.data, context), isError: false };
+  } catch (error) {
+    return failure(error instanceof Error ? error.message : String(error));
+  }
+}
+
+function parseJson(text: string): unknown {
+  try {
+    // Some models send an empty string for a tool with no arguments.
+    return JSON.parse(text || "{}");
+  } catch {
+    return undefined;
+  }
+}
+
+function failure(message: string): ToolCallResult {
+  return { output: `Error: ${message}`, isError: true };
+}
