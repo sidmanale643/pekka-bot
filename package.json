@@ -1,0 +1,31 @@
+{
+  "name": "pekka",
+  "version": "1.0.0",
+  "description": "Open-source AI agent with its own cloud computer, built on Daytona",
+  "scripts": {
+    "pekka": "tsx src/cli.ts",
+    "test": "vitest run",
+    "typecheck": "tsc"
+  },
+  "author": "",
+  "license": "ISC",
+  "devEngines": {
+    "packageManager": {
+      "name": "pnpm",
+      "version": "^11.3.0",
+      "onFail": "download"
+    }
+  },
+  "type": "module",
+  "dependencies": {
+    "@daytonaio/sdk": "^0.218.0",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.3",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.2"
+  },
+  "private": true
+}

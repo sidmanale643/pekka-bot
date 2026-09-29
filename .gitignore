@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.env
+.env.*
+!.env.example
+.pekka/
+
+# Local planning notes, not part of the published repo
+docs/
