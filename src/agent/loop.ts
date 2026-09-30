@@ -64,12 +64,13 @@ export async function runAgent(task: string, options: AgentOptions): Promise<Age
       return { status: "done", answer: text, steps: step, usage, messages };
     }
 
-    for (const call of calls) {
+    const results = await Promise.all(calls.map(async (call): Promise<ChatMessage> => {
       emit({ type: "tool_call", name: call.function.name, arguments: call.function.arguments });
       const result = await executeToolCall(call, tools, { computer, bot: options.bot, memory, skills });
       emit({ type: "tool_result", name: call.function.name, ...result });
-      messages.push({ role: "tool", tool_call_id: call.id, content: result.output });
-    }
+      return { role: "tool", tool_call_id: call.id, content: result.output };
+    }));
+    messages.push(...results);
   }
 
   return { status: "step_limit", answer: "", steps: maxSteps, usage, messages };
