@@ -3,6 +3,7 @@ import DOMPurify from "/vendor/dompurify.js";
 
 const $ = (selector) => document.querySelector(selector);
 const storageKey = "pekka.task-history.v1";
+let currentPage = "workspace";
 let bots = [];
 let selected;
 let history = loadHistory();
@@ -86,9 +87,9 @@ function entries(bot) {
 function botRow(bot) {
   const button = element(
     "button",
-    `bot-row${selected === bot ? " active" : ""}`,
+    `bot-row${selected === bot && currentPage === "workspace" ? " active" : ""}`,
   );
-  button.setAttribute("aria-current", selected === bot ? "true" : "false");
+  button.setAttribute("aria-current", selected === bot && currentPage === "workspace" ? "true" : "false");
   const copy = element("span", "bot-copy");
   const preview = running.has(bot.name)
     ? "Running…"
@@ -127,7 +128,10 @@ function selectBot(bot) {
     location.hash = hash;
     return;
   }
+  currentPage = "workspace";
   document.title = `${bot.name} — Pekka`;
+  $("#pages").hidden = true;
+  updateNavigation();
   if (selected) drafts.set(selected.name, $("#task").value);
   selected = bot;
   unread.delete(bot.name);
@@ -411,7 +415,8 @@ async function sendTask(task) {
   } finally {
     message.pending = false;
     running.delete(bot.name);
-    if (selected !== bot) unread.add(bot.name);
+    if (selected !== bot || currentPage !== "workspace") unread.add(bot.name);
+    if (currentPage === "activity") renderActivity();
     persist();
     renderBots();
     if (selected === bot) {
@@ -707,8 +712,41 @@ $("#host").textContent = location.host;
 route();
 initialize();
 
+function updateNavigation() {
+  for (const link of document.querySelectorAll("[data-page]")) {
+    if (link.dataset.page === currentPage) link.setAttribute("aria-current", "page");
+    else link.removeAttribute("aria-current");
+  }
+}
+
+function openPage(page) {
+  currentPage = page;
+  const titles = {
+    activity: ["Activity", "Tasks sent from this browser, newest first."],
+  };
+  $("#welcome").hidden = true;
+  $("#conversation").hidden = true;
+  $("#details").hidden = true;
+  $("#pages").hidden = false;
+  document.title = `${titles[page][0]} — Pekka`;
+  $("#heading").textContent = titles[page][0];
+  $("#page-title").textContent = titles[page][0];
+  $("#page-description").textContent = titles[page][1];
+  for (const panel of document.querySelectorAll("[data-panel]")) panel.hidden = panel.dataset.panel !== page;
+  $("#pages").scrollTop = 0;
+  $("#page-title").focus({ preventScroll: true });
+  updateNavigation();
+  renderBots();
+  closeDrawer();
+  if (page === "activity") renderActivity();
+}
+
 function route() {
   const page = location.hash.slice(1);
+  if (["activity"].includes(page)) {
+    openPage(page);
+    return;
+  }
   let botName = "";
   try { botName = decodeURIComponent(page.replace(/^bot\//, "")); } catch {}
   const bot = bots.find((item) => item.name === botName) || selected || bots[0];
@@ -717,10 +755,41 @@ function route() {
     selectBot(bot);
     return;
   }
+  currentPage = "workspace";
+  $("#pages").hidden = true;
   $("#welcome").hidden = !loaded;
   $("#conversation").hidden = true;
   $("#details").hidden = true;
   $("#heading").textContent = loaded ? "Bots" : "";
+  updateNavigation();
   closeDrawer();
+}
+
+function renderActivity() {
+  const tasks = Object.entries(history).flatMap(([key, messages]) =>
+    messages.filter((message) => message.role === "user").map((message) => ({ key, ...message })),
+  ).sort((a, b) => b.time - a.time);
+  const plural = (count, word) => `${count} ${word}${count === 1 ? "" : "s"}`;
+  $("#activity-summary").textContent = `${plural(tasks.length, "task")} · ${plural(bots.length, "bot")} · ${running.size} running`;
+  const list = $("#activity-list");
+  list.replaceChildren();
+  if (!tasks.length) {
+    const empty = element("div", "activity-empty");
+    empty.append(element("h2", "", "No tasks yet"), element("p", "muted", "Tasks you send to a bot from this browser are listed here."));
+    list.append(empty);
+  }
+  for (const task of tasks.slice(0, 100)) {
+    const bot = bots.find((item) => item.name.toLowerCase() === task.key);
+    const row = element(bot ? "a" : "article", "activity-row");
+    if (bot) row.href = "#bot/" + encodeURIComponent(bot.name);
+    const meta = element("div", "activity-meta");
+    meta.append(
+      element("strong", "", bot?.name || task.key),
+      element("time", "", new Date(task.time).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })),
+    );
+    row.append(meta, element("p", "", task.text));
+    list.append(row);
+  }
+  if (tasks.length > 100) list.append(element("p", "muted activity-more", "Showing the 100 most recent tasks."));
 }
 window.addEventListener("hashchange", route);

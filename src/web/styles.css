@@ -335,6 +335,32 @@ label textarea {
   font-size: 12px;
   color: var(--ink-3);
 }
+.workspace-nav {
+  display: grid;
+  gap: 1px;
+  margin-top: auto;
+  padding-top: 10px;
+  border-top: 1px solid var(--rule);
+}
+.workspace-nav a {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  border-radius: var(--radius);
+  color: var(--ink-2);
+  text-decoration: none;
+  font-size: 13px;
+}
+.workspace-nav a:hover {
+  color: var(--ink);
+  background: var(--sunk);
+}
+.workspace-nav a[aria-current] {
+  color: var(--ink);
+  background: var(--sheet);
+  box-shadow: inset 0 0 0 1px var(--rule);
+}
 .sidebar-footer {
   margin-top: 10px;
   padding: 10px 10px 0;
@@ -724,6 +750,30 @@ main {
   margin-right: 0.5em;
   accent-color: var(--accent);
 }
+
+/* Pages */
+.pages {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 44px max(24px, calc((100% - 640px) / 2)) 64px;
+}
+.page-heading {
+  margin-bottom: 28px;
+}
+.page-heading h1 {
+  font-size: 26px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+.page-heading h1:focus {
+  outline: none;
+}
+.page-heading p {
+  margin-top: 6px;
+  color: var(--ink-2);
+  font-size: 14px;
+}
 .form-actions {
   display: flex;
   align-items: center;
@@ -735,6 +785,61 @@ main {
   font-family: var(--mono);
   font-size: 12px;
   color: var(--ink-3);
+}
+.activity-summary {
+  margin-bottom: 10px;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--ink-3);
+}
+#activity-list {
+  border-top: 1px solid var(--ink);
+}
+.activity-row {
+  display: block;
+  padding: 14px 8px;
+  border-bottom: 1px solid var(--rule);
+  color: var(--ink);
+  text-decoration: none;
+}
+a.activity-row:hover {
+  background: var(--paper-2);
+}
+.activity-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink-3);
+}
+.activity-meta strong {
+  font-weight: 500;
+  color: var(--ink-2);
+}
+.activity-row p {
+  margin-top: 4px;
+  font-size: 14px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.activity-empty {
+  padding: 28px 8px;
+}
+.activity-empty h2 {
+  font-size: 15px;
+  font-weight: 500;
+}
+.activity-empty p {
+  margin-top: 4px;
+}
+.activity-more {
+  padding: 14px 8px;
 }
 
 /* Dialogs */
@@ -924,6 +1029,9 @@ dialog::backdrop {
   }
   .message-body {
     font-size: 14px;
+  }
+  .pages {
+    padding: 28px 16px 48px;
   }
   .form-actions {
     align-items: flex-start;

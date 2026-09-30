@@ -34,6 +34,9 @@
           <span>Bots</span><span id="bot-count">0</span>
         </div>
         <nav id="bot-list" aria-label="Bots"></nav>
+        <nav class="workspace-nav" aria-label="Workspace">
+          <a href="#activity" data-page="activity">Activity</a>
+        </nav>
         <div class="sidebar-footer" id="host"></div>
       </aside>
       <main>
@@ -82,6 +85,16 @@
               <span>Each task is a fresh run. History is kept in this browser.</span
               ><span id="send-hint">Enter to send, Shift + Enter for a new line</span>
             </div>
+          </div>
+        </section>
+        <section id="pages" class="pages" hidden>
+          <div class="page-heading">
+            <h1 id="page-title" tabindex="-1"></h1>
+            <p id="page-description"></p>
+          </div>
+          <div data-panel="activity" hidden>
+            <div class="activity-summary" id="activity-summary"></div>
+            <div id="activity-list"></div>
           </div>
         </section>
       </main>
