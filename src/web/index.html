@@ -36,7 +36,12 @@
         <nav id="bot-list" aria-label="Bots"></nav>
         <nav class="workspace-nav" aria-label="Workspace">
           <a href="#activity" data-page="activity">Activity</a>
+          <a href="#settings" data-page="settings">Settings</a>
         </nav>
+        <a class="profile-link" href="#profile" data-page="profile"
+          ><span id="profile-initial" class="profile-initial">Y</span
+          ><strong id="profile-label">Profile</strong></a
+        >
         <div class="sidebar-footer" id="host"></div>
       </aside>
       <main>
@@ -83,7 +88,7 @@
             </form>
             <div class="composer-note">
               <span>Each task is a fresh run. History is kept in this browser.</span
-              ><span id="send-hint">Enter to send, Shift + Enter for a new line</span>
+              ><span id="send-hint"></span>
             </div>
           </div>
         </section>
@@ -91,6 +96,29 @@
           <div class="page-heading">
             <h1 id="page-title" tabindex="-1"></h1>
             <p id="page-description"></p>
+          </div>
+          <div data-panel="profile" hidden>
+            <form id="profile-form" class="panel-section">
+              <label>Display name<input name="displayName" maxlength="80" placeholder="Your name" autocomplete="nickname" required /></label>
+              <label>What you do<input name="occupation" maxlength="120" placeholder="e.g. Designer" /></label>
+              <label>About you<textarea name="bio" maxlength="500" rows="4" placeholder="A few words about your work"></textarea></label>
+              <div class="form-actions"><span class="form-status" role="status"></span><button class="button primary">Save profile</button></div>
+            </form>
+            <p class="info-note">There is no account or sign-in. This profile only exists in this browser.</p>
+          </div>
+          <div data-panel="settings" hidden>
+            <form id="settings-form" class="panel-section">
+              <h2>Conversation</h2>
+              <label class="preference-row"><span><strong>Enter to send</strong><small>Shift + Enter always adds a new line.</small></span><input type="checkbox" name="enterToSend" role="switch" /></label>
+              <label class="preference-row"><span><strong>Compact transcript</strong><small>Less space between messages.</small></span><input type="checkbox" name="compact" role="switch" /></label>
+              <label class="preference-row"><span><strong>Reduce motion</strong><small>No smooth scrolling, transitions or activity animation.</small></span><input type="checkbox" name="reduceMotion" role="switch" /></label>
+              <div class="form-actions"><span class="form-status" role="status"></span><button class="button primary">Save preferences</button></div>
+            </form>
+            <div class="panel-section">
+              <h2>Data</h2>
+              <p class="muted">Conversation history is stored in this browser and does not sync. Bot memory is stored by the Pekka server, and files live in each bot's sandbox.</p>
+              <div class="form-actions"><span id="export-status" class="form-status" role="status"></span><button id="export-history" class="button secondary">Export history as JSON</button></div>
+            </div>
           </div>
           <div data-panel="activity" hidden>
             <div class="activity-summary" id="activity-summary"></div>

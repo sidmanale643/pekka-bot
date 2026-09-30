@@ -3,6 +3,10 @@ import DOMPurify from "/vendor/dompurify.js";
 
 const $ = (selector) => document.querySelector(selector);
 const storageKey = "pekka.task-history.v1";
+const profileKey = "pekka.profile.v1";
+const preferencesKey = "pekka.preferences.v1";
+let profile = loadLocal(profileKey, { displayName: "", occupation: "", bio: "" });
+let preferences = loadLocal(preferencesKey, { enterToSend: true, compact: false, reduceMotion: false });
 let currentPage = "workspace";
 let bots = [];
 let selected;
@@ -267,7 +271,7 @@ function renderTranscript(forceScroll = false) {
       element(
         "strong",
         "",
-        message.role === "user" ? "You" : selected.name,
+        message.role === "user" ? profile.displayName || "You" : selected.name,
       ),
       element("time", "", time),
     );
@@ -652,7 +656,7 @@ $("#composer").addEventListener("submit", (event) => {
   sendTask($("#task").value);
 });
 $("#task").addEventListener("keydown", (event) => {
-  if (event.key === "Enter" && !event.shiftKey && !event.isComposing) {
+  if (preferences.enterToSend && event.key === "Enter" && !event.shiftKey && !event.isComposing) {
     event.preventDefault();
     sendTask($("#task").value);
   }
@@ -709,8 +713,48 @@ async function initialize() {
   }
 }
 $("#host").textContent = location.host;
+applyPreferences();
+renderProfile();
 route();
 initialize();
+
+function loadLocal(key, defaults) {
+  try {
+    const value = JSON.parse(localStorage.getItem(key));
+    const result = { ...defaults };
+    for (const name of Object.keys(defaults)) {
+      if (typeof value?.[name] === typeof defaults[name]) result[name] = value[name];
+    }
+    return result;
+  } catch {
+    return { ...defaults };
+  }
+}
+
+function saveLocal(key, value, form) {
+  const status = form.querySelector('.form-status');
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+    status.textContent = "Saved in this browser.";
+    return true;
+  } catch {
+    status.textContent = "Could not save. Browser storage is unavailable or full.";
+    return false;
+  }
+}
+
+function renderProfile() {
+  $("#profile-label").textContent = profile.displayName || "Profile";
+  $("#profile-initial").textContent = (profile.displayName || "You").slice(0, 1).toUpperCase();
+}
+
+function applyPreferences() {
+  document.documentElement.classList.toggle("compact", preferences.compact);
+  document.documentElement.classList.toggle("reduce-motion", preferences.reduceMotion);
+  $("#send-hint").textContent = preferences.enterToSend
+    ? "Enter to send, Shift + Enter for a new line"
+    : "Enter adds a new line";
+}
 
 function updateNavigation() {
   for (const link of document.querySelectorAll("[data-page]")) {
@@ -722,6 +766,8 @@ function updateNavigation() {
 function openPage(page) {
   currentPage = page;
   const titles = {
+    profile: ["Profile", "Your name appears on the tasks you send. It is stored in this browser and never sent to bots."],
+    settings: ["Settings", "Preferences for this browser. They apply to every bot."],
     activity: ["Activity", "Tasks sent from this browser, newest first."],
   };
   $("#welcome").hidden = true;
@@ -743,7 +789,7 @@ function openPage(page) {
 
 function route() {
   const page = location.hash.slice(1);
-  if (["activity"].includes(page)) {
+  if (["profile", "settings", "activity"].includes(page)) {
     openPage(page);
     return;
   }
@@ -790,6 +836,43 @@ function renderActivity() {
     row.append(meta, element("p", "", task.text));
     list.append(row);
   }
-  if (tasks.length > 100) list.append(element("p", "muted activity-more", "Showing the 100 most recent tasks."));
+  if (tasks.length > 100) list.append(element("p", "muted activity-more", "Showing the 100 most recent tasks. Export the full history from Settings."));
 }
+
+for (const [name, value] of Object.entries(profile)) $("#profile-form").elements[name].value = value;
+for (const [name, value] of Object.entries(preferences)) $("#settings-form").elements[name].checked = value;
+
+$("#profile-form").addEventListener("submit", (event) => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const value = Object.fromEntries([...new FormData(form)].map(([key, text]) => [key, text.trim()]));
+  if (!value.displayName) {
+    form.querySelector(".form-status").textContent = "Please enter your name.";
+    return;
+  }
+  if (!saveLocal(profileKey, value, form)) return;
+  profile = value;
+  renderProfile();
+  if (selected) renderTranscript();
+});
+$("#settings-form").addEventListener("submit", (event) => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const value = Object.fromEntries(Object.keys(preferences).map((key) => [key, form.elements[key].checked]));
+  if (!saveLocal(preferencesKey, value, form)) return;
+  preferences = value;
+  applyPreferences();
+});
+for (const form of document.querySelectorAll("#profile-form, #settings-form")) {
+  form.addEventListener("input", () => { form.querySelector(".form-status").textContent = "Unsaved changes"; });
+}
+$("#export-history").addEventListener("click", () => {
+  const url = URL.createObjectURL(new Blob([JSON.stringify(history, null, 2)], { type: "application/json" }));
+  const link = element("a", "");
+  link.href = url;
+  link.download = `pekka-history-${new Date().toISOString().slice(0, 10)}.json`;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  $("#export-status").textContent = "Export downloaded.";
+});
 window.addEventListener("hashchange", route);
