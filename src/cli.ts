@@ -6,6 +6,7 @@ import { connectDaytonaComputer } from "./computer/daytona-computer.ts";
 import { loadConfig } from "./config.ts";
 import { createOpenRouterModel } from "./model/openrouter.ts";
 import { defaultTools } from "./tools/index.ts";
+import { botKey } from "./bot-memory.ts";
 
 const USAGE = 'Usage:\n  pekka run "<task>"\n  pekka bot create --name "<name>" --role "<role>" --job "<job>"\n  pekka bot list\n  pekka bot run "<name>"';
 
@@ -63,10 +64,12 @@ async function runTask(task: string, bot?: Bot): Promise<void> {
   if (existsSync(".env")) process.loadEnvFile(".env");
   const config = loadConfig();
 
-  console.log(`Connecting to sandbox "${config.sandboxName}"...`);
+  const sandboxName = bot ? `${config.sandboxName.slice(0, 30)}-bot-${botKey(bot)}` : config.sandboxName;
+  console.log(`Connecting to sandbox "${sandboxName}"...`);
   const computer = await connectDaytonaComputer({
     apiKey: config.daytonaApiKey,
-    sandboxName: config.sandboxName,
+    sandboxName,
+    workspace: Boolean(bot),
   });
   const model = createOpenRouterModel({ apiKey: config.openRouterApiKey, model: config.model });
 

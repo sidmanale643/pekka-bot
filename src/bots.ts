@@ -1,6 +1,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { z } from "zod";
+import { BotMemory } from "./bot-memory.ts";
 
 const BotSchema = z.object({
   name: z.string().trim().min(1),
@@ -36,6 +37,7 @@ export async function createBot(input: Bot): Promise<Bot> {
     throw new Error(`A bot named "${bot.name}" already exists.`);
   }
   await mkdir(join(process.cwd(), ".pekka"), { recursive: true });
+  await new BotMemory(bot).initialize();
   await writeFile(botsPath(), JSON.stringify([...bots, bot], null, 2) + "\n", "utf8");
   return bot;
 }

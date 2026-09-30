@@ -1,5 +1,7 @@
 import { Daytona, DaytonaNotFoundError, SandboxState, type Sandbox } from "@daytonaio/sdk";
 import type { CommandResult, Computer, RunOptions } from "./computer.ts";
+import { posix } from "node:path";
+import { workspaceComputer } from "./workspace-computer.ts";
 
 const DEFAULT_TIMEOUT_SECONDS = 120;
 const AUTO_STOP_MINUTES = 15;
@@ -12,6 +14,7 @@ const AUTO_STOP_MINUTES = 15;
 export async function connectDaytonaComputer(options: {
   apiKey: string;
   sandboxName: string;
+  workspace?: boolean;
 }): Promise<Computer> {
   const daytona = new Daytona({ apiKey: options.apiKey });
   const sandbox = await findOrCreateSandbox(daytona, options.sandboxName);
@@ -19,7 +22,14 @@ export async function connectDaytonaComputer(options: {
   if (sandbox.state !== SandboxState.STARTED) {
     await sandbox.start();
   }
-  return new DaytonaComputer(sandbox);
+  const computer = new DaytonaComputer(sandbox);
+  if (!options.workspace) return computer;
+  const workDir = await sandbox.getWorkDir();
+  if (!workDir) throw new Error("Sandbox did not return a working directory.");
+  const directory = posix.join(workDir, "workspace");
+  const prepared = await computer.run(`mkdir -p '${directory.replaceAll("'", "'\\''")}'`);
+  if (prepared.exitCode !== 0) throw new Error(`Could not create bot workspace: ${prepared.output}`);
+  return workspaceComputer(computer, directory);
 }
 
 async function findOrCreateSandbox(daytona: Daytona, name: string): Promise<Sandbox> {

@@ -8,7 +8,7 @@ export const runCommand = defineTool({
     "Use this to inspect files, run programs, install dependencies, and verify work. Commands can change files or system state.",
   input: z.object({
     command: z.string().describe("Shell command to execute on the Linux computer."),
-    cwd: z.string().optional().describe("Working directory on the Linux computer. Defaults to its home directory."),
+    cwd: z.string().optional().describe("Working directory on the Linux computer. Defaults to the named bot's workspace, or the home directory for unnamed runs."),
     timeout_seconds: z.number().int().positive().max(1800).optional().describe("Maximum time to wait, in seconds. Defaults to 120; maximum 1800."),
   }),
   async run(input, { computer }) {

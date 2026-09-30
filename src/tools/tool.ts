@@ -1,12 +1,16 @@
 import { z } from "zod";
 import type { Computer } from "../computer/computer.ts";
 import type { ToolDefinition } from "../model/model.ts";
+import type { Bot } from "../bots.ts";
+import type { BotMemory } from "../bot-memory.ts";
 
 /** Tool output is trimmed to this size so one command can't flood the model's context. */
 const MAX_OUTPUT_CHARS = 20_000;
 
 export interface ToolContext {
   computer: Computer;
+  bot?: Bot;
+  memory?: BotMemory;
 }
 
 /**
