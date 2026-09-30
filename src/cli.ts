@@ -1,41 +1,53 @@
 import { existsSync } from "node:fs";
 import type { AgentEvent } from "./agent/events.ts";
-import { runAgent } from "./agent/loop.ts";
+import { runAgent, type AgentResult } from "./agent/loop.ts";
 import { createBot, getBot, listBots, type Bot } from "./bots.ts";
 import { connectDaytonaComputer } from "./computer/daytona-computer.ts";
 import { loadConfig } from "./config.ts";
 import { createOpenRouterModel } from "./model/openrouter.ts";
 import { defaultTools } from "./tools/index.ts";
+import { cancelScheduledJob, listScheduledJobs, runScheduler } from "./scheduler.ts";
 import { botKey } from "./bot-memory.ts";
 
-const USAGE = 'Usage:\n  pekka run "<task>"\n  pekka bot create --name "<name>" --role "<role>" --job "<job>"\n  pekka bot list\n  pekka bot run "<name>"';
+const USAGE = 'Usage:\n  pekka run "<task>"\n  pekka bot create --name "<name>" --role "<role>" --job "<job>"\n  pekka bot list\n  pekka bot run "<name>"\n  pekka scheduler [--once]\n  pekka jobs list\n  pekka jobs cancel "<id>"';
 
 async function main(args: string[]): Promise<void> {
   const [command, ...rest] = args;
-  if (command === "bot") {
-    const [action, ...botArgs] = rest;
-    if (action === "create") {
-      const bot = await createBot(parseBotOptions(botArgs));
-      console.log(`Created bot "${bot.name}".`);
-      return;
-    }
-    if (action === "list" && botArgs.length === 0) {
-      const bots = await listBots();
-      console.log(bots.length ? bots.map((bot) => `${bot.name} — ${bot.role}: ${bot.job}`).join("\n") : "No bots yet.");
-      return;
-    }
-    if (action === "run" && botArgs.length === 1 && botArgs[0]) {
-      const bot = await getBot(botArgs[0]);
-      await runTask(bot.job, bot);
-      return;
-    }
-  }
-  if (command === "run" && rest.join(" ").trim()) {
-    await runTask(rest.join(" ").trim());
+  const commands: Record<string, (args: string[]) => Promise<unknown>> = {
+    run: async (args) => {
+      const task = args.join(" ").trim();
+      if (!task) throw new Error(USAGE);
+      return runTask(task);
+    },
+    bot: manageBots,
+    jobs: manageJobs,
+    scheduler: async (args) => {
+      if (args.length > 1 || (args.length === 1 && args[0] !== "--once")) throw new Error(USAGE);
+      await startScheduler(args[0] === "--once");
+    },
+  };
+  if (!command || !Object.hasOwn(commands, command)) throw new Error(USAGE);
+  await commands[command]!(rest);
+}
+
+async function manageBots(args: string[]): Promise<void> {
+  const [action, ...botArgs] = args;
+  if (action === "create") {
+    const bot = await createBot(parseBotOptions(botArgs));
+    console.log(`Created bot "${bot.name}".`);
     return;
   }
-  console.error(USAGE);
-  process.exitCode = 1;
+  if (action === "list" && botArgs.length === 0) {
+    const bots = await listBots();
+    console.log(bots.length ? bots.map((bot) => `${bot.name} — ${bot.role}: ${bot.job}`).join("\n") : "No bots yet.");
+    return;
+  }
+  if (action === "run" && botArgs.length === 1 && botArgs[0]) {
+    const bot = await getBot(botArgs[0]);
+    await runTask(bot.job, bot);
+    return;
+  }
+  throw new Error(USAGE);
 }
 
 function parseBotOptions(args: string[]): Bot {
@@ -54,13 +66,7 @@ function parseBotOptions(args: string[]): Bot {
   return { name: values["--name"], role: values["--role"], job: values["--job"] };
 }
 
-async function runTask(task: string, bot?: Bot): Promise<void> {
-  if (!task) {
-    console.error(USAGE);
-    process.exitCode = 1;
-    return;
-  }
-
+async function runTask(task: string, bot?: Bot): Promise<AgentResult> {
   if (existsSync(".env")) process.loadEnvFile(".env");
   const config = loadConfig();
 
@@ -87,6 +93,40 @@ async function runTask(task: string, bot?: Bot): Promise<void> {
   }
   const { promptTokens, completionTokens, costUsd } = result.usage;
   console.log(`\n${result.steps} steps · ${promptTokens + completionTokens} tokens · $${costUsd.toFixed(4)}`);
+  return result;
+}
+
+async function manageJobs(args: string[]): Promise<void> {
+  if (args.length === 1 && args[0] === "list") {
+    console.log(JSON.stringify(await listScheduledJobs(), null, 2));
+    return;
+  }
+  if (args.length === 2 && args[0] === "cancel" && args[1]) {
+    console.log(JSON.stringify(await cancelScheduledJob(args[1]), null, 2));
+    return;
+  }
+  throw new Error(USAGE);
+}
+
+async function startScheduler(once: boolean): Promise<void> {
+  const controller = new AbortController();
+  const stop = () => {
+    console.log("\nStopping scheduler after the current task finishes...");
+    controller.abort();
+  };
+  process.once("SIGINT", stop);
+  process.once("SIGTERM", stop);
+  console.log(`Scheduler checking jobs in ${process.cwd()}/.pekka${once ? " once" : "; keep this process running"}.`);
+  try {
+    await runScheduler(async (job) => {
+      console.log(`\nRunning scheduled job "${job.name}" (${job.id})...`);
+      const { status, answer, steps, usage } = await runTask(job.task, job.bot);
+      return { status, answer, steps, usage };
+    }, { once, signal: controller.signal });
+  } finally {
+    process.removeListener("SIGINT", stop);
+    process.removeListener("SIGTERM", stop);
+  }
 }
 
 let streamingText = false;
