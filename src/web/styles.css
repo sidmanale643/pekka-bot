@@ -384,6 +384,9 @@ main {
   font-weight: 400;
   color: var(--ink-3);
 }
+#details {
+  margin-left: auto;
+}
 #notice {
   padding: 10px 20px;
   background: var(--danger-soft);
@@ -721,6 +724,18 @@ main {
   margin-right: 0.5em;
   accent-color: var(--accent);
 }
+.form-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 22px;
+}
+.form-status {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--ink-3);
+}
 
 /* Dialogs */
 dialog {
@@ -764,6 +779,89 @@ dialog::backdrop {
   justify-content: flex-end;
   gap: 8px;
   margin-top: 24px;
+}
+.detail-tabs {
+  display: flex;
+  gap: 18px;
+  margin: 12px 0 18px;
+  border-bottom: 1px solid var(--rule);
+}
+.detail-tabs button {
+  margin-bottom: -1px;
+  padding: 8px 0;
+  border-bottom: 2px solid transparent;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.detail-tabs button:hover {
+  color: var(--ink);
+}
+.detail-tabs .active {
+  color: var(--ink);
+  border-color: var(--accent);
+}
+#detail-content {
+  font-size: 14px;
+  line-height: 1.65;
+}
+#detail-content > .loading {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.detail-field + .detail-field {
+  margin-top: 18px;
+}
+.detail-field p {
+  margin-top: 4px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.memory-file + .memory-file {
+  margin-top: 22px;
+}
+.memory-file textarea {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  line-height: 1.6;
+}
+.memory-file .form-actions {
+  margin-top: 8px;
+}
+.detail-list {
+  border-top: 1px solid var(--rule);
+}
+.detail-row {
+  padding: 12px 0;
+  border-bottom: 1px solid var(--rule);
+}
+.detail-row h3 {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  font-size: 14px;
+  font-weight: 500;
+}
+.detail-row h3 span {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--ink-3);
+}
+.detail-row p {
+  margin-top: 2px;
+  font-size: 13px;
+  color: var(--ink-2);
+  overflow-wrap: anywhere;
+}
+.detail-row p.error {
+  color: var(--danger);
+}
+.detail-note {
+  margin-bottom: 14px;
+  font-size: 13px;
+  color: var(--ink-2);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -826,6 +924,12 @@ dialog::backdrop {
   }
   .message-body {
     font-size: 14px;
+  }
+  .form-actions {
+    align-items: flex-start;
+  }
+  .form-actions button {
+    flex-shrink: 0;
   }
   dialog {
     padding: 18px 16px 18px;

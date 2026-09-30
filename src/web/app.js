@@ -134,6 +134,7 @@ function selectBot(bot) {
   closeDrawer();
   $("#welcome").hidden = true;
   $("#conversation").hidden = false;
+  $("#details").hidden = false;
   $("#heading").replaceChildren(
     element("strong", "", bot.name),
     element("span", "", bot.role),
@@ -479,6 +480,130 @@ $("#create-form").addEventListener("submit", async (event) => {
   }
 });
 
+let detailsVersion = 0;
+async function showDetails(tab = "purpose") {
+  const bot = selected;
+  const version = ++detailsVersion;
+  $("#detail-name").textContent = bot.name;
+  const content = $("#detail-content");
+  content.replaceChildren(element("p", "loading", "Loading…"));
+  document
+    .querySelectorAll("[data-tab]")
+    .forEach((button) =>
+      button.classList.toggle("active", button.dataset.tab === tab),
+    );
+  const panel = element("div", "");
+  try {
+    await detailViews[tab](panel, bot);
+    if (version === detailsVersion) content.replaceChildren(panel);
+  } catch (error) {
+    if (version === detailsVersion)
+      content.replaceChildren(element("p", "error", error.message));
+  }
+}
+
+const detailViews = {
+  purpose: async (panel, bot) => {
+    for (const [label, value] of [
+      ["Role", bot.role],
+      ["Default task", bot.job],
+    ]) {
+      const field = element("div", "detail-field");
+      field.append(element("div", "field-label", label), element("p", "", value));
+      panel.append(field);
+    }
+  },
+  memory: async (panel, bot) => {
+    for (const file of ["PREFERENCES.md", "KNOWLEDGE.md"]) {
+      const path = `/api/bots/${encodeURIComponent(bot.name)}/memory/${file}`;
+      const data = await api(path);
+      const section = element("div", "memory-file");
+      const label = element("label", "", file);
+      const input = element("textarea", "");
+      input.rows = 7;
+      input.value = data.content;
+      input.maxLength = 900000;
+      input.spellcheck = false;
+      label.append(input);
+      const actions = element("div", "form-actions");
+      const save = element("button", "button secondary small", "Save");
+      const status = element("span", "form-status");
+      status.setAttribute("role", "status");
+      input.addEventListener("input", () => {
+        status.textContent = "Unsaved changes";
+      });
+      save.addEventListener("click", async () => {
+        save.disabled = true;
+        try {
+          await api(path, {
+            method: "PUT",
+            body: JSON.stringify({ content: input.value }),
+          });
+          status.textContent = "Saved";
+        } catch (error) {
+          status.textContent = error.message;
+        } finally {
+          save.disabled = false;
+        }
+      });
+      actions.append(status, save);
+      section.append(label, actions);
+      panel.append(section);
+    }
+  },
+  skills: async (panel, bot) => {
+    const data = await api(`/api/bots/${encodeURIComponent(bot.name)}/skills`);
+    if (!data.skills.length)
+      panel.append(
+        element(
+          "p",
+          "detail-note",
+          "No skills installed. Add a skill folder to this bot's skills directory.",
+        ),
+      );
+    const list = element("div", "detail-list");
+    for (const skill of data.skills) {
+      const row = element("div", "detail-row");
+      row.append(
+        element("h3", "", skill.name),
+        element("p", "", skill.description),
+      );
+      list.append(row);
+    }
+    if (data.skills.length) panel.append(list);
+    for (const error of data.errors) panel.append(element("p", "error", error));
+  },
+  schedules: async (panel, bot) => {
+    const data = await api("/api/jobs");
+    const jobs = data.jobs.filter(
+      (job) => job.bot?.name.toLowerCase() === bot.name.toLowerCase(),
+    );
+    panel.append(
+      element(
+        "p",
+        "detail-note",
+        jobs.length
+          ? "Scheduled tasks run only while the local scheduler is running."
+          : "No scheduled tasks. Ask this bot to schedule one; it runs while the local scheduler is running.",
+      ),
+    );
+    const list = element("div", "detail-list");
+    for (const job of jobs) {
+      const row = element("div", "detail-row");
+      const title = element("h3", "", job.name);
+      title.append(element("span", "", job.status));
+      row.append(title);
+      if (job.nextRunAt)
+        row.append(
+          element("p", "", `Next run ${new Date(job.nextRunAt).toLocaleString()}`),
+        );
+      if (job.lastError) row.append(element("p", "error", job.lastError));
+      list.append(row);
+    }
+    if (jobs.length) panel.append(list);
+  },
+};
+
 const mobileSidebar = window.matchMedia("(max-width: 600px)");
 
 function sidebarExpanded() {
@@ -527,6 +652,15 @@ $("#task").addEventListener("keydown", (event) => {
     sendTask($("#task").value);
   }
 });
+$("#details").addEventListener("click", () => {
+  $("#details-dialog").showModal();
+  showDetails();
+});
+document
+  .querySelectorAll("[data-tab]")
+  .forEach((button) =>
+    button.addEventListener("click", () => showDetails(button.dataset.tab)),
+  );
 document
   .querySelectorAll("[data-template]")
   .forEach((button) =>
@@ -585,6 +719,7 @@ function route() {
   }
   $("#welcome").hidden = !loaded;
   $("#conversation").hidden = true;
+  $("#details").hidden = true;
   $("#heading").textContent = loaded ? "Bots" : "";
   closeDrawer();
 }
