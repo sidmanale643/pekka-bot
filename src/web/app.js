@@ -769,6 +769,7 @@ function openPage(page) {
     profile: ["Profile", "Your name appears on the tasks you send. It is stored in this browser and never sent to bots."],
     settings: ["Settings", "Preferences for this browser. They apply to every bot."],
     activity: ["Activity", "Tasks sent from this browser, newest first."],
+    help: ["Help", "How bots, memory and schedules work."],
   };
   $("#welcome").hidden = true;
   $("#conversation").hidden = true;
@@ -789,7 +790,7 @@ function openPage(page) {
 
 function route() {
   const page = location.hash.slice(1);
-  if (["profile", "settings", "activity"].includes(page)) {
+  if (["profile", "settings", "activity", "help"].includes(page)) {
     openPage(page);
     return;
   }

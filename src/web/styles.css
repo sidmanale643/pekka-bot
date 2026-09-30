@@ -892,6 +892,50 @@ main {
   background: var(--sheet);
   transform: translateX(16px);
 }
+.panel-section details {
+  border-bottom: 1px solid var(--rule);
+}
+.panel-section details:first-of-type {
+  margin-top: 12px;
+  border-top: 1px solid var(--rule);
+}
+.panel-section summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 0;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  list-style: none;
+}
+.panel-section summary::-webkit-details-marker {
+  display: none;
+}
+.panel-section summary::after {
+  content: "+";
+  font-family: var(--mono);
+  color: var(--ink-3);
+}
+.panel-section details[open] summary::after {
+  content: "\2212";
+}
+.panel-section details p {
+  padding-bottom: 14px;
+  font-size: 13px;
+  line-height: 1.65;
+  color: var(--ink-2);
+}
+.shortcut {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--rule);
+  font-size: 13px;
+  color: var(--ink-2);
+}
 .activity-summary {
   margin-bottom: 10px;
   font-family: var(--mono);
