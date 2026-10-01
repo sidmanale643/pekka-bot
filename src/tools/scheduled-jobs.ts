@@ -1,13 +1,14 @@
 import { z } from "zod";
+import type { Database } from "../database/database.ts";
 import { cancelScheduledJob, createScheduledJob, listScheduledJobs, type ScheduledJob } from "../scheduler.ts";
 import { defineTool } from "./tool.ts";
 
-export function createSchedulingTools(directory?: string) {
+export function createSchedulingTools(database?: Database) {
   const scheduleJob = defineTool({
     name: "schedule_job",
     description:
       "Schedule a future agent task, once or at a fixed interval. Only schedule work the user requested. " +
-      "Jobs persist locally and execute only while `pekka scheduler` is running from this project directory. " +
+      "Jobs are saved in the database and execute only while `pekka scheduler` is running from this project directory. " +
       "The current bot's identity is saved with the job. Use list_scheduled_jobs to check existing jobs before creating duplicates.",
     input: z.object({
       name: z.string().trim().min(1).describe("Short job name."),
@@ -16,13 +17,13 @@ export function createSchedulingTools(directory?: string) {
       interval_seconds: z.number().int().min(60).max(31_536_000).optional().describe("Repeat every 60 to 31536000 seconds; omit for a one-time job. Fixed intervals do not adjust for daylight saving time."),
     }),
     async run(input, context) {
-      const job = await createScheduledJob({
+      const job = await createScheduledJob(context.userId, {
         name: input.name,
         task: input.task,
         runAt: input.run_at,
         intervalSeconds: input.interval_seconds,
         bot: context.bot,
-      }, directory);
+      }, database);
       return JSON.stringify({ job: summarizeJob(job), execution: "Run `pekka scheduler` from the same project directory and keep it running. Saving a job does not start the scheduler." });
     },
   });
@@ -34,8 +35,8 @@ export function createSchedulingTools(directory?: string) {
       offset: z.number().int().min(0).default(0).describe("Pagination offset; start at zero."),
       limit: z.number().int().min(1).max(10).default(10).describe("Number of summaries to return, up to ten."),
     }),
-    async run({ offset, limit }) {
-      const jobs = await listScheduledJobs(directory);
+    async run({ offset, limit }, { userId }) {
+      const jobs = await listScheduledJobs(userId, database);
       const page = jobs.slice(offset, offset + limit);
       return JSON.stringify({
         now: new Date().toISOString(),
@@ -51,8 +52,8 @@ export function createSchedulingTools(directory?: string) {
     name: "cancel_scheduled_job",
     description: "Cancel a scheduled job by ID. Prevents future executions; an already-running task is allowed to finish.",
     input: z.object({ id: z.string().min(1).describe("Job ID returned by schedule_job or list_scheduled_jobs.") }),
-    async run({ id }) {
-      return JSON.stringify(summarizeJob(await cancelScheduledJob(id, directory)));
+    async run({ id }, { userId }) {
+      return JSON.stringify(summarizeJob(await cancelScheduledJob(userId, id, database)));
     },
   });
 

@@ -1,11 +1,9 @@
 import { randomUUID } from "node:crypto";
-import { mkdir } from "node:fs/promises";
 import { hostname } from "node:os";
-import { join } from "node:path";
-import type { DatabaseSync } from "node:sqlite";
 import { setTimeout as delay } from "node:timers/promises";
 import { z } from "zod";
 import type { Bot } from "./bots.ts";
+import { ensureSchema, getDatabase, LOCAL_USER, type Database } from "./database/database.ts";
 
 const InputSchema = z.object({
   name: z.string().trim().min(1),
@@ -17,12 +15,14 @@ const InputSchema = z.object({
 
 export interface ScheduledJob {
   id: string;
+  /** The user the job runs as. Its bot, plugins and results belong to them. */
+  userId: string;
   name: string;
   task: string;
   runAt: string;
   intervalSeconds?: number;
   bot?: Bot;
-  status: "pending" | "running" | "completed" | "failed" | "cancelled";
+  status: "pending" | "running" | "paused" | "completed" | "failed" | "cancelled";
   nextRunAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -41,58 +41,74 @@ interface Runner {
 }
 
 export interface SchedulerOptions {
-  directory?: string;
+  database?: Database;
   signal?: AbortSignal;
   pollMs?: number;
   once?: boolean;
+  /** How long the runner lock lasts without renewal. Another runner can take over after it expires. */
+  leaseMs?: number;
 }
 
-async function openDatabase(directory = join(process.cwd(), ".pekka")): Promise<DatabaseSync> {
-  const jobsDirectory = join(directory, "jobs");
-  await mkdir(jobsDirectory, { recursive: true });
-  const { DatabaseSync } = await import("node:sqlite");
-  const database = new DatabaseSync(join(jobsDirectory, "scheduler.sqlite"));
-  try {
-    database.exec(`
-    PRAGMA busy_timeout = 5000;
-    PRAGMA journal_mode = WAL;
-    CREATE TABLE IF NOT EXISTS jobs (id TEXT PRIMARY KEY, data TEXT NOT NULL);
-    CREATE TABLE IF NOT EXISTS runner (id INTEGER PRIMARY KEY CHECK (id = 1), data TEXT NOT NULL);
-    `);
-    return database;
-  } catch (error) {
-    database.close();
-    throw error;
-  }
+/** A job row with its version, used for compare-and-swap updates. */
+interface StoredJob {
+  job: ScheduledJob;
+  version: number;
 }
 
-async function transaction<T>(directory: string | undefined, operation: (database: DatabaseSync) => T): Promise<T> {
-  const database = await openDatabase(directory);
-  try {
-    database.exec("BEGIN IMMEDIATE");
-    const result = operation(database);
-    database.exec("COMMIT");
-    return result;
-  } finally {
-    database.close();
-  }
+async function ready(database = getDatabase()): Promise<Database> {
+  await ensureSchema(database);
+  return database;
 }
 
-function readJobs(database: DatabaseSync): ScheduledJob[] {
-  return database.prepare("SELECT data FROM jobs ORDER BY rowid").all()
-    .map((row) => JSON.parse(row.data as string) as ScheduledJob);
+async function readJobs(database: Database, where = "", params: string[] = []): Promise<StoredJob[]> {
+  const rows = await database.query<{ data: string; version: number; user_id: string }>(
+    `SELECT data, version, user_id FROM scheduled_jobs ${where} ORDER BY rowid`, params,
+  );
+  // The column is the source of truth; jobs saved before users existed have no userId in their data.
+  return rows.map((row) => ({ job: { ...JSON.parse(row.data) as ScheduledJob, userId: row.user_id }, version: Number(row.version) }));
 }
 
-function saveJob(database: DatabaseSync, job: ScheduledJob): ScheduledJob {
+async function insertJob(database: Database, job: ScheduledJob): Promise<boolean> {
+  // D1 can't bind null, so an empty string stands in for "no next run".
+  const { changes } = await database.run(
+    "INSERT INTO scheduled_jobs (id, user_id, status, next_run_at, version, data) VALUES (?, ?, ?, NULLIF(?, ''), 0, ?) ON CONFLICT(id) DO NOTHING",
+    [job.id, job.userId, job.status, job.nextRunAt ?? "", JSON.stringify(job)],
+  );
+  return changes === 1;
+}
+
+/** Applies `change` only if nobody else updated the job since it was read. */
+async function updateJob(database: Database, stored: StoredJob, change: (job: ScheduledJob) => void): Promise<ScheduledJob | undefined> {
+  const job = structuredClone(stored.job);
+  change(job);
   job.updatedAt = new Date().toISOString();
-  database.prepare("INSERT INTO jobs (id, data) VALUES (?, ?) ON CONFLICT(id) DO UPDATE SET data = excluded.data")
-    .run(job.id, JSON.stringify(job));
-  return job;
+  const { changes } = await database.run(
+    "UPDATE scheduled_jobs SET status = ?, next_run_at = NULLIF(?, ''), version = version + 1, data = ? WHERE id = ? AND version = ?",
+    [job.status, job.nextRunAt ?? "", JSON.stringify(job), job.id, stored.version],
+  );
+  return changes === 1 ? job : undefined;
+}
+
+/**
+ * Re-reads and retries until the update lands on the latest version of the job.
+ * With `userId`, only that user's job can be changed; the scheduler itself passes none.
+ */
+async function modifyJob(database: Database, id: string, change: (job: ScheduledJob) => void, userId?: string): Promise<ScheduledJob> {
+  for (let attempt = 0; attempt < 10; attempt++) {
+    const [stored] = userId === undefined
+      ? await readJobs(database, "WHERE id = ?", [id])
+      : await readJobs(database, "WHERE id = ? AND user_id = ?", [id, userId]);
+    if (!stored) throw new Error(`No scheduled job with ID "${id}".`);
+    const updated = await updateJob(database, stored, change);
+    if (updated) return updated;
+  }
+  throw new Error(`Scheduled job "${id}" kept changing; try again.`);
 }
 
 export async function createScheduledJob(
+  userId: string,
   input: { name: string; task: string; runAt: string; intervalSeconds?: number; bot?: Bot },
-  directory?: string,
+  database?: Database,
 ): Promise<ScheduledJob> {
   const parsed = InputSchema.parse(input);
   if (Date.parse(parsed.runAt) <= Date.now()) throw new Error("runAt must be a future ISO timestamp with a timezone offset.");
@@ -101,27 +117,63 @@ export async function createScheduledJob(
     ...parsed,
     runAt: new Date(parsed.runAt).toISOString(),
     id: randomUUID(),
+    userId,
     status: "pending",
     nextRunAt: new Date(parsed.runAt).toISOString(),
     createdAt: now,
     updatedAt: now,
     runCount: 0,
   };
-  return transaction(directory, (database) => saveJob(database, job));
+  await insertJob(await ready(database), job);
+  return job;
 }
 
-export async function listScheduledJobs(directory?: string): Promise<ScheduledJob[]> {
-  return transaction(directory, readJobs);
+/** Copies an existing job as-is, keeping its ID, for the local user. Returns false if a job with that ID already exists. */
+export async function importScheduledJob(job: Omit<ScheduledJob, "userId">, database?: Database): Promise<boolean> {
+  return insertJob(await ready(database), { ...job, userId: LOCAL_USER });
 }
 
-export async function cancelScheduledJob(id: string, directory?: string): Promise<ScheduledJob> {
-  return transaction(directory, (database) => {
-    const job = readJobs(database).find((item) => item.id === id);
-    if (!job) throw new Error(`No scheduled job with ID "${id}".`);
+export async function listScheduledJobs(userId: string, database?: Database): Promise<ScheduledJob[]> {
+  return (await readJobs(await ready(database), "WHERE user_id = ?", [userId])).map((stored) => stored.job);
+}
+
+export async function getScheduledJob(userId: string, id: string, database?: Database): Promise<ScheduledJob | undefined> {
+  return (await readJobs(await ready(database), "WHERE id = ? AND user_id = ?", [id, userId]))[0]?.job;
+}
+
+export async function cancelScheduledJob(userId: string, id: string, database?: Database): Promise<ScheduledJob> {
+  return modifyJob(await ready(database), id, (job) => {
     job.status = "cancelled";
     job.nextRunAt = null;
-    return saveJob(database, job);
-  });
+  }, userId);
+}
+
+/** Thrown when a job's current status does not allow the requested change. */
+export class JobStateError extends Error {}
+
+export async function pauseScheduledJob(userId: string, id: string, database?: Database): Promise<ScheduledJob> {
+  return modifyJob(await ready(database), id, (job) => {
+    if (job.status !== "pending") throw new JobStateError("Only upcoming jobs can be paused.");
+    job.status = "paused";
+    job.nextRunAt = null;
+  }, userId);
+}
+
+/** Resumes on the next future occurrence; a one-time job whose time has passed runs right away. */
+export async function resumeScheduledJob(userId: string, id: string, database?: Database): Promise<ScheduledJob> {
+  return modifyJob(await ready(database), id, (job) => {
+    if (job.status !== "paused") throw new JobStateError("Only paused jobs can be resumed.");
+    job.status = "pending";
+    job.nextRunAt = Date.parse(job.runAt) > Date.now() ? job.runAt : nextOccurrence(job) ?? new Date().toISOString();
+  }, userId);
+}
+
+/** Whether a runner currently holds an unexpired lock, so pending jobs will execute. */
+export async function getSchedulerStatus(database?: Database): Promise<{ running: boolean; host?: string }> {
+  const [owner] = await (await ready(database)).query<{ host: string; expires_at: string }>(
+    "SELECT host, expires_at FROM scheduler_runner WHERE id = 1",
+  );
+  return owner && owner.expires_at >= new Date().toISOString() ? { running: true, host: owner.host } : { running: false };
 }
 
 function processIsAlive(pid: number): boolean {
@@ -141,63 +193,88 @@ function nextOccurrence(job: ScheduledJob): string | null {
   return new Date(base + Math.max(1, elapsedIntervals) * interval).toISOString();
 }
 
-function recoverInterruptedJobs(database: DatabaseSync): void {
-  for (const job of readJobs(database).filter((item) => item.status === "running")) {
-    job.lastError = "Scheduler stopped during this run. Outcome is unknown; this occurrence will not be retried.";
-    job.lastRunStatus = "failed";
-    job.lastFinishedAt = new Date().toISOString();
-    job.nextRunAt = nextOccurrence(job);
-    job.status = job.nextRunAt ? "pending" : "failed";
-    saveJob(database, job);
+async function recoverInterruptedJobs(database: Database): Promise<void> {
+  for (const { job } of await readJobs(database, "WHERE status = 'running'")) {
+    await modifyJob(database, job.id, (current) => {
+      if (current.status !== "running") return;
+      current.lastError = "Scheduler stopped during this run. Outcome is unknown; this occurrence will not be retried.";
+      current.lastRunStatus = "failed";
+      current.lastFinishedAt = new Date().toISOString();
+      current.nextRunAt = nextOccurrence(current);
+      current.status = current.nextRunAt ? "pending" : "failed";
+    });
   }
 }
 
-async function acquireRunner(directory?: string): Promise<Runner> {
-  return transaction(directory, (database) => {
-    const existing = database.prepare("SELECT data FROM runner WHERE id = 1").get();
-    if (existing) {
-      const owner = JSON.parse(existing.data as string) as Runner;
-      if (owner.host !== hostname() || processIsAlive(owner.pid)) {
-        throw new Error(`A scheduler is already running (PID ${owner.pid} on ${owner.host}).`);
-      }
-    }
-    const runner = { token: randomUUID(), pid: process.pid, host: hostname() };
-    database.prepare("INSERT INTO runner (id, data) VALUES (1, ?) ON CONFLICT(id) DO UPDATE SET data = excluded.data")
-      .run(JSON.stringify(runner));
-    recoverInterruptedJobs(database);
-    return runner;
-  });
+const expiry = (leaseMs: number) => new Date(Date.now() + leaseMs).toISOString();
+
+/**
+ * Only one scheduler may run per database. The lock expires unless renewed, so
+ * a runner that crashed on another machine is replaced once its lease runs out.
+ * On the same machine, a dead process is detected right away.
+ */
+async function acquireRunner(database: Database, leaseMs: number): Promise<Runner> {
+  const runner = { token: randomUUID(), pid: process.pid, host: hostname() };
+  const values = [runner.token, runner.host, runner.pid, expiry(leaseMs)];
+  const [owner] = await database.query<{ token: string; host: string; pid: number; expires_at: string }>(
+    "SELECT token, host, pid, expires_at FROM scheduler_runner WHERE id = 1",
+  );
+  const busy = () => new Error(`A scheduler is already running (PID ${owner?.pid ?? "unknown"} on ${owner?.host ?? "another host"}).`);
+  if (owner) {
+    const expired = owner.expires_at < new Date().toISOString();
+    const dead = owner.host === runner.host && !processIsAlive(Number(owner.pid));
+    if (!expired && !dead) throw busy();
+    const { changes } = await database.run(
+      "UPDATE scheduler_runner SET token = ?, host = ?, pid = ?, expires_at = ? WHERE id = 1 AND token = ?",
+      [...values, owner.token],
+    );
+    if (!changes) throw busy();
+  } else {
+    const { changes } = await database.run(
+      "INSERT INTO scheduler_runner (id, token, host, pid, expires_at) VALUES (1, ?, ?, ?, ?) ON CONFLICT(id) DO NOTHING",
+      values,
+    );
+    if (!changes) throw busy();
+  }
+  await recoverInterruptedJobs(database);
+  return runner;
 }
 
-async function releaseRunner(runner: Runner, directory?: string): Promise<void> {
-  await transaction(directory, (database) => {
-    database.prepare("DELETE FROM runner WHERE id = 1 AND data = ?").run(JSON.stringify(runner));
-  });
+async function renewRunner(database: Database, runner: Runner, leaseMs: number): Promise<boolean> {
+  const { changes } = await database.run(
+    "UPDATE scheduler_runner SET expires_at = ? WHERE id = 1 AND token = ?", [expiry(leaseMs), runner.token],
+  );
+  return changes === 1;
 }
 
-function dueJobs(database: DatabaseSync): ScheduledJob[] {
-  const now = Date.now();
-  return readJobs(database)
-    .filter((item) => item.status === "pending" && item.nextRunAt !== null && Date.parse(item.nextRunAt) <= now)
-    .sort((a, b) => a.nextRunAt!.localeCompare(b.nextRunAt!));
+async function releaseRunner(database: Database, runner: Runner): Promise<void> {
+  await database.run("DELETE FROM scheduler_runner WHERE id = 1 AND token = ?", [runner.token]);
 }
 
-async function claimDueJob(directory?: string, eligibleIds?: Set<string>): Promise<ScheduledJob | undefined> {
-  return transaction(directory, (database) => {
-    const job = dueJobs(database).find((item) => eligibleIds === undefined || eligibleIds.has(item.id));
-    if (!job) return undefined;
-    job.status = "running";
-    job.runCount += 1;
-    job.lastStartedAt = new Date().toISOString();
-    delete job.lastError;
-    delete job.lastResult;
-    return saveJob(database, job);
-  });
+async function dueJobs(database: Database): Promise<StoredJob[]> {
+  return (await readJobs(database, "WHERE status = 'pending' AND next_run_at <= ?", [new Date().toISOString()]))
+    .sort((a, b) => a.job.nextRunAt!.localeCompare(b.job.nextRunAt!));
 }
 
-async function finishJob(id: string, result: unknown, error: string | undefined, directory?: string): Promise<void> {
-  await transaction(directory, (database) => {
-    const job = readJobs(database).find((item) => item.id === id)!;
+async function claimDueJob(database: Database, eligibleIds?: Set<string>): Promise<ScheduledJob | undefined> {
+  // A failed claim means the job changed (for example, it was cancelled), so look again.
+  for (let attempt = 0; attempt < 10; attempt++) {
+    const stored = (await dueJobs(database)).find((item) => eligibleIds === undefined || eligibleIds.has(item.job.id));
+    if (!stored) return undefined;
+    const claimed = await updateJob(database, stored, (job) => {
+      job.status = "running";
+      job.runCount += 1;
+      job.lastStartedAt = new Date().toISOString();
+      delete job.lastError;
+      delete job.lastResult;
+    });
+    if (claimed) return claimed;
+  }
+  return undefined;
+}
+
+async function finishJob(database: Database, id: string, result: unknown, error: string | undefined): Promise<void> {
+  await modifyJob(database, id, (job) => {
     job.lastResult = result;
     job.lastError = error;
     job.lastRunStatus = error === undefined ? "completed" : "failed";
@@ -206,11 +283,10 @@ async function finishJob(id: string, result: unknown, error: string | undefined,
       job.nextRunAt = nextOccurrence(job);
       job.status = job.nextRunAt ? "pending" : job.lastRunStatus;
     }
-    saveJob(database, job);
   });
 }
 
-async function executeJob(job: ScheduledJob, execute: (job: ScheduledJob) => Promise<unknown>, directory?: string): Promise<void> {
+async function executeJob(database: Database, job: ScheduledJob, execute: (job: ScheduledJob) => Promise<unknown>): Promise<void> {
   let result: unknown;
   let error: string | undefined;
   try {
@@ -223,23 +299,32 @@ async function executeJob(job: ScheduledJob, execute: (job: ScheduledJob) => Pro
     result = undefined;
     error = failure instanceof Error ? failure.message : String(failure);
   }
-  await finishJob(job.id, result, error, directory);
+  await finishJob(database, job.id, result, error);
 }
 
 export async function runScheduler(execute: (job: ScheduledJob) => Promise<unknown>, options: SchedulerOptions = {}): Promise<void> {
-  const pollMs = options.pollMs ?? 1000;
+  // Each poll is an HTTPS request to D1, so poll less often than a local database would.
+  const pollMs = options.pollMs ?? 5000;
+  const leaseMs = options.leaseMs ?? 60_000;
   if (!Number.isFinite(pollMs) || pollMs < 1) throw new Error("pollMs must be a positive number.");
   if (options.signal?.aborted) return;
-  const runner = await acquireRunner(options.directory);
+  const database = await ready(options.database);
+  const runner = await acquireRunner(database, leaseMs);
+  let lost = false;
+  const heartbeat = setInterval(() => {
+    renewRunner(database, runner, leaseMs).then((held) => { if (!held) lost = true; }, (error: unknown) => {
+      console.error(`Could not renew the scheduler lock: ${error instanceof Error ? error.message : error}`);
+    });
+  }, Math.max(1, Math.floor(leaseMs / 3)));
+  heartbeat.unref();
   try {
-    const eligibleIds = options.once
-      ? await transaction(options.directory, (database) => new Set(dueJobs(database).map((job) => job.id)))
-      : undefined;
+    const eligibleIds = options.once ? new Set((await dueJobs(database)).map((stored) => stored.job.id)) : undefined;
     while (!options.signal?.aborted) {
-      const job = await claimDueJob(options.directory, eligibleIds);
+      if (lost) throw new Error("Another scheduler took over after this one's lock expired.");
+      const job = await claimDueJob(database, eligibleIds);
       if (job) {
         eligibleIds?.delete(job.id);
-        await executeJob(job, execute, options.directory);
+        await executeJob(database, job, execute);
         continue;
       }
       if (options.once) return;
@@ -250,6 +335,7 @@ export async function runScheduler(execute: (job: ScheduledJob) => Promise<unkno
       }
     }
   } finally {
-    await releaseRunner(runner, options.directory);
+    clearInterval(heartbeat);
+    if (!lost) await releaseRunner(database, runner);
   }
 }

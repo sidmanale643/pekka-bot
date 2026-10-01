@@ -67,7 +67,7 @@ function parseBotOptions(args: string[]): BotProfile {
   return { name: values["--name"], role: values["--role"], job: values["--job"] };
 }
 
-async function runTask(task: string, bot?: Bot): Promise<AgentResult> {
+async function runTask(task: string, bot?: Bot, userId = LOCAL_USER): Promise<AgentResult> {
   if (existsSync(".env")) process.loadEnvFile(".env");
   const config = loadConfig();
 
@@ -85,7 +85,7 @@ async function runTask(task: string, bot?: Bot): Promise<AgentResult> {
     computer,
     tools: defaultTools,
     maxSteps: config.maxSteps,
-    userId: LOCAL_USER,
+    userId,
     bot,
     onEvent: printEvent,
   });
@@ -101,11 +101,11 @@ async function runTask(task: string, bot?: Bot): Promise<AgentResult> {
 
 async function manageJobs(args: string[]): Promise<void> {
   if (args.length === 1 && args[0] === "list") {
-    console.log(JSON.stringify(await listScheduledJobs(), null, 2));
+    console.log(JSON.stringify(await listScheduledJobs(LOCAL_USER), null, 2));
     return;
   }
   if (args.length === 2 && args[0] === "cancel" && args[1]) {
-    console.log(JSON.stringify(await cancelScheduledJob(args[1]), null, 2));
+    console.log(JSON.stringify(await cancelScheduledJob(LOCAL_USER, args[1]), null, 2));
     return;
   }
   throw new Error(USAGE);
@@ -119,11 +119,11 @@ async function startScheduler(once: boolean): Promise<void> {
   };
   process.once("SIGINT", stop);
   process.once("SIGTERM", stop);
-  console.log(`Scheduler checking jobs in ${process.cwd()}/.pekka${once ? " once" : "; keep this process running"}.`);
+  console.log(`Scheduler checking jobs in D1${once ? " once" : "; keep this process running"}.`);
   try {
     await runScheduler(async (job) => {
       console.log(`\nRunning scheduled job "${job.name}" (${job.id})...`);
-      const { status, answer, steps, usage } = await runTask(job.task, job.bot);
+      const { status, answer, steps, usage } = await runTask(job.task, job.bot, job.userId);
       return { status, answer, steps, usage };
     }, { once, signal: controller.signal });
   } finally {
