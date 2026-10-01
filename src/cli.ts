@@ -7,9 +7,12 @@ import { loadConfig } from "./config.ts";
 import { createOpenRouterModel } from "./model/openrouter.ts";
 import { defaultTools } from "./tools/index.ts";
 import { cancelScheduledJob, listScheduledJobs, runScheduler } from "./scheduler.ts";
-import { LOCAL_USER } from "./database/database.ts";
+import { getDatabase, LOCAL_USER } from "./database/database.ts";
+import { importLocalData } from "./database/import-local.ts";
+import { readSkillFolder, removeSkill, saveSkill, SkillStore } from "./skills.ts";
+import { basename, resolve } from "node:path";
 
-const USAGE = 'Usage:\n  pekka run "<task>"\n  pekka bot create --name "<name>" --role "<role>" --job "<job>"\n  pekka bot list\n  pekka bot run "<name>"\n  pekka scheduler [--once]\n  pekka jobs list\n  pekka jobs cancel "<id>"';
+const USAGE = 'Usage:\n  pekka run "<task>"\n  pekka bot create --name "<name>" --role "<role>" --job "<job>"\n  pekka bot list\n  pekka bot run "<name>"\n  pekka scheduler [--once]\n  pekka jobs list\n  pekka jobs cancel "<id>"\n  pekka skills add "<folder>" [--bot "<name>"]\n  pekka skills list [--bot "<name>"]\n  pekka skills remove "<name>" [--bot "<name>"]\n  pekka db check\n  pekka db import';
 
 async function main(args: string[]): Promise<void> {
   if (existsSync(".env")) process.loadEnvFile(".env");
@@ -22,6 +25,8 @@ async function main(args: string[]): Promise<void> {
     },
     bot: manageBots,
     jobs: manageJobs,
+    db: manageDatabase,
+    skills: manageSkills,
     scheduler: async (args) => {
       if (args.length > 1 || (args.length === 1 && args[0] !== "--once")) throw new Error(USAGE);
       await startScheduler(args[0] === "--once");
@@ -106,6 +111,54 @@ async function manageJobs(args: string[]): Promise<void> {
   }
   if (args.length === 2 && args[0] === "cancel" && args[1]) {
     console.log(JSON.stringify(await cancelScheduledJob(LOCAL_USER, args[1]), null, 2));
+    return;
+  }
+  throw new Error(USAGE);
+}
+
+async function manageDatabase(args: string[]): Promise<void> {
+  if (args.length === 1 && args[0] === "check") {
+    await getDatabase().query("SELECT 1 AS ok");
+    console.log("Connected to Cloudflare D1.");
+    return;
+  }
+  if (args.length === 1 && args[0] === "import") {
+    const { bots, memoryFiles, skills, jobs } = await importLocalData();
+    console.log(`Imported from ${process.cwd()}/.pekka:`);
+    console.log(`  ${bots.imported} bots (${bots.skipped} already in D1)`);
+    console.log(`  ${memoryFiles} memory files`);
+    console.log(`  ${skills.imported} skills (${skills.skipped} already in D1)`);
+    console.log(`  ${jobs.imported} scheduled jobs (${jobs.skipped} already in D1)`);
+    for (const error of skills.errors) console.log(`  Skipped skill ${error}`);
+    return;
+  }
+  throw new Error(USAGE);
+}
+
+/** Skills are shared by every bot unless --bot limits one to a single bot. */
+async function manageSkills(args: string[]): Promise<void> {
+  const [action, ...rest] = args;
+  const botIndex = rest.indexOf("--bot");
+  const botName = botIndex === -1 ? undefined : rest[botIndex + 1];
+  if (botIndex !== -1 && !botName) throw new Error(USAGE);
+  const positional = botIndex === -1 ? rest : rest.filter((_, index) => index !== botIndex && index !== botIndex + 1);
+  const bot = botName ? await getBot(LOCAL_USER, botName) : undefined;
+  const scope = bot ? `for ${bot.name}` : "for every bot";
+  if (action === "add" && positional.length === 1) {
+    const folder = resolve(positional[0]!);
+    const skill = await saveSkill(basename(folder), await readSkillFolder(folder), { bot });
+    console.log(`Saved skill "${skill.name}" ${scope}.`);
+    return;
+  }
+  if (action === "list" && positional.length === 0) {
+    const { skills, errors } = await new SkillStore(bot).catalog();
+    console.log(skills.length ? skills.map((skill) => `${skill.name} — ${skill.description}`).join("\n") : "No skills yet.");
+    for (const error of errors) console.log(`Invalid: ${error}`);
+    return;
+  }
+  if (action === "remove" && positional.length === 1) {
+    await removeSkill(positional[0]!, { bot });
+    console.log(`Removed skill "${positional[0]}" ${scope}.`);
     return;
   }
   throw new Error(USAGE);
