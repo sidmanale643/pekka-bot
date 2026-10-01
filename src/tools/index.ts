@@ -8,6 +8,7 @@ import { writeFile } from "./write-file.ts";
 import { createSchedulingTools } from "./scheduled-jobs.ts";
 import { readMemory, writeMemory } from "./bot-memory.ts";
 import { listSkills, loadSkill } from "./skills.ts";
+import { updateBotConfig } from "./bot-config.ts";
 
 /** The tools every bot gets. To add a tool, write one file and list it here. */
-export const defaultTools: Tool[] = [runCommand, readFile, writeFile, editFile, webSearch, webScrape, readMemory, writeMemory, listSkills, loadSkill, ...createSchedulingTools()];
+export const defaultTools: Tool[] = [runCommand, readFile, writeFile, editFile, webSearch, webScrape, readMemory, writeMemory, updateBotConfig, listSkills, loadSkill, ...createSchedulingTools()];

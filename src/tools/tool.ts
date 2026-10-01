@@ -4,6 +4,7 @@ import type { ToolDefinition } from "../model/model.ts";
 import type { Bot } from "../bots.ts";
 import type { BotMemory } from "../bot-memory.ts";
 import type { SkillStore } from "../skills.ts";
+import type { Database } from "../database/database.ts";
 import { authorizeAction, type ApproveAction, type ToolPermission } from "../permissions/policy.ts";
 
 /** Tool output is trimmed to this size so one command can't flood the model's context. */
@@ -11,8 +12,10 @@ const MAX_OUTPUT_CHARS = 20_000;
 
 export interface ToolContext {
   computer: Computer;
+  /** Who the run is for. Plugins and scheduled jobs act as this user. */
   userId: string;
   bot?: Bot;
+  database?: Database;
   memory?: BotMemory;
   skills?: SkillStore;
   approveAction?: ApproveAction;

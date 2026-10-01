@@ -81,7 +81,7 @@ export async function runAgent(task: string, options: AgentOptions): Promise<Age
 
     const results = await Promise.all(calls.map(async (call): Promise<ChatMessage> => {
       emit({ type: "tool_call", name: call.function.name, arguments: call.function.arguments });
-      const result = await executeToolCall(call, tools, { computer, userId: options.userId, bot: options.bot, memory, skills, approveAction: options.approveAction });
+      const result = await executeToolCall(call, tools, { computer, database, userId: options.userId, bot: options.bot, memory, skills, approveAction: options.approveAction });
       emit({ type: "tool_result", name: call.function.name, ...result });
       return { role: "tool", tool_call_id: call.id, content: result.output };
     }));
