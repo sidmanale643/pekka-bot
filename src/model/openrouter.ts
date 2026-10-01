@@ -33,7 +33,8 @@ export function createOpenRouterModel(options: { apiKey: string; model: string }
       const response = await postWithRetry(options.apiKey, {
         model: options.model,
         messages,
-        tools,
+        // Some providers reject an empty tool list.
+        ...(tools.length ? { tools } : {}),
         stream: true,
         usage: { include: true },
       });
