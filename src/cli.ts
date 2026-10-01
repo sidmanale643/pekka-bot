@@ -93,7 +93,7 @@ async function runTask(task: string, bot?: Bot): Promise<AgentResult> {
   }
   const { promptTokens, completionTokens, cacheHitRate, costUsd } = result.usage;
   const cache = cacheHitRate == null ? "unavailable" : `${(cacheHitRate * 100).toFixed(1)}%`;
-  console.log(`\n${result.steps} steps · ${promptTokens} input tokens · ${completionTokens} output tokens · Cache hit rate: ${cache} · ${costUsd.toFixed(4)}`);
+  console.log(`\n${result.steps} steps · ${promptTokens} input tokens · ${completionTokens} output tokens · Cache hit rate: ${cache} · $${costUsd.toFixed(4)}`);
   return result;
 }
 

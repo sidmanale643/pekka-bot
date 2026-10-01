@@ -325,7 +325,7 @@ function applyEvent(event, data, message) {
       if (data.usage) {
         const { promptTokens, completionTokens, cacheHitRate, costUsd } = data.usage;
         const cache = cacheHitRate == null ? "unavailable" : `${(cacheHitRate * 100).toFixed(1)}%`;
-        const metrics = `${promptTokens.toLocaleString()} input tokens · ${completionTokens.toLocaleString()} output tokens · Cache hit rate: ${cache} · ${costUsd.toFixed(4)}`;
+        const metrics = `${promptTokens.toLocaleString()} input tokens · ${completionTokens.toLocaleString()} output tokens · Cache hit rate: ${cache} · $${costUsd.toFixed(4)}`;
         message.status = [message.status, metrics].filter(Boolean).join(" · ");
       }
     },
