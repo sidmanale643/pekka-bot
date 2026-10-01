@@ -1,3 +1,4 @@
+import { characterPrompt, getCharacter } from "../characters.ts";
 import type { Computer } from "../computer/computer.ts";
 import type { ChatMessage, Model, Usage } from "../model/model.ts";
 import { toToolDefinition, type Tool } from "../tools/tool.ts";
@@ -56,8 +57,9 @@ export async function runAgent(task: string, options: AgentOptions): Promise<Age
   const catalog = await skills.catalog();
   const availableSkills = catalog.skills.slice(0, 20).map((skill) => ({ name: skill.name, description: skill.description.slice(0, 300) }));
   const skillSummary = `\n\nAvailable skill summaries (${catalog.skills.length} total; use list_skills for full descriptions and additional entries):\n${JSON.stringify(availableSkills)}${catalog.errors.length ? `\n${catalog.errors.length} invalid skill folders; use list_skills to inspect errors.` : ""}`;
+  const persona = options.bot ? characterPrompt(await getCharacter(options.bot.id, database)) : "";
   const messages: ChatMessage[] = [
-    { role: "system", content: (options.bot ? `${SYSTEM_PROMPT}\n\nYour name is ${options.bot.name}.\nYour role is ${options.bot.role}.\nYour job is ${options.bot.job}.${savedMemory}` : SYSTEM_PROMPT) + skillSummary },
+    { role: "system", content: (options.bot ? `${SYSTEM_PROMPT}\n\nYour name is ${options.bot.name}.\nYour role is ${options.bot.role}.\nYour job is ${options.bot.job}.${savedMemory}` : SYSTEM_PROMPT) + skillSummary + persona },
     ...(options.conversation ?? []).slice(-20).map(({ role, content }) => ({ role, content: content.slice(0, 4000) })),
     { role: "user", content: task },
   ];
