@@ -1,17 +1,18 @@
 import { existsSync } from "node:fs";
 import type { AgentEvent } from "./agent/events.ts";
 import { runAgent, type AgentResult } from "./agent/loop.ts";
-import { createBot, getBot, listBots, type Bot } from "./bots.ts";
+import { createBot, getBot, listBots, type Bot, type BotProfile } from "./bots.ts";
 import { connectDaytonaComputer } from "./computer/daytona-computer.ts";
 import { loadConfig } from "./config.ts";
 import { createOpenRouterModel } from "./model/openrouter.ts";
 import { defaultTools } from "./tools/index.ts";
 import { cancelScheduledJob, listScheduledJobs, runScheduler } from "./scheduler.ts";
-import { botKey } from "./bot-memory.ts";
+import { LOCAL_USER } from "./database/database.ts";
 
 const USAGE = 'Usage:\n  pekka run "<task>"\n  pekka bot create --name "<name>" --role "<role>" --job "<job>"\n  pekka bot list\n  pekka bot run "<name>"\n  pekka scheduler [--once]\n  pekka jobs list\n  pekka jobs cancel "<id>"';
 
 async function main(args: string[]): Promise<void> {
+  if (existsSync(".env")) process.loadEnvFile(".env");
   const [command, ...rest] = args;
   const commands: Record<string, (args: string[]) => Promise<unknown>> = {
     run: async (args) => {
@@ -33,24 +34,24 @@ async function main(args: string[]): Promise<void> {
 async function manageBots(args: string[]): Promise<void> {
   const [action, ...botArgs] = args;
   if (action === "create") {
-    const bot = await createBot(parseBotOptions(botArgs));
+    const bot = await createBot(LOCAL_USER, parseBotOptions(botArgs));
     console.log(`Created bot "${bot.name}".`);
     return;
   }
   if (action === "list" && botArgs.length === 0) {
-    const bots = await listBots();
+    const bots = await listBots(LOCAL_USER);
     console.log(bots.length ? bots.map((bot) => `${bot.name} — ${bot.role}: ${bot.job}`).join("\n") : "No bots yet.");
     return;
   }
   if (action === "run" && botArgs.length === 1 && botArgs[0]) {
-    const bot = await getBot(botArgs[0]);
+    const bot = await getBot(LOCAL_USER, botArgs[0]);
     await runTask(bot.job, bot);
     return;
   }
   throw new Error(USAGE);
 }
 
-function parseBotOptions(args: string[]): Bot {
+function parseBotOptions(args: string[]): BotProfile {
   const values: Record<string, string> = {};
   for (let i = 0; i < args.length; i += 2) {
     const key = args[i];
@@ -70,7 +71,7 @@ async function runTask(task: string, bot?: Bot): Promise<AgentResult> {
   if (existsSync(".env")) process.loadEnvFile(".env");
   const config = loadConfig();
 
-  const sandboxName = bot ? `${config.sandboxName.slice(0, 30)}-bot-${botKey(bot)}` : config.sandboxName;
+  const sandboxName = bot ? `${config.sandboxName.slice(0, 30)}-bot-${bot.id}` : config.sandboxName;
   console.log(`Connecting to sandbox "${sandboxName}"...`);
   const computer = await connectDaytonaComputer({
     apiKey: config.daytonaApiKey,
@@ -84,6 +85,7 @@ async function runTask(task: string, bot?: Bot): Promise<AgentResult> {
     computer,
     tools: defaultTools,
     maxSteps: config.maxSteps,
+    userId: LOCAL_USER,
     bot,
     onEvent: printEvent,
   });

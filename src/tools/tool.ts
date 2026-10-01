@@ -10,6 +10,7 @@ const MAX_OUTPUT_CHARS = 20_000;
 
 export interface ToolContext {
   computer: Computer;
+  userId: string;
   bot?: Bot;
   memory?: BotMemory;
   skills?: SkillStore;

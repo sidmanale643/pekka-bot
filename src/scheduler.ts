@@ -12,7 +12,7 @@ const InputSchema = z.object({
   task: z.string().trim().min(1),
   runAt: z.iso.datetime({ offset: true }),
   intervalSeconds: z.number().int().min(60).max(31_536_000).optional(),
-  bot: z.object({ name: z.string(), role: z.string(), job: z.string() }).optional(),
+  bot: z.object({ id: z.string(), name: z.string(), role: z.string(), job: z.string() }).optional(),
 });
 
 export interface ScheduledJob {
