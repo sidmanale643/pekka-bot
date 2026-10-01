@@ -4,6 +4,7 @@ import { defineTool, limitOutput } from "./tool.ts";
 
 export const readMemory = defineTool({
   name: "read_memory",
+  permission: { effect: "read" },
   description: "Read this bot's persistent Markdown preferences or accumulated knowledge. Available only for named bots. Use offset to read long files in chunks.",
   input: z.object({
     file: z.enum(memoryFiles),
@@ -17,6 +18,7 @@ export const readMemory = defineTool({
 
 export const writeMemory = defineTool({
   name: "write_memory",
+  permission: { effect: "write" },
   description: "Replace this bot's Markdown preferences or accumulated knowledge. Read the existing file first and preserve useful entries. Save explicit user preferences and verified reusable facts, never secrets or unverified claims. Available only for named bots.",
   input: z.object({
     file: z.enum(memoryFiles),

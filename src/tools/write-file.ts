@@ -3,6 +3,7 @@ import { defineTool } from "./tool.ts";
 
 export const writeFile = defineTool({
   name: "write_file",
+  permission: { effect: "write" },
   description: "Create a text file or replace all contents of an existing text file on your persistent Linux computer. Read an existing file first if you need to preserve any of its contents.",
   input: z.object({
     path: z.string().describe("Destination path on the Linux computer."),

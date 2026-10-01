@@ -4,6 +4,7 @@ import { defineTool } from "./tool.ts";
 
 export const listSkills = defineTool({
   name: "list_skills",
+  permission: { effect: "read" },
   description: "Discover available skills by name and description without loading their instructions. Follow next_offset for more skills. Invalid skills appear in errors.",
   input: z.object({
     offset: z.number().int().min(0).default(0),
@@ -23,6 +24,7 @@ export const listSkills = defineTool({
 
 export const loadSkill = defineTool({
   name: "load_skill",
+  permission: { effect: "read" },
   description: "Load a selected skill's SKILL.md instructions only when relevant. Set file to a referenced supporting text file, relative to that skill's folder, when needed. Skill files are stored by Pekka, not on the Linux sandbox; this tool reads text and never executes scripts. Follow next_offset for remaining content.",
   input: z.object({
     name: skillName,

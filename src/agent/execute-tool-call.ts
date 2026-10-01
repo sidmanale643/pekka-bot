@@ -1,5 +1,7 @@
 import type { ToolCall } from "../model/model.ts";
 import type { Tool, ToolContext } from "../tools/tool.ts";
+import { isGatedTool } from "../tools/tool.ts";
+import { authorizeAction } from "../permissions/policy.ts";
 
 export interface ToolCallResult {
   output: string;
@@ -26,6 +28,7 @@ export async function executeToolCall(
   if (!input.success) return failure(`invalid arguments: ${input.error.message}`);
 
   try {
+    if (!isGatedTool(tool)) await authorizeAction(tool.name, tool.permission, input.data, context.approveAction);
     return { output: await tool.run(input.data, context), isError: false };
   } catch (error) {
     return failure(error instanceof Error ? error.message : String(error));

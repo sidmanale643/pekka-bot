@@ -6,6 +6,7 @@ import { defineTool } from "./tool.ts";
 export function createSchedulingTools(database?: Database) {
   const scheduleJob = defineTool({
     name: "schedule_job",
+    permission: { effect: "write" },
     description:
       "Schedule a future agent task, once or at a fixed interval. Only schedule work the user requested. " +
       "Jobs are saved in the database and execute only while `pekka scheduler` is running from this project directory. " +
@@ -30,6 +31,7 @@ export function createSchedulingTools(database?: Database) {
 
   const listJobs = defineTool({
     name: "list_scheduled_jobs",
+    permission: { effect: "read" },
     description: "List scheduled job summaries, IDs, next execution times, status, and latest result previews. Follow next_offset to see additional jobs. Also returns current time and host timezone for planning schedules.",
     input: z.object({
       offset: z.number().int().min(0).default(0).describe("Pagination offset; start at zero."),
@@ -50,6 +52,7 @@ export function createSchedulingTools(database?: Database) {
 
   const cancelJob = defineTool({
     name: "cancel_scheduled_job",
+    permission: { effect: "write" },
     description: "Cancel a scheduled job by ID. Prevents future executions; an already-running task is allowed to finish.",
     input: z.object({ id: z.string().min(1).describe("Job ID returned by schedule_job or list_scheduled_jobs.") }),
     async run({ id }, { userId }) {

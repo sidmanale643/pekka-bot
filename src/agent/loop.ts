@@ -8,6 +8,7 @@ import type { Bot } from "../bots.ts";
 import { BotMemory } from "../bot-memory.ts";
 import { SkillStore } from "../skills.ts";
 import { getDatabase, type Database } from "../database/database.ts";
+import type { ApproveAction } from "../permissions/policy.ts";
 
 export interface AgentOptions {
   model: Model;
@@ -19,6 +20,7 @@ export interface AgentOptions {
   userId: string;
   database?: Database;
   onEvent?: EventHandler;
+  approveAction?: ApproveAction;
 }
 
 export interface AgentResult {
@@ -68,7 +70,7 @@ export async function runAgent(task: string, options: AgentOptions): Promise<Age
 
     const results = await Promise.all(calls.map(async (call): Promise<ChatMessage> => {
       emit({ type: "tool_call", name: call.function.name, arguments: call.function.arguments });
-      const result = await executeToolCall(call, tools, { computer, userId: options.userId, bot: options.bot, memory, skills });
+      const result = await executeToolCall(call, tools, { computer, userId: options.userId, bot: options.bot, memory, skills, approveAction: options.approveAction });
       emit({ type: "tool_result", name: call.function.name, ...result });
       return { role: "tool", tool_call_id: call.id, content: result.output };
     }));

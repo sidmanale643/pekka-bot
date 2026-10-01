@@ -30,6 +30,7 @@ interface SearchResult {
 export function createWebSearchTool(env: NodeJS.ProcessEnv = process.env, request: typeof fetch = fetch) {
   return defineTool({
     name: "web_search",
+    permission: { effect: "read" },
     description: "Search the live web for current facts or sources. Returns titles, URLs, snippets, and available publication dates. Uses Tavily first and Exa if needed. Results are leads to assess, not verified facts.",
     input: z.object({
       query: z.string().trim().min(1).describe("Specific search query or question; include names and dates when useful."),

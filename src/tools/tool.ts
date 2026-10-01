@@ -4,6 +4,7 @@ import type { ToolDefinition } from "../model/model.ts";
 import type { Bot } from "../bots.ts";
 import type { BotMemory } from "../bot-memory.ts";
 import type { SkillStore } from "../skills.ts";
+import { authorizeAction, type ApproveAction, type ToolPermission } from "../permissions/policy.ts";
 
 /** Tool output is trimmed to this size so one command can't flood the model's context. */
 const MAX_OUTPUT_CHARS = 20_000;
@@ -14,6 +15,7 @@ export interface ToolContext {
   bot?: Bot;
   memory?: BotMemory;
   skills?: SkillStore;
+  approveAction?: ApproveAction;
 }
 
 /**
@@ -24,12 +26,22 @@ export interface Tool<Input = any> {
   name: string;
   description: string;
   input: z.ZodType<Input>;
+  permission?: ToolPermission;
   run(input: Input, context: ToolContext): Promise<string>;
 }
 
-/** Identity function that lets TypeScript infer `Input` from the schema. */
+const gatedTools = new WeakSet<Tool>();
+
+export function isGatedTool(tool: Tool): boolean { return gatedTools.has(tool); }
+
 export function defineTool<Input>(tool: Tool<Input>): Tool<Input> {
-  return tool;
+  const guarded: Tool<Input> = { ...tool, async run(input, context) {
+    const parsed = tool.input.parse(structuredClone(input));
+    await authorizeAction(tool.name, tool.permission, parsed, context.approveAction);
+    return tool.run(parsed, context);
+  } };
+  gatedTools.add(guarded);
+  return guarded;
 }
 
 export function toToolDefinition(tool: Tool): ToolDefinition {
