@@ -9,6 +9,8 @@ import { getDatabase, LOCAL_USER } from "./database/database.ts";
 import { importLocalData } from "./database/import-local.ts";
 import { readSkillFolder, removeSkill, saveSkill, SkillStore } from "./skills.ts";
 import { basename, resolve } from "node:path";
+import { createInterface } from "node:readline/promises";
+import type { ApproveAction } from "./permissions/policy.ts";
 
 const USAGE = 'Usage:\n  pekka run "<task>"\n  pekka bot create --name "<name>" --role "<role>" --job "<job>"\n  pekka bot list\n  pekka bot run "<name>"\n  pekka scheduler [--once]\n  pekka jobs list\n  pekka jobs cancel "<id>"\n  pekka skills add "<folder>" [--bot "<name>"]\n  pekka skills list [--bot "<name>"]\n  pekka skills remove "<name>" [--bot "<name>"]\n  pekka db check\n  pekka db import';
 
@@ -77,7 +79,7 @@ async function runTask(task: string, owner: RunOwner): Promise<AgentResult> {
   const config = loadConfig();
 
   console.log(`Connecting to sandbox "${sandboxNameFor(config, owner)}"...`);
-  const result = await executeTask(task, owner, printEvent);
+  const result = await executeTask(task, { ...owner, approveAction: terminalReviewer() }, printEvent);
 
   if (result.status === "step_limit") {
     console.log(`\nStopped after ${result.steps} steps without finishing (PEKKA_MAX_STEPS).`);
@@ -86,6 +88,24 @@ async function runTask(task: string, owner: RunOwner): Promise<AgentResult> {
   const cache = cacheHitRate == null ? "unavailable" : `${(cacheHitRate * 100).toFixed(1)}%`;
   console.log(`\n${result.steps} steps · ${promptTokens} input tokens · ${completionTokens} output tokens · Cache hit rate: ${cache} · $${costUsd.toFixed(4)}`);
   return result;
+}
+
+function terminalReviewer(): ApproveAction | undefined {
+  if (!process.stdin.isTTY || !process.stdout.isTTY) return undefined;
+  let queue = Promise.resolve();
+  return (action) => {
+    const decision = queue.then(async () => {
+      const reader = createInterface({ input: process.stdin, output: process.stdout });
+      try {
+        console.log(`\nPermission required: ${action.tool}\n${action.reason}\n${JSON.stringify(action.arguments, null, 2)}`);
+        const answer = await reader.question("Approve this action once? [y/N] ", { signal: AbortSignal.timeout(300_000) });
+        return answer.trim().toLowerCase() === "y";
+      } catch { return false; }
+      finally { reader.close(); }
+    });
+    queue = decision.then(() => {});
+    return decision;
+  };
 }
 
 async function manageJobs(args: string[]): Promise<void> {
