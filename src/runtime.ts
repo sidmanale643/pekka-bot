@@ -1,5 +1,5 @@
 import type { EventHandler } from "./agent/events.ts";
-import { runAgent } from "./agent/loop.ts";
+import { runAgent, type ConversationMessage } from "./agent/loop.ts";
 import { findBotById, type Bot } from "./bots.ts";
 import { connectDaytonaComputer } from "./computer/daytona-computer.ts";
 import { loadConfig, type Config } from "./config.ts";
@@ -13,6 +13,7 @@ export interface RunOwner {
   userId: string;
   bot?: Bot;
   approveAction?: ApproveAction;
+  conversation?: ConversationMessage[];
 }
 
 /**
@@ -37,5 +38,5 @@ export async function executeTask(task: string, owner: RunOwner, onEvent?: Event
     workspace: Boolean(owner.bot),
   });
   const model = createOpenRouterModel({ apiKey: config.openRouterApiKey, model: config.model });
-  return runAgent(task, { model, computer, tools: defaultTools, maxSteps: config.maxSteps, userId: owner.userId, bot: owner.bot, approveAction: owner.approveAction, onEvent });
+  return runAgent(task, { model, computer, tools: defaultTools, maxSteps: config.maxSteps, userId: owner.userId, bot: owner.bot, approveAction: owner.approveAction, conversation: owner.conversation, onEvent });
 }

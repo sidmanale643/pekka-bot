@@ -10,14 +10,22 @@ import { SkillStore } from "../skills.ts";
 import { getDatabase, type Database } from "../database/database.ts";
 import type { ApproveAction } from "../permissions/policy.ts";
 
+export interface ConversationMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
 export interface AgentOptions {
   model: Model;
   computer: Computer;
   tools: Tool[];
   /** Stop after this many model replies, even if the task isn't finished. */
   maxSteps: number;
-  bot?: Bot;
+  /** The user the run acts for. A named bot must belong to them. */
   userId: string;
+  bot?: Bot;
+  conversation?: ConversationMessage[];
+  /** Where memory and skills are read from. Defaults to the configured D1 database. */
   database?: Database;
   onEvent?: EventHandler;
   approveAction?: ApproveAction;
@@ -50,6 +58,7 @@ export async function runAgent(task: string, options: AgentOptions): Promise<Age
   const skillSummary = `\n\nAvailable skill summaries (${catalog.skills.length} total; use list_skills for full descriptions and additional entries):\n${JSON.stringify(availableSkills)}${catalog.errors.length ? `\n${catalog.errors.length} invalid skill folders; use list_skills to inspect errors.` : ""}`;
   const messages: ChatMessage[] = [
     { role: "system", content: (options.bot ? `${SYSTEM_PROMPT}\n\nYour name is ${options.bot.name}.\nYour role is ${options.bot.role}.\nYour job is ${options.bot.job}.${savedMemory}` : SYSTEM_PROMPT) + skillSummary },
+    ...(options.conversation ?? []).slice(-20).map(({ role, content }) => ({ role, content: content.slice(0, 4000) })),
     { role: "user", content: task },
   ];
 
