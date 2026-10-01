@@ -12,7 +12,7 @@ import { basename, resolve } from "node:path";
 import { createInterface } from "node:readline/promises";
 import type { ApproveAction } from "./permissions/policy.ts";
 
-const USAGE = 'Usage:\n  pekka run "<task>"\n  pekka bot create --name "<name>" --role "<role>" --job "<job>"\n  pekka bot list\n  pekka bot run "<name>"\n  pekka scheduler [--once]\n  pekka jobs list\n  pekka jobs cancel "<id>"\n  pekka skills add "<folder>" [--bot "<name>"]\n  pekka skills list [--bot "<name>"]\n  pekka skills remove "<name>" [--bot "<name>"]\n  pekka db check\n  pekka db import';
+const USAGE = 'Usage:\n  pekka run "<task>"\n  pekka bot create --name "<name>" --description "<description>"\n  pekka bot list\n  pekka bot run "<name>"\n  pekka scheduler [--once]\n  pekka jobs list\n  pekka jobs cancel "<id>"\n  pekka skills add "<folder>" [--bot "<name>"]\n  pekka skills list [--bot "<name>"]\n  pekka skills remove "<name>" [--bot "<name>"]\n  pekka db check\n  pekka db import';
 
 async function main(args: string[]): Promise<void> {
   if (existsSync(".env")) process.loadEnvFile(".env");
@@ -53,6 +53,7 @@ async function manageBots(args: string[]): Promise<void> {
   }
   if (action === "run" && botArgs.length === 1 && botArgs[0]) {
     const bot = await getBot(LOCAL_USER, botArgs[0]);
+    if (!bot.job) throw new Error("This bot has no saved working instructions yet. Open it in the web interface and tell it what you need.");
     await runTask(bot.job, { userId: LOCAL_USER, bot });
     return;
   }
@@ -64,12 +65,15 @@ function parseBotOptions(args: string[]): BotProfile {
   for (let i = 0; i < args.length; i += 2) {
     const key = args[i];
     const value = args[i + 1];
-    if (!key || !["--name", "--role", "--job"].includes(key) || !value || value.startsWith("--") || values[key]) {
+    if (!key || !["--name", "--description", "--role", "--job"].includes(key) || !value || value.startsWith("--") || values[key]) {
       throw new Error(USAGE);
     }
     values[key] = value;
   }
-  if (!values["--name"] || !values["--role"] || !values["--job"]) {
+  if (values["--name"] && values["--description"] && !values["--role"] && !values["--job"]) {
+    return { name: values["--name"], role: values["--description"], job: "" };
+  }
+  if (!values["--name"] || !values["--role"] || !values["--job"] || values["--description"]) {
     throw new Error(USAGE);
   }
   return { name: values["--name"], role: values["--role"], job: values["--job"] };

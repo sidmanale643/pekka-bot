@@ -5,7 +5,7 @@ import { ensureSchema, getDatabase, type Database } from "./database/database.ts
 const ProfileSchema = z.object({
   name: z.string().trim().min(1),
   role: z.string().trim().min(1),
-  job: z.string().trim().min(1),
+  job: z.string().trim(),
 });
 
 /** What a person provides when creating a bot. */
