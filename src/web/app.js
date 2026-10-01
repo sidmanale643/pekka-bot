@@ -322,6 +322,12 @@ function applyEvent(event, data, message) {
         data.answer || message.text || "Task finished without a text response.";
       message.status =
         data.status === "done" ? "" : `Run ended: ${data.status}`;
+      if (data.usage) {
+        const { promptTokens, completionTokens, cacheHitRate, costUsd } = data.usage;
+        const cache = cacheHitRate == null ? "unavailable" : `${(cacheHitRate * 100).toFixed(1)}%`;
+        const metrics = `${promptTokens.toLocaleString()} input tokens · ${completionTokens.toLocaleString()} output tokens · Cache hit rate: ${cache} · ${costUsd.toFixed(4)}`;
+        message.status = [message.status, metrics].filter(Boolean).join(" · ");
+      }
     },
     error: () => {
       throw new Error(data.error || "Task execution failed.");

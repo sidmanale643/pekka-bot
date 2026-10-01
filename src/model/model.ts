@@ -36,6 +36,8 @@ export interface ToolDefinition {
 export interface Usage {
   promptTokens: number;
   completionTokens: number;
+  cachedTokens?: number | null;
+  cacheHitRate?: number | null;
   /** Cost in US dollars, when the provider reports it. */
   costUsd: number;
 }

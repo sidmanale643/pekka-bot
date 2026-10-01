@@ -23,7 +23,7 @@ interface StreamChunk {
       tool_calls?: { index: number; id?: string; type?: "function"; function?: { name?: string; arguments?: string } }[];
     };
   }[];
-  usage?: { prompt_tokens: number; completion_tokens: number; cost?: number };
+  usage?: { prompt_tokens: number; completion_tokens: number; cost?: number; prompt_tokens_details?: { cached_tokens?: number | null } };
   error?: { code?: number; message: string };
 }
 
@@ -137,6 +137,7 @@ async function readStream(response: Response, onDelta?: (text: string) => void):
     usage: {
       promptTokens: usage?.prompt_tokens ?? 0,
       completionTokens: usage?.completion_tokens ?? 0,
+      cachedTokens: usage?.prompt_tokens_details?.cached_tokens ?? null,
       costUsd: usage?.cost ?? 0,
     },
   };
