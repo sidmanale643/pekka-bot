@@ -1,10 +1,14 @@
-import { afterAll, afterEach, expect, it } from "vitest";
+import { afterAll, afterEach, beforeEach, expect, it, vi } from "vitest";
 import { runAgent } from "../agent/loop.ts";
 import { createBot, findBotById } from "../bots.ts";
 import { FakeComputer } from "../computer/fake-computer.ts";
 import { createSqliteDatabase } from "../database/sqlite.ts";
 import type { ChatMessage, Model } from "../model/model.ts";
 import { updateBotConfig } from "./bot-config.ts";
+
+// These tests cover approval review, which is off by default.
+beforeEach(() => { vi.stubEnv("PEKKA_REQUIRE_APPROVAL", "true"); });
+afterEach(() => { vi.unstubAllEnvs(); });
 
 const database = createSqliteDatabase();
 afterAll(() => database.close());

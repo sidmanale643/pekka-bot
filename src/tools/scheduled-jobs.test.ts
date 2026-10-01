@@ -1,4 +1,4 @@
-import { afterEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { runAgent } from "../agent/loop.ts";
 import { executeToolCall } from "../agent/execute-tool-call.ts";
 import { FakeComputer } from "../computer/fake-computer.ts";
@@ -8,6 +8,10 @@ import { createSchedulingTools } from "./scheduled-jobs.ts";
 import { toToolDefinition } from "./tool.ts";
 import { writeFile } from "./write-file.ts";
 import { LOCAL_USER } from "../database/database.ts";
+
+// These tests cover approval review, which is off by default.
+beforeEach(() => { vi.stubEnv("PEKKA_REQUIRE_APPROVAL", "true"); });
+afterEach(() => { vi.unstubAllEnvs(); });
 
 const databases: ReturnType<typeof createSqliteDatabase>[] = [];
 afterEach(() => { databases.splice(0).forEach((database) => database.close()); });

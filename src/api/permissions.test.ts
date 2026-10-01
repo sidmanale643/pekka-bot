@@ -1,11 +1,15 @@
 import type { Server } from "node:http";
 import type { AddressInfo } from "node:net";
-import { afterEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { executeToolCall } from "../agent/execute-tool-call.ts";
 import { FakeComputer } from "../computer/fake-computer.ts";
 import type { PermissionRequest } from "../permissions/manager.ts";
 import { writeFile } from "../tools/write-file.ts";
 import { createApiServer } from "./server.ts";
+
+// These tests cover approval review, which is off by default.
+beforeEach(() => { vi.stubEnv("PEKKA_REQUIRE_APPROVAL", "true"); });
+afterEach(() => { vi.unstubAllEnvs(); });
 
 let server: Server;
 

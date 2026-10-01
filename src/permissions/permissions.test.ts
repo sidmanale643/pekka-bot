@@ -1,4 +1,4 @@
-import { afterEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { z } from "zod";
 import { executeToolCall } from "../agent/execute-tool-call.ts";
 import { FakeComputer } from "../computer/fake-computer.ts";
@@ -9,6 +9,10 @@ import { writeFile } from "../tools/write-file.ts";
 import { defineTool, type Tool, type ToolContext } from "../tools/tool.ts";
 import { PermissionManager, type PermissionRequest } from "./manager.ts";
 import { isReadOnlyCommand, type PermissionAction } from "./policy.ts";
+
+// These tests cover approval review, which is off by default.
+beforeEach(() => { vi.stubEnv("PEKKA_REQUIRE_APPROVAL", "true"); });
+afterEach(() => { vi.unstubAllEnvs(); });
 
 afterEach(() => vi.useRealTimers());
 
@@ -101,3 +105,14 @@ it("denies expired requests and requests cancelled on disconnect", async () => {
   expect(manager.list("alice")).toEqual([]);
 });
 
+it("runs writes without asking when approval review is off, but still refuses hard-blocked commands", async () => {
+  vi.unstubAllEnvs();
+  vi.stubEnv("PEKKA_REQUIRE_APPROVAL", "");
+  const computer = new FakeComputer();
+  const approveAction = vi.fn(async () => false);
+  expect((await call(writeFile, { path: "file", content: "new" }, { computer, userId: "alice", approveAction })).isError).toBe(false);
+  expect((await call(runCommand, { command: "touch file" }, { computer, userId: "alice" })).isError).toBe(false);
+  expect((await call(runCommand, { command: "rm -rf /" }, { computer, userId: "alice" })).output).toContain("Permission blocked");
+  expect(approveAction).not.toHaveBeenCalled();
+  expect(computer.commands).toEqual(["touch file"]);
+});

@@ -404,6 +404,7 @@ for a copyable template.
 | `PEKKA_MODEL` | OpenRouter model ID; choose one with tool calling | `z-ai/glm-5.3-flash` |
 | `PEKKA_SANDBOX_NAME` | Name used to find or create the persistent sandbox | `pekka-computer` |
 | `PEKKA_MAX_STEPS` | Maximum model replies per task | `30` |
+| `PEKKA_REQUIRE_APPROVAL` | Set to `true` to ask before writes, commands and plugin actions | unset (no approval prompts) |
 | `PEKKA_URL` | Address people open Pekka at; turns on Google sign-in | unset (no sign-in, localhost only) |
 | `PEKKA_ALLOWED_EMAILS` | Comma-separated addresses or `@domain` entries allowed to sign in | — |
 | `PEKKA_OWNER_EMAIL` | Google account that takes over data created before sign-in | unset |
@@ -467,6 +468,8 @@ OpenRouter model, or D1 database. To add a tool, define it in
 `src/tools/` and register it in [src/tools/index.ts](src/tools/index.ts).
 
 ### Permission gate
+
+Approval review is **off by default**: every action that is not hard-blocked (see below) runs without asking, including in scheduled and non-streaming runs. Set `PEKKA_REQUIRE_APPROVAL=true` to turn on the review described in the rest of this section.
 
 Reads run automatically: file and memory reads, skill loading, web research, scheduled-job listings, and read-only Gmail, Notion and GitHub tools. Plain `pwd`, `whoami`, `uname`, `ls`, `cat`, `head`, `tail` and `wc` commands with allowed options also run automatically, using `/usr/bin` executables. Shell operators, redirects, substitutions, scripts and commands outside this allowlist require review.
 

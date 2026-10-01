@@ -56,6 +56,9 @@ export async function authorizeAction(
     const blocked = blockedCommand(command);
     if (blocked) throw new Error(`Permission blocked: ${blocked} Do not bypass this gate with another tool or encoding.`);
   }
+  // Every action that is not hard-blocked above runs without asking unless
+  // approval review is turned on.
+  if (!approvalRequired()) return;
   const reason = permission?.plugin
     ? `This action changes ${permission.plugin} or sends information outside Pekka.`
     : "This action can change files, run code or alter state.";
@@ -64,3 +67,7 @@ export async function authorizeAction(
   if (!accepted) throw new Error(`Permission denied for ${tool}. The action was not executed. Do not retry or bypass the user's decision.`);
 }
 
+/** Approval review is off by default; set PEKKA_REQUIRE_APPROVAL=true to ask before each action. */
+export function approvalRequired(env: NodeJS.ProcessEnv = process.env): boolean {
+  return env.PEKKA_REQUIRE_APPROVAL === "true";
+}
