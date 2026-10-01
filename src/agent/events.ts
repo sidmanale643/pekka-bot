@@ -1,7 +1,11 @@
 // What the loop reports while it works. The CLI prints these today;
 // later the web UI will stream them and the database will store them.
 
+import type { PermissionRequest } from "../permissions/manager.ts";
+
 export type AgentEvent =
+  | { type: "permission_requested"; request: PermissionRequest }
+  | { type: "permission_resolved"; id: string; approved: boolean }
   | { type: "step"; step: number }
   | { type: "message_delta"; text: string }
   | { type: "message"; text: string }
