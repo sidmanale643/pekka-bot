@@ -1,0 +1,11 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "node",
+  "fluid": true,
+  "functions": {
+    "server.ts": {
+      "maxDuration": 300,
+      "includeFiles": "{src/web/**,node_modules/marked/**,node_modules/dompurify/**,node_modules/.pnpm/marked@*/node_modules/marked/**,node_modules/.pnpm/dompurify@*/node_modules/dompurify/**}"
+    }
+  }
+}

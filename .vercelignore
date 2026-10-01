@@ -1,0 +1,15 @@
+.env
+.env.*
+.local
+.claude
+.codex
+.pekka
+site
+skills
+docs
+tmp
+temp
+references
+**/*.test.ts
+AGENTS.md
+CLAUDE.md
