@@ -4,6 +4,7 @@
   "description": "Open-source AI agent with its own cloud computer, built on Daytona",
   "scripts": {
     "pekka": "tsx src/cli.ts",
+    "api": "tsx src/api/main.ts",
     "test": "vitest run",
     "typecheck": "tsc"
   },
