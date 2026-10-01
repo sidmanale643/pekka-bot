@@ -1,0 +1,980 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pekka — Hand off the work, keep the final say</title>
+<meta name="description" content="Pekka is an open-source AI agent you can give real work to. Each bot gets its own cloud computer, memory and skills, works across GitHub, Gmail, Notion and Telegram, and asks before it changes anything.">
+<link rel="icon" href="favicon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* Same paper-and-cobalt palette as the Pekka web app. */
+:root {
+  --paper: #efeee9;
+  --paper-2: #e7e6e0;
+  --sheet: #f8f8f5;
+  --sunk: #e0dfd8;
+  --rule: #d3d2ca;
+  --rule-strong: #b3b2a9;
+  --ink: #151515;
+  --ink-2: #4f4e48;
+  --ink-3: #7d7c73;
+  --accent: #2a3cf0;
+  --accent-soft: #dcdff7;
+  --ok: #1f7a4d;
+  --ok-soft: #dcefe4;
+  --warn: #8a5300;
+  --warn-soft: #f6e8cf;
+  --term: #131313;
+  --term-2: #8d8d86;
+  --term-ink: #ecebe6;
+
+  --sans: "Geist", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  --mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --radius: 6px;
+  --wrap: 1160px;
+  --gutter: 32px;
+
+  color-scheme: light;
+  font-family: var(--sans);
+  font-size: 16px;
+  line-height: 1.55;
+  color: var(--ink);
+  background: var(--paper);
+  -webkit-font-smoothing: antialiased;
+  font-synthesis: none;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--paper); overflow-x: hidden; }
+h1, h2, h3, p { margin: 0; }
+a { color: inherit; text-decoration: none; }
+button { font: inherit; color: inherit; border: 0; background: none; padding: 0; cursor: pointer; }
+img { display: block; max-width: 100%; }
+code { font-family: var(--mono); font-size: 0.88em; }
+::selection { background: var(--accent-soft); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
+
+.wrap { width: 100%; max-width: calc(var(--wrap) + var(--gutter) * 2); margin: 0 auto; padding: 0 var(--gutter); }
+.label { font-family: var(--mono); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3); }
+.label b { color: var(--accent); font-weight: 500; }
+.mute { color: var(--ink-3); }
+
+/* Buttons */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  height: 44px; padding: 0 18px; border-radius: var(--radius);
+  font-size: 15px; font-weight: 500; white-space: nowrap; border: 1px solid transparent;
+  transition: background 0.15s, border-color 0.15s, transform 0.15s;
+}
+.btn:active { transform: translateY(1px); }
+.btn-sm { height: 36px; padding: 0 14px; font-size: 14px; }
+.btn-ink { background: var(--ink); color: var(--sheet); }
+.btn-ink:hover { background: #2b2b2b; }
+.btn-line { border-color: var(--rule-strong); background: var(--sheet); }
+.btn-line:hover { border-color: var(--ink-3); }
+.btn svg { width: 17px; height: 17px; }
+.btn .arrow { transition: transform 0.15s; }
+.btn:hover .arrow { transform: translateX(3px); }
+
+/* Nav */
+.nav { position: sticky; top: 0; z-index: 20; background: rgba(239, 238, 233, 0.86); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-bottom: 1px solid var(--rule); }
+.nav .wrap { display: flex; align-items: center; height: 60px; gap: 36px; }
+.brand { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 17px; letter-spacing: -0.01em; }
+.brand img { width: 28px; height: 28px; border-radius: 7px; }
+.nav-links { display: flex; gap: 26px; font-size: 14px; color: var(--ink-2); }
+.nav-links a:hover { color: var(--ink); }
+.nav-cta { margin-left: auto; display: flex; gap: 8px; }
+
+/* Hero */
+.hero { padding: 72px 0 96px; border-bottom: 1px solid var(--rule); }
+.hero .wrap { display: grid; grid-template-columns: 1.05fr 0.95fr; gap: 56px; align-items: center; }
+.hero .wrap > *, .run > *, .start > *, .faq-grid > *, .head > * { min-width: 0; }
+.hero h1 { margin-top: 24px; font-size: clamp(42px, 5.6vw, 72px); font-weight: 600; line-height: 1.02; letter-spacing: -0.045em; text-wrap: balance; }
+.eyebrow { display: inline-flex; align-items: center; gap: 8px; font-size: 13.5px; color: var(--ink-2); background: var(--sheet); border: 1px solid var(--rule); border-radius: 999px; padding: 5px 12px 5px 6px; }
+.eyebrow b { font-weight: 500; font-size: 12px; color: var(--sheet); background: var(--accent); border-radius: 999px; padding: 2px 8px; }
+.hero-sub { margin-top: 26px; max-width: 540px; font-size: 19px; color: var(--ink-2); }
+.hero-ctas { display: flex; gap: 10px; margin-top: 34px; flex-wrap: wrap; }
+.cmd {
+  margin-top: 26px; display: inline-flex; align-items: center; gap: 12px; max-width: 100%;
+  font-family: var(--mono); font-size: 13.5px; color: var(--ink-2);
+  border: 1px dashed var(--rule-strong); border-radius: var(--radius); padding: 9px 10px 9px 14px;
+}
+.cmd span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cmd span::before { content: "$ "; color: var(--ink-3); }
+.cmd button { flex: none; font-family: var(--sans); font-size: 12px; padding: 4px 10px; border-radius: 4px; background: var(--paper-2); color: var(--ink-2); }
+.cmd button:hover { background: var(--sunk); color: var(--ink); }
+
+.stage { position: relative; aspect-ratio: 1 / 1; max-width: 520px; width: 100%; justify-self: end; }
+.stage-art {
+  position: absolute; inset: 6%; border-radius: 22%; overflow: hidden;
+  box-shadow: 0 30px 60px -20px rgba(42, 60, 240, 0.35), 0 0 0 1px rgba(0, 0, 0, 0.06);
+}
+.stage-art img { width: 100%; height: 100%; object-fit: cover; }
+.float {
+  position: absolute; background: var(--sheet); border: 1px solid var(--rule); border-radius: 10px;
+  box-shadow: 0 18px 40px -16px rgba(21, 21, 21, 0.28); font-size: 13.5px; padding: 12px 14px;
+  animation: bob 6s ease-in-out infinite;
+}
+.float-a { left: -6%; top: 10%; width: 250px; }
+.float-b { right: -4%; top: 46%; width: 230px; animation-delay: -2s; }
+.float-c { left: 2%; bottom: 4%; animation-delay: -4s; }
+@keyframes bob { 50% { transform: translateY(-8px); } }
+.float .top { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 500; color: var(--warn); }
+.float .top svg { width: 13px; height: 13px; }
+.float p { margin-top: 4px; }
+.float code { display: block; margin-top: 2px; color: var(--ink-3); font-size: 12px; }
+.float .acts { display: flex; gap: 6px; margin-top: 10px; }
+.float .acts span { font-size: 12px; padding: 4px 10px; border-radius: 4px; border: 1px solid var(--rule); color: var(--ink-2); }
+.float .acts span.yes { background: var(--ink); color: var(--sheet); border-color: var(--ink); }
+.float.ok .top { color: var(--ok); }
+.chip-row { display: flex; align-items: center; gap: 10px; }
+.chip-row .ic { width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent); }
+.chip-row .ic svg { width: 16px; height: 16px; }
+.chip-row strong { display: block; font-weight: 500; font-size: 13.5px; }
+.chip-row small { display: block; font-size: 12px; color: var(--ink-3); }
+
+/* Section scaffolding */
+section { padding: 120px 0; border-bottom: 1px solid var(--rule); }
+h2 { font-size: clamp(32px, 4vw, 48px); font-weight: 600; letter-spacing: -0.035em; line-height: 1.08; text-wrap: balance; }
+.head { max-width: 780px; margin-bottom: 56px; }
+.head .lede { margin-top: 18px; max-width: 620px; font-size: 18px; color: var(--ink-2); }
+
+/* Run replay */
+.run { display: grid; grid-template-columns: 0.8fr 1.2fr; gap: 56px; align-items: start; }
+.points { list-style: none; padding: 0; margin: 0; border-top: 1px solid var(--rule); }
+.points li { padding: 20px 0; border-bottom: 1px solid var(--rule); display: grid; grid-template-columns: 36px 1fr; }
+.points li span { font-family: var(--mono); font-size: 12px; color: var(--accent); padding-top: 3px; }
+.points strong { display: block; font-weight: 500; font-size: 17px; }
+.points p { color: var(--ink-2); font-size: 15px; margin-top: 4px; }
+.term-win { background: var(--term); border-radius: 10px; overflow: hidden; box-shadow: 0 30px 60px -30px rgba(0, 0, 0, 0.5); }
+.term-bar { display: flex; align-items: center; gap: 7px; padding: 12px 14px; border-bottom: 1px solid #262626; }
+.term-bar i { width: 10px; height: 10px; border-radius: 50%; background: #3a3a3a; }
+.term-bar small { margin-left: 10px; font-family: var(--mono); font-size: 12px; color: var(--term-2); }
+.term-body { font-family: var(--mono); font-size: 13px; line-height: 1.7; color: var(--term-ink); padding: 18px 20px; height: 470px; overflow: hidden; white-space: pre-wrap; word-break: break-word; display: flex; flex-direction: column; justify-content: flex-end; }
+.term-body .d { color: var(--term-2); }
+.term-body .p { color: #8fa0ff; }
+.term-body .t { color: #7cc4ff; }
+.term-body .w { color: #f2c46d; }
+.term-body .g { color: #7fd6a4; }
+.term-body .cur::after { content: ""; display: inline-block; width: 8px; height: 15px; vertical-align: -2px; background: var(--term-ink); animation: blink 1s steps(2) infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+
+/* How it works */
+.steps { display: grid; grid-template-columns: repeat(3, 1fr); border: 1px solid var(--rule); border-radius: 10px; background: var(--sheet); overflow: hidden; }
+.step { padding: 32px 30px 30px; border-right: 1px solid var(--rule); display: flex; flex-direction: column; min-height: 400px; }
+.step:last-child { border-right: 0; }
+.step .n { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; background: var(--accent); color: var(--sheet); font-size: 14px; font-weight: 600; }
+.step h3 { margin-top: 18px; font-size: 21px; font-weight: 600; letter-spacing: -0.02em; }
+.step p { margin-top: 8px; color: var(--ink-2); font-size: 15px; }
+.step .vis { margin-top: auto; padding-top: 28px; }
+.field { border: 1px solid var(--rule); border-radius: var(--radius); background: var(--paper); padding: 8px 12px; margin-top: 8px; font-size: 13.5px; }
+.field small { display: block; font-size: 11px; color: var(--ink-3); font-family: var(--mono); text-transform: uppercase; letter-spacing: 0.05em; }
+.bubble { background: var(--paper-2); border-radius: 12px 12px 4px 12px; padding: 10px 14px; font-size: 13.5px; margin-left: 18%; }
+.input { margin-top: 10px; display: flex; justify-content: space-between; align-items: center; border: 1px solid var(--rule-strong); border-radius: var(--radius); padding: 8px 8px 8px 12px; font-size: 13.5px; color: var(--ink-3); background: var(--sheet); }
+.input i { width: 26px; height: 26px; border-radius: 4px; background: var(--ink); display: grid; place-items: center; color: var(--sheet); }
+.input i svg { width: 13px; height: 13px; }
+.approval { border: 1px solid #e3c99a; background: var(--warn-soft); border-radius: 8px; padding: 12px 14px; font-size: 13.5px; }
+.approval .top { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 500; color: var(--warn); }
+.approval .top svg { width: 13px; height: 13px; }
+.approval code { display: block; margin-top: 4px; color: var(--ink-2); font-size: 12px; }
+.approval .acts { display: flex; gap: 6px; margin-top: 10px; }
+.approval .acts span { font-size: 12px; padding: 4px 10px; border-radius: 4px; border: 1px solid #d9c49c; color: var(--ink-2); background: var(--sheet); }
+.approval .acts span.yes { background: var(--ink); color: var(--sheet); border-color: var(--ink); }
+.done { margin-top: 8px; display: flex; gap: 8px; align-items: center; font-size: 13.5px; color: var(--ok); background: var(--ok-soft); border-radius: 8px; padding: 10px 12px; }
+.done svg { width: 15px; height: 15px; flex: none; }
+
+/* Feature sheet */
+.sheet { display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid var(--ink); }
+.cell { padding: 30px 28px 34px; border-bottom: 1px solid var(--rule); border-left: 1px solid var(--rule); display: flex; flex-direction: column; gap: 10px; }
+.cell:nth-child(3n + 1) { padding-left: 0; border-left: 0; }
+.cell:nth-child(3n) { padding-right: 0; }
+.cell h3 { font-size: 20px; font-weight: 600; letter-spacing: -0.02em; }
+.cell p { color: var(--ink-2); font-size: 15px; }
+.cell .vis { margin-top: 14px; }
+.mini-term { font-family: var(--mono); font-size: 12px; line-height: 1.7; background: var(--term); color: var(--term-ink); border-radius: 8px; padding: 12px 14px; }
+.mini-term .d { color: var(--term-2); }
+.mini-term .g { color: #7fd6a4; }
+.doc { border: 1px solid var(--rule); border-radius: 8px; background: var(--sheet); overflow: hidden; font-size: 13px; }
+.doc-tabs { display: flex; border-bottom: 1px solid var(--rule); font-family: var(--mono); font-size: 11.5px; }
+.doc-tabs span { padding: 7px 12px; color: var(--ink-3); }
+.doc-tabs span.on { color: var(--ink); box-shadow: inset 0 -2px 0 var(--accent); }
+.doc ul { margin: 0; padding: 10px 14px 12px 28px; color: var(--ink-2); }
+.doc li + li { margin-top: 3px; }
+.doc li.new { color: var(--ink); background: var(--accent-soft); margin-left: -6px; padding-left: 6px; border-radius: 3px; }
+.tl { display: grid; gap: 6px; }
+.tl div { display: grid; grid-template-columns: 52px 1fr auto; gap: 10px; align-items: center; font-size: 13px; padding: 8px 10px; border: 1px solid var(--rule); border-radius: 6px; background: var(--sheet); }
+.tl b { font-family: var(--mono); font-weight: 500; font-size: 12px; color: var(--ink-3); }
+.tl em { font-style: normal; font-size: 11.5px; color: var(--ok); }
+.tl em.off { color: var(--ink-3); }
+.tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.tags span { font-family: var(--mono); font-size: 12px; padding: 4px 9px; border-radius: 4px; border: 1px solid var(--rule); background: var(--sheet); color: var(--ink-2); }
+.tags span.on { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+.voices { display: grid; gap: 6px; }
+.voices div { display: flex; align-items: center; gap: 10px; font-size: 13px; padding: 8px 10px; border: 1px solid var(--rule); border-radius: 6px; background: var(--sheet); }
+.voices div.on { border-color: var(--ink); }
+.voices i { width: 12px; height: 12px; border-radius: 50%; border: 1.5px solid var(--rule-strong); flex: none; }
+.voices div.on i { border: 4px solid var(--ink); }
+.voices span { color: var(--ink-3); }
+
+/* Crew */
+.crew { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; }
+.badge {
+  background: var(--sheet); border: 1px solid var(--rule); border-radius: 12px; overflow: hidden;
+  display: flex; flex-direction: column; transition: transform 0.2s, box-shadow 0.2s;
+}
+.badge:hover { transform: translateY(-4px) rotate(-0.4deg); box-shadow: 0 24px 40px -24px rgba(21, 21, 21, 0.35); }
+.badge-top { height: 64px; position: relative; background: var(--c); }
+.badge-top::after { content: ""; position: absolute; left: 50%; top: 12px; width: 44px; height: 7px; margin-left: -22px; border-radius: 4px; background: rgba(255, 255, 255, 0.55); }
+.badge-av { width: 56px; height: 56px; border-radius: 14px; margin: -28px 0 0 20px; position: relative; background: var(--sheet); border: 1px solid var(--rule); display: grid; place-items: center; font-size: 24px; font-weight: 600; color: var(--ink); }
+.badge-body { padding: 14px 20px 20px; display: flex; flex-direction: column; gap: 4px; flex: 1; }
+.badge h3 { font-size: 19px; font-weight: 600; letter-spacing: -0.02em; }
+.badge .role { font-size: 13.5px; color: var(--ink-3); }
+.badge .job { margin-top: 10px; font-size: 14px; color: var(--ink-2); }
+.badge dl { margin: auto 0 0; padding-top: 16px; display: grid; grid-template-columns: auto 1fr; gap: 7px 12px; font-size: 12.5px; }
+.badge dt { font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-3); padding-top: 1px; }
+.badge dd { margin: 0; color: var(--ink); }
+
+/* Plugins explorer */
+.px { display: grid; grid-template-columns: 280px 1fr; border: 1px solid var(--rule); border-radius: 12px; background: var(--sheet); overflow: hidden; }
+.px-list { border-right: 1px solid var(--rule); padding: 10px; display: flex; flex-direction: column; gap: 2px; background: var(--paper-2); }
+.px-tab { display: grid; grid-template-columns: 36px 1fr auto; gap: 12px; align-items: center; text-align: left; padding: 10px 12px; border-radius: 8px; transition: background 0.15s; }
+.px-tab:hover { background: rgba(255, 255, 255, 0.6); }
+.px-tab[aria-selected="true"] { background: var(--sheet); box-shadow: 0 1px 2px rgba(21, 21, 21, 0.08), 0 0 0 1px var(--rule); }
+.px-tab .ic { width: 36px; height: 36px; border-radius: 9px; display: grid; place-items: center; background: var(--sheet); border: 1px solid var(--rule); }
+.px-tab[aria-selected="true"] .ic { background: var(--ink); color: var(--sheet); border-color: var(--ink); }
+.px-tab .ic svg { width: 17px; height: 17px; }
+.px-tab strong { display: block; font-size: 14.5px; font-weight: 500; }
+.px-tab small { display: block; font-size: 12px; color: var(--ink-3); }
+.px-tab .count { font-family: var(--mono); font-size: 11.5px; color: var(--ink-3); }
+.px-panel { padding: 30px 32px 28px; min-width: 0; display: flex; flex-direction: column; }
+.px-top { display: flex; align-items: flex-start; gap: 18px; }
+.px-top .ic { flex: none; width: 52px; height: 52px; border-radius: 13px; display: grid; place-items: center; background: var(--ink); color: var(--sheet); }
+.px-top .ic svg { width: 24px; height: 24px; }
+.px-top h3 { font-size: 22px; font-weight: 600; letter-spacing: -0.02em; }
+.px-top p { margin-top: 2px; color: var(--ink-2); font-size: 15px; }
+.px-access { margin-top: 22px; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 14px; border: 1px solid var(--rule); border-radius: 10px; background: var(--paper); font-size: 14px; }
+.px-access small { display: block; font-size: 12.5px; color: var(--ink-3); }
+.switch { flex: none; width: 42px; height: 24px; border-radius: 999px; background: var(--rule-strong); position: relative; transition: background 0.2s; }
+.switch::after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2); transition: transform 0.2s; }
+.switch[aria-checked="true"] { background: var(--accent); }
+.switch[aria-checked="true"]::after { transform: translateX(18px); }
+.keypill { flex: none; font-family: var(--mono); font-size: 12px; color: var(--ink-2); background: var(--sheet); border: 1px solid var(--rule); border-radius: 6px; padding: 4px 8px; }
+.px-tools { margin-top: 20px; display: grid; transition: opacity 0.2s; }
+.px-tools.off { opacity: 0.4; }
+.px-tool { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 16px; align-items: center; padding: 11px 0; border-bottom: 1px solid var(--rule); }
+.px-tool:first-child { border-top: 1px solid var(--rule); }
+.px-tool code { font-size: 13px; color: var(--ink); min-width: 0; overflow-wrap: anywhere; }
+.px-tool span { grid-column: 1; font-size: 13.5px; color: var(--ink-2); }
+.px-tool em { grid-row: span 2; font-style: normal; font-size: 12px; font-weight: 500; padding: 3px 9px; border-radius: 999px; white-space: nowrap; }
+.px-tool em.auto { color: var(--ok); background: var(--ok-soft); }
+.px-tool em.ask { color: var(--warn); background: var(--warn-soft); }
+.px-note { margin-top: auto; padding-top: 18px; display: flex; gap: 8px; align-items: flex-start; font-size: 13.5px; color: var(--ink-3); }
+.px-note svg { width: 15px; height: 15px; flex: none; margin-top: 2px; }
+.px-off { font-size: 13.5px; color: var(--ink-2); margin-top: 12px; }
+.trust { display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; margin-top: 40px; }
+.trust div { display: grid; grid-template-columns: 22px 1fr; gap: 12px; font-size: 14.5px; color: var(--ink-2); }
+.trust svg { width: 18px; height: 18px; color: var(--accent); margin-top: 2px; }
+.trust strong { display: block; color: var(--ink); font-weight: 500; font-size: 15.5px; }
+
+/* Architecture */
+.arch { display: grid; grid-template-columns: 1fr 64px 1.25fr 64px 1.3fr; align-items: center; }
+.node { background: var(--sheet); border: 1px solid var(--rule); border-radius: 10px; padding: 20px; }
+.node h3 { font-size: 16px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+.node h3 svg { width: 17px; height: 17px; color: var(--accent); }
+.node p { margin-top: 6px; font-size: 13.5px; color: var(--ink-2); }
+.node .rows { display: grid; gap: 6px; margin-top: 14px; }
+.node .rows span { font-family: var(--mono); font-size: 12px; padding: 7px 10px; border-radius: 6px; background: var(--paper); border: 1px solid var(--rule); }
+.node.core { border-color: var(--ink); box-shadow: 6px 6px 0 var(--ink); }
+.node.core .rows span { background: var(--accent-soft); border-color: transparent; color: var(--accent); }
+.wire { height: 2px; background: repeating-linear-gradient(90deg, var(--ink-3) 0 6px, transparent 6px 11px); background-size: 22px 2px; position: relative; animation: flow 1.2s linear infinite; }
+.wire::after { content: ""; position: absolute; right: -2px; top: -4px; border: 5px solid transparent; border-left: 7px solid var(--ink-3); border-right: 0; }
+@keyframes flow { to { background-position: 22px 0; } }
+.outs { display: grid; gap: 10px; }
+.outs .node { padding: 14px 16px; }
+.outs .node p { margin-top: 2px; }
+.arch-note { margin-top: 28px; display: flex; gap: 10px; align-items: flex-start; font-size: 14.5px; color: var(--ink-2); max-width: 720px; }
+.arch-note svg { width: 18px; height: 18px; color: var(--accent); flex: none; margin-top: 2px; }
+
+/* Get started */
+.start { display: grid; grid-template-columns: 0.9fr 1.1fr; gap: 56px; align-items: start; }
+.free-sub { margin-top: 18px; color: var(--ink-2); font-size: 17px; max-width: 440px; }
+.needs { list-style: none; padding: 0; margin: 32px 0 0; border-top: 1px solid var(--rule); }
+.needs li { display: grid; grid-template-columns: 140px 1fr; gap: 16px; padding: 13px 0; border-bottom: 1px solid var(--rule); font-size: 15px; }
+.needs li strong { font-weight: 500; }
+.needs li span { color: var(--ink-2); }
+.needs li.opt strong { color: var(--ink-3); }
+.qs .term-body { display: block; height: auto; padding-top: 20px; }
+.qs .term-bar button { margin-left: auto; font-family: var(--sans); font-size: 12px; color: var(--term-2); padding: 4px 10px; border-radius: 4px; background: #222; }
+.qs .term-bar button:hover { color: var(--term-ink); }
+.qs-foot { margin-top: 18px; display: flex; gap: 14px; flex-wrap: wrap; align-items: center; font-size: 14px; color: var(--ink-3); }
+
+/* FAQ */
+.faq-grid { display: grid; grid-template-columns: 0.8fr 1.2fr; gap: 56px; }
+.faq-grid aside p { margin-top: 16px; color: var(--ink-2); max-width: 340px; }
+.faq-grid aside a { color: var(--accent); text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1px; }
+.faq { border-top: 1px solid var(--ink); }
+.faq details { border-bottom: 1px solid var(--rule); }
+.faq summary { list-style: none; cursor: pointer; display: grid; grid-template-columns: 36px 1fr 20px; align-items: baseline; padding: 20px 0; font-size: 17.5px; font-weight: 500; }
+.faq summary::-webkit-details-marker { display: none; }
+.faq summary span { font-family: var(--mono); font-size: 12px; color: var(--ink-3); }
+.faq summary::after { content: "+"; font-size: 22px; line-height: 1; color: var(--ink-3); justify-self: end; transition: transform 0.2s; }
+.faq details[open] summary::after { transform: rotate(45deg); color: var(--accent); }
+.faq details p { padding: 0 20px 22px 36px; color: var(--ink-2); font-size: 15.5px; }
+
+/* Final */
+.final { padding: 120px 0 128px; }
+.final .wrap { display: grid; grid-template-columns: auto 1fr; gap: 48px; align-items: center; }
+.final img { width: 168px; height: 168px; border-radius: 38px; transform: rotate(-4deg); box-shadow: 0 30px 60px -24px rgba(42, 60, 240, 0.45); }
+.final h2 { font-size: clamp(36px, 5vw, 60px); }
+.final p { margin-top: 12px; font-size: 18px; color: var(--ink-2); }
+.final .hero-ctas { margin-top: 28px; }
+
+footer { border-top: 1px solid var(--rule); padding: 28px 0 40px; font-size: 13.5px; color: var(--ink-3); }
+footer .wrap { display: flex; justify-content: space-between; align-items: center; gap: 20px; flex-wrap: wrap; }
+footer nav { display: flex; gap: 22px; }
+footer a:hover { color: var(--ink); }
+footer .brand { font-size: 15px; color: var(--ink); }
+
+.reveal { opacity: 0; transform: translateY(18px); transition: opacity 0.6s ease, transform 0.6s ease; }
+.reveal.in { opacity: 1; transform: none; }
+
+/* Responsive */
+@media (max-width: 1060px) {
+  .crew { grid-template-columns: repeat(2, 1fr); }
+  .px { grid-template-columns: 230px 1fr; }
+  .px-tab small { display: none; }
+  .arch { grid-template-columns: 1fr; }
+  .arch .wire { width: 2px; height: 36px; margin: 0 auto; background: repeating-linear-gradient(180deg, var(--ink-3) 0 6px, transparent 6px 11px); background-size: 2px 22px; animation-name: flow-down; }
+  .arch .wire::after { right: auto; top: auto; left: -4px; bottom: -2px; border: 5px solid transparent; border-top: 7px solid var(--ink-3); border-bottom: 0; }
+}
+@keyframes flow-down { to { background-position: 0 22px; } }
+@media (max-width: 900px) {
+  :root { --gutter: 20px; }
+  .nav-links { display: none; }
+  .hero { padding: 48px 0 72px; }
+  .hero .wrap { grid-template-columns: 1fr; gap: 40px; }
+  .stage { justify-self: center; max-width: 440px; }
+  .head { margin-bottom: 40px; }
+  .run, .start, .faq-grid { grid-template-columns: 1fr; gap: 40px; }
+  .steps { grid-template-columns: 1fr; }
+  .step { border-right: 0; border-bottom: 1px solid var(--rule); min-height: 0; }
+  .step:last-child { border-bottom: 0; }
+  .sheet { grid-template-columns: 1fr 1fr; }
+  .cell:nth-child(n) { padding: 28px 22px 30px; border-left: 1px solid var(--rule); }
+  .cell:nth-child(2n + 1) { padding-left: 0; border-left: 0; }
+  .cell:nth-child(2n) { padding-right: 0; }
+  section { padding: 88px 0; }
+  .final .wrap { grid-template-columns: 1fr; gap: 32px; }
+  .px { grid-template-columns: 1fr; }
+  .px-list { flex-direction: row; overflow-x: auto; border-right: 0; border-bottom: 1px solid var(--rule); scrollbar-width: none; }
+  .px-tab { grid-template-columns: 28px auto; gap: 8px; padding: 8px 12px 8px 8px; flex: none; }
+  .px-tab .ic { width: 28px; height: 28px; border-radius: 7px; }
+  .px-tab .ic svg { width: 14px; height: 14px; }
+  .px-tab .count { display: none; }
+  .trust { grid-template-columns: 1fr; gap: 18px; }
+  .final img { width: 120px; height: 120px; border-radius: 28px; }
+}
+@media (max-width: 600px) {
+  :root { --gutter: 16px; }
+  .nav-cta .btn-line { display: none; }
+  .hero-sub { font-size: 17px; }
+  .float-a { left: -2%; width: 210px; }
+  .float-b { right: -2%; width: 190px; }
+  .float { padding: 10px 12px; font-size: 12.5px; }
+  .sheet { grid-template-columns: 1fr; }
+  .cell:nth-child(n) { padding: 26px 0 28px; border-left: 0; }
+  .crew { grid-template-columns: 1fr; }
+  .px-panel { padding: 22px 18px 20px; }
+  .px-top .ic { width: 44px; height: 44px; }
+  .px-tool em { grid-row: auto; grid-column: 2; grid-row-start: 1; }
+  .needs li { grid-template-columns: 1fr; gap: 2px; }
+  .term-body { font-size: 12px; height: 440px; padding: 14px; }
+  .faq summary { grid-template-columns: 28px 1fr 20px; font-size: 16px; }
+  .faq details p { padding-left: 28px; padding-right: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+  .reveal { opacity: 1; transform: none; }
+}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></symbol>
+  <symbol id="i-github" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.71.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.68 0-1.26.45-2.28 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.83 1.19 3.09 0 4.41-2.69 5.38-5.25 5.67.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5Z"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+  <symbol id="i-up" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></symbol>
+  <symbol id="i-shield" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></symbol>
+  <symbol id="i-globe" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 0 1 0 20 15 15 0 0 1 0-20Z"/></symbol>
+  <symbol id="i-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></symbol>
+  <symbol id="i-mail" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></symbol>
+  <symbol id="i-inbox" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11Z"/></symbol>
+  <symbol id="i-send" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></symbol>
+  <symbol id="i-page" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></symbol>
+  <symbol id="i-user" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></symbol>
+  <symbol id="i-cpu" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="5" width="14" height="14" rx="2"/><path d="M9 9h6v6H9zM9 1v4M15 1v4M9 19v4M15 19v4M1 9h4M1 15h4M19 9h4M19 15h4"/></symbol>
+</svg>
+
+<header class="nav">
+  <div class="wrap">
+    <a class="brand" href="#top"><img src="logo.png" alt="" width="28" height="28">Pekka</a>
+    <nav class="nav-links" aria-label="Sections">
+      <a href="#run">How it works</a>
+      <a href="#features">Features</a>
+      <a href="#plugins">Plugins</a>
+      <a href="#architecture">Architecture</a>
+      <a href="#faq">FAQ</a>
+    </nav>
+    <div class="nav-cta">
+      <a class="btn btn-line btn-sm" href="https://github.com/sidmanale643/pekka"><svg><use href="#i-github"/></svg>GitHub</a>
+      <a class="btn btn-ink btn-sm" href="https://pekka-app.vercel.app">Open Pekka</a>
+    </div>
+  </div>
+</header>
+
+<main id="top">
+  <!-- Hero -->
+  <div class="hero">
+    <div class="wrap">
+      <div>
+        <p class="eyebrow"><b>Open source on GitHub</b>A workspace for your AI bots</p>
+        <h1>Hand off the work.<br><span class="mute">Keep the final say.</span></h1>
+        <p class="hero-sub">Give Pekka a role and a job. Your bots work in their own cloud computers and ask before making changes. Run the open-source project from GitHub, or use the browser workspace with Google sign-in on a configured Pekka server.</p>
+        <div class="hero-ctas">
+          <a class="btn btn-ink" href="https://pekka-app.vercel.app">Open Pekka <svg class="arrow"><use href="#i-arrow"/></svg></a>
+          <a class="btn btn-line" href="https://github.com/sidmanale643/pekka"><svg><use href="#i-github"/></svg>Open source on GitHub</a>
+        </div>
+        <div class="cmd"><span id="hero-cmd">git clone https://github.com/sidmanale643/pekka.git</span><button type="button" data-copy="hero-cmd">Copy</button></div>
+      </div>
+
+      <div class="stage" aria-hidden="true">
+        <div class="stage-art"><img src="logo.png" alt=""></div>
+        <div class="float float-a">
+          <div class="top"><svg><use href="#i-shield"/></svg>Permission required</div>
+          <p>Scout wants to write a file</p>
+          <code>reports/2026-10-01.md</code>
+          <div class="acts"><span>Deny</span><span class="yes">Approve once</span></div>
+        </div>
+        <div class="float float-b ok">
+          <div class="top"><svg><use href="#i-check"/></svg>Task finished · 3 steps</div>
+          <p>Picked 6 of 25 new repositories. Report saved with sources.</p>
+        </div>
+        <div class="float float-c">
+          <div class="chip-row"><span class="ic"><svg><use href="#i-clock"/></svg></span><div><strong>Weekly repo report</strong><small>Next run Monday 09:00</small></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Run replay -->
+  <section id="run">
+    <div class="wrap">
+      <div class="head reveal">
+          <h2>See every step. <span class="mute">Nothing happens out of sight.</span></h2>
+          <p class="lede">Every step streams as it happens: what the model says, which tool it calls, what came back. You can follow a run in the CLI, the web app or over the HTTP API.</p>
+        </div>
+      <div class="run">
+        <ul class="points reveal">
+          <li><span>a</span><div><strong>It plans, then acts</strong><p>The agent loop sends your task and its tools to the model, runs each tool call, and feeds the results back until the job is done.</p></div></li>
+          <li><span>b</span><div><strong>It stops to ask</strong><p>Before a write, a send or a risky command, it shows you the exact arguments and waits for a yes.</p></div></li>
+          <li><span>c</span><div><strong>It tells you what it cost</strong><p>Each run ends with the step count, tokens used, cache hit rate and the cost the provider reported.</p></div></li>
+        </ul>
+        <div class="term-win reveal">
+          <div class="term-bar"><i></i><i></i><i></i><small>~/pekka — zsh</small></div>
+          <div class="term-body" id="term" aria-label="A recorded Pekka run in the terminal"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- How it works -->
+  <section id="how">
+    <div class="wrap">
+      <div class="head reveal"><h2>Three steps. <span class="mute">Then it gets to work.</span></h2></div>
+      <div class="steps reveal">
+        <div class="step">
+          <span class="n">1</span>
+          <h3>Create a bot</h3>
+          <p>A name, a role and a job. It gets its own sandbox, memory and skills from the start.</p>
+          <div class="vis">
+            <div class="field"><small>Name</small>Scout</div>
+            <div class="field"><small>Role</small>Repository researcher</div>
+            <div class="field"><small>Job</small>Find interesting TypeScript repositories and write a report</div>
+          </div>
+        </div>
+        <div class="step">
+          <span class="n">2</span>
+          <h3>Give it a task</h3>
+          <p>Type it in the web app, run it from the CLI or send it over HTTP. With no task, it does its job.</p>
+          <div class="vis">
+            <div class="bubble">Compare the top three and add a short verdict for each.</div>
+            <div class="input">Give Scout a task…<i><svg><use href="#i-up"/></svg></i></div>
+          </div>
+        </div>
+        <div class="step">
+          <span class="n">3</span>
+          <h3>Approve, then done</h3>
+          <p>Say yes to the changes you want. It comes back with the result and can save what it learned.</p>
+          <div class="vis">
+            <div class="approval">
+              <div class="top"><svg><use href="#i-shield"/></svg>Permission required</div>
+              <code>edit_file reports/2026-10-01.md</code>
+              <div class="acts"><span>Deny</span><span class="yes">Approve once</span></div>
+            </div>
+            <div class="done"><svg><use href="#i-check"/></svg>Verdicts added to the report.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features -->
+  <section id="features">
+    <div class="wrap">
+      <div class="head reveal">
+          <h2>Built for real work. <span class="mute">And built to be trusted with it.</span></h2>
+          <p class="lede">Bots that remember, keep their own files, run on a schedule and never act behind your back.</p>
+        </div>
+      <div class="sheet reveal">
+        <div class="cell">
+          <h3>A computer that stays put</h3>
+          <p>Each bot works in its own persistent Linux sandbox on Daytona. It stops after 15 idle minutes and starts again with its files intact.</p>
+          <div class="vis mini-term"><span class="d">~/workspace $</span> ls<br>reports/  edge-kit/  notes.md<br><span class="d">~/workspace $</span> pnpm test<br><span class="g">✓ 148 passed</span></div>
+        </div>
+        <div class="cell">
+          <h3>Nothing changes without a yes</h3>
+          <p>Reads run on their own. Writes, sends and risky commands wait for one-time approval of the exact arguments, and expire after five minutes.</p>
+          <div class="vis approval">
+            <div class="top"><svg><use href="#i-shield"/></svg>Permission required</div>
+            <code>gmail_send · to dana@acme.com</code>
+            <div class="acts"><span>Deny</span><span class="yes">Approve once</span></div>
+          </div>
+        </div>
+        <div class="cell">
+          <h3>Memory you can read</h3>
+          <p>Two Markdown files per bot: one for your preferences, one for what it has learned. Open and edit them any time.</p>
+          <div class="vis doc">
+            <div class="doc-tabs"><span>PREFERENCES.md</span><span class="on">KNOWLEDGE.md</span></div>
+            <ul><li>Reports live in <code>reports/</code>, one per week</li><li class="new">Acme signs annual contracts only</li></ul>
+          </div>
+        </div>
+        <div class="cell">
+          <h3>Works while you're away</h3>
+          <p>Say "every Monday at 9" and the bot schedules itself. Pause, resume or cancel from the Scheduled page.</p>
+          <div class="vis tl">
+            <div><b>Mon</b>Weekly repo report<em>Upcoming</em></div>
+            <div><b>Daily</b>Inbox sweep<em class="off">Paused</em></div>
+          </div>
+        </div>
+        <div class="cell">
+          <h3>Skills, loaded when needed</h3>
+          <p>Teach a workflow once as a skill folder. Bots see a short list and load the full instructions only when a task calls for them.</p>
+          <div class="vis tags"><span class="on">research</span><span>github</span><span class="on">report-format</span><span>gmail</span><span>notion</span><span>telegram</span></div>
+        </div>
+        <div class="cell">
+          <h3>A voice of its own</h3>
+          <p>Give each bot a character for how it talks to you. The work stays exact whatever the voice.</p>
+          <div class="vis voices">
+            <div><i></i>Normal <span>direct and natural</span></div>
+            <div class="on"><i></i>Butler <span>polite, dryly witty</span></div>
+            <div><i></i>Custom <span>describe your own</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Crew -->
+  <section id="crew">
+    <div class="wrap">
+      <div class="head reveal">
+          <h2>A bot for every job. <span class="mute">None of them share a desk.</span></h2>
+          <p class="lede">Each bot keeps its own workspace, memory and skills, so the researcher's notes never end up in the inbox manager's files.</p>
+        </div>
+      <div class="crew">
+        <article class="badge reveal" style="--c:#2a3cf0">
+          <div class="badge-top"></div><div class="badge-av">S</div>
+          <div class="badge-body">
+            <h3>Scout</h3><p class="role">Repository researcher</p>
+            <p class="job">Finds new projects, clones the promising ones and writes a sourced weekly report.</p>
+            <dl><dt>Tools</dt><dd>Web search, scraping, shell</dd><dt>Runs</dt><dd>Mondays 09:00</dd></dl>
+          </div>
+        </article>
+        <article class="badge reveal" style="--c:#d39a33">
+          <div class="badge-top"></div><div class="badge-av">I</div>
+          <div class="badge-body">
+            <h3>Inbox Manager</h3><p class="role">Email assistant</p>
+            <p class="job">Finds threads that need you, summarises them and drafts replies for your approval.</p>
+            <dl><dt>Tools</dt><dd>Gmail</dd><dt>Runs</dt><dd>When you ask</dd></dl>
+          </div>
+        </article>
+        <article class="badge reveal" style="--c:#1f7a4d">
+          <div class="badge-top"></div><div class="badge-av">T</div>
+          <div class="badge-body">
+            <h3>Issue Triage</h3><p class="role">Maintainer's helper</p>
+            <p class="job">Reads new issues, tries to reproduce bugs in its sandbox and comments with what it found.</p>
+            <dl><dt>Tools</dt><dd>GitHub, shell</dd><dt>Runs</dt><dd>When you ask</dd></dl>
+          </div>
+        </article>
+        <article class="badge reveal" style="--c:#151515">
+          <div class="badge-top"></div><div class="badge-av">L</div>
+          <div class="badge-body">
+            <h3>Librarian</h3><p class="role">Knowledge keeper</p>
+            <p class="job">Finds and updates your team's Notion pages, and sends you a summary on Telegram.</p>
+            <dl><dt>Tools</dt><dd>Notion, Telegram</dd><dt>Runs</dt><dd>When you ask</dd></dl>
+          </div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- Plugins -->
+  <section id="plugins">
+    <div class="wrap">
+      <div class="head reveal">
+        <h2>Works with your tools. <span class="mute">Asks before it changes them.</span></h2>
+        <p class="lede">Connect a tool once and all your bots can use it. Pick one to see exactly what bots can do with it.</p>
+      </div>
+      <div class="px reveal">
+        <div class="px-list" role="tablist" aria-label="Plugins" id="px-list"></div>
+        <div class="px-panel" role="tabpanel" id="px-panel" aria-live="polite"></div>
+      </div>
+      <div class="trust reveal">
+        <div><svg><use href="#i-shield"/></svg><p><strong>Off until you say so</strong>Connecting a tool leaves access off. Turn it on, or off again, any time.</p></div>
+        <div><svg><use href="#i-lock"/></svg><p><strong>Tokens stay on the server</strong>Encrypted in your database, never shown to the model or the bot's computer.</p></div>
+        <div><svg><use href="#i-check"/></svg><p><strong>Reads run, changes ask</strong>Looking things up is automatic. Anything that writes or sends waits for your yes.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Architecture -->
+  <section id="architecture">
+    <div class="wrap">
+      <div class="head reveal">
+          <h2>Runs on your server. <span class="mute">Under your control.</span></h2>
+          <p class="lede">Pekka is a Node.js app you run yourself. It calls the services you choose and keeps every credential on the server.</p>
+        </div>
+      <div class="arch reveal">
+        <div class="node">
+          <h3><svg><use href="#i-user"/></svg>You</h3>
+          <p>Talk to your bots from wherever suits you.</p>
+          <div class="rows"><span>Web app</span><span>CLI</span><span>HTTP API + SSE</span></div>
+        </div>
+        <div class="wire"></div>
+        <div class="node core">
+          <h3><svg><use href="#i-cpu"/></svg>Pekka</h3>
+          <p>The API and scheduler you run. They hold the keys.</p>
+          <div class="rows"><span>Agent loop</span><span>Permission gate</span><span>Scheduler</span><span>Encrypted plugin tokens</span></div>
+        </div>
+        <div class="wire"></div>
+        <div class="outs">
+          <div class="node"><h3>OpenRouter</h3><p>The model, any one with tool calling</p></div>
+          <div class="node"><h3>Daytona</h3><p>One persistent sandbox per bot</p></div>
+          <div class="node"><h3>Cloudflare D1</h3><p>Bots, memory, skills and schedules</p></div>
+          <div class="node"><h3>Plugins</h3><p>GitHub, Gmail, Notion, Telegram, AgentMail</p></div>
+        </div>
+      </div>
+      <p class="arch-note reveal"><svg><use href="#i-lock"/></svg>Turn on Google sign-in to share one server with your team. Everyone gets their own bots, memory, schedules and plugin connections, and nobody can see anyone else's.</p>
+    </div>
+  </section>
+
+  <!-- Get started -->
+  <section id="start">
+    <div class="wrap start">
+      <div class="reveal">
+        <h2>Open source on GitHub. <span class="mute">Made for the browser.</span></h2>
+        <p class="free-sub">Run Pekka yourself from GitHub and bring your own keys. Its web workspace lets you create bots, assign tasks and approve their work. With Google sign-in enabled, invited users get their own private workspace. Self-hosted users pay only for the services they connect.</p>
+        <p class="free-sub">The hosted app currently opens without login. Everyone shares the same workspace.</p>
+        <ul class="needs">
+          <li><strong>OpenRouter</strong><span>The model your bots think with</span></li>
+          <li><strong>Daytona</strong><span>The computers they work on</span></li>
+          <li><strong>Cloudflare D1</strong><span>Where bots, memory and schedules live</span></li>
+          <li class="opt"><strong>Optional</strong><span>Tavily or Exa, ScraperAPI, AgentMail, and any plugins</span></li>
+        </ul>
+      </div>
+      <div class="qs reveal">
+        <div class="term-win">
+          <div class="term-bar"><i></i><i></i><i></i><small>quickstart</small><button type="button" data-copy="qs">Copy</button></div>
+          <div class="term-body" id="qs"><span class="d"># Node.js 22.13+ and pnpm</span>
+<span class="p">$</span> git clone https://github.com/sidmanale643/pekka.git
+<span class="p">$</span> cd pekka && pnpm install
+<span class="p">$</span> cp .env.example .env     <span class="d"># add your keys</span>
+<span class="p">$</span> pnpm pekka db check
+<span class="g">Connected to Cloudflare D1.</span>
+<span class="p">$</span> pnpm api                 <span class="d"># open http://127.0.0.1:3000</span></div>
+        </div>
+        <div class="qs-foot">
+          <a class="btn btn-ink" href="https://github.com/sidmanale643/pekka#get-started">Full setup guide <svg class="arrow"><use href="#i-arrow"/></svg></a>
+          <span>Covers keys, sign-in, plugins and the scheduler.</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section id="faq">
+    <div class="wrap faq-grid">
+      <aside class="reveal">
+        <h2>Common questions</h2>
+        <p>Anything else is probably in the <a href="https://github.com/sidmanale643/pekka#readme">README</a>.</p>
+      </aside>
+      <div class="faq reveal">
+        <details>
+          <summary><span>01</span>How is Pekka different from a chat assistant?</summary>
+          <p>A chat assistant tells you what to do. A Pekka bot does it: it runs the commands, writes the files and uses your connected tools itself, then reports back. It keeps its workspace and memory between tasks and can run on a schedule.</p>
+        </details>
+        <details>
+          <summary><span>02</span>Does every bot get its own computer?</summary>
+          <p>Yes. Each named bot has its own persistent Daytona sandbox, plus its own memory and skills. Sandboxes stop after 15 idle minutes and start again on the next task with their files intact.</p>
+        </details>
+        <details>
+          <summary><span>03</span>What can a bot do without asking?</summary>
+          <p>Read: files, memory, skills, web searches, read-only plugin calls, and a short allowlist of shell commands such as <code>ls</code> and <code>cat</code>. Everything else, including other commands, file and memory writes, schedule changes and anything that sends or publishes, needs one-time approval of the exact arguments.</p>
+        </details>
+        <details>
+          <summary><span>04</span>Which models can I use?</summary>
+          <p>Any OpenRouter model that supports tool calling. Set <code>PEKKA_MODEL</code> to pick one.</p>
+        </details>
+        <details>
+          <summary><span>05</span>Can my team share one server?</summary>
+          <p>Yes. Turn on Google sign-in and list the addresses or domains allowed in. Each person gets their own bots, memory, schedules and plugin connections.</p>
+        </details>
+        <details>
+          <summary><span>06</span>What does it cost?</summary>
+          <p>Pekka is free and open source. You pay OpenRouter for model usage, Daytona for sandboxes, and any optional providers you turn on.</p>
+        </details>
+        <details>
+          <summary><span>07</span>What can't it do yet?</summary>
+          <p>Bots can't drive a web browser or hand work to each other yet, and email is send-only for now. Scheduled tasks run while the <code>pekka scheduler</code> process is running.</p>
+        </details>
+      </div>
+    </div>
+  </section>
+
+  <!-- Final -->
+  <div class="final">
+    <div class="wrap reveal">
+      <img src="logo.png" alt="The Pekka mascot, a small armoured knight" width="168" height="168">
+      <div>
+        <h2>Put Pekka to work.</h2>
+        <p>Your first bot is a few minutes away.</p>
+        <div class="hero-ctas">
+          <a class="btn btn-ink" href="https://pekka-app.vercel.app">Open Pekka <svg class="arrow"><use href="#i-arrow"/></svg></a>
+          <a class="btn btn-line" href="https://github.com/sidmanale643/pekka"><svg><use href="#i-github"/></svg>Star on GitHub</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <a class="brand" href="#top"><img src="logo.png" alt="" width="24" height="24">Pekka</a>
+    <nav aria-label="Footer">
+      <a href="#features">Features</a>
+      <a href="#plugins">Plugins</a>
+      <a href="#faq">FAQ</a>
+      <a href="https://github.com/sidmanale643/pekka">GitHub</a>
+    </nav>
+  </div>
+</footer>
+
+<script>
+const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, reduceMotion ? 0 : ms));
+
+// Fade content in as it scrolls into view.
+const revealer = new IntersectionObserver((entries) => {
+  for (const entry of entries) {
+    if (!entry.isIntersecting) continue;
+    entry.target.classList.add("in");
+    revealer.unobserve(entry.target);
+  }
+}, { rootMargin: "0px 0px -8% 0px" });
+document.querySelectorAll(".reveal").forEach((element) => revealer.observe(element));
+
+// Copy buttons copy the commands only, without prompts, output or comments.
+document.querySelectorAll("[data-copy]").forEach((button) => {
+  button.addEventListener("click", async () => {
+    const lines = document.getElementById(button.dataset.copy).innerText.split("\n");
+    const commands = lines.length === 1 ? lines : lines.filter((line) => line.startsWith("$"));
+    const text = commands.map((line) => line.replace(/^\$\s*/, "").replace(/\s+#.*$/, "")).join("\n");
+    try {
+      await navigator.clipboard.writeText(text);
+      button.textContent = "Copied";
+    } catch {
+      button.textContent = "Select to copy";
+    }
+    setTimeout(() => (button.textContent = "Copy"), 1600);
+  });
+});
+
+// A recorded CLI run, in the format `pnpm pekka bot run` prints.
+// Each line: [html, pause after (ms), typed out?, answer typed at the prompt]
+const run = [
+  [`<span class="p">$</span> pnpm pekka bot run "Scout"`, 600],
+  [`<span class="d">Connecting to sandbox "pekka-computer-bot-7f3c2a"...</span>`, 700],
+  [``, 0],
+  [`<span class="d">── step 1 ──</span>`, 300],
+  [`I'll look for this week's new TypeScript repositories first.`, 500, true],
+  [`<span class="t">→ web_search</span> {"query":"new TypeScript repositories this week"}`, 800],
+  [`<span class="d">  1. edge-kit · streaming responses for edge runtimes</span>`, 120],
+  [`<span class="d">  2. sqlsafe · a type-safe SQL builder</span>`, 120],
+  [`<span class="d">  … 23 more lines</span>`, 600],
+  [``, 0],
+  [`<span class="d">── step 2 ──</span>`, 300],
+  [`<span class="t">→ write_file</span> {"path":"reports/2026-10-01.md","content":"# New TypeScript…"}`, 500],
+  [``, 0],
+  [`<span class="w">Permission required: write_file</span>`, 200],
+  [`<span class="w">This action can change files, run code or alter state.</span>`, 200],
+  [`<span class="d">{ "path": "reports/2026-10-01.md", "content": "# New TypeScript…" }</span>`, 400],
+  [`Approve this action once? [y/N] <span class="yes"></span>`, 900, false, "y"],
+  [`<span class="d">  wrote 2184 characters to reports/2026-10-01.md</span>`, 600],
+  [``, 0],
+  [`<span class="d">── step 3 ──</span>`, 300],
+  [`Done. I picked 6 of 25 new repositories: two edge runtimes, a type-safe SQL builder and three developer tools. The report is in reports/2026-10-01.md, with sources.`, 600, true],
+  [``, 0],
+  [`<span class="g">3 steps · 18,204 input tokens · 1,312 output tokens · Cache hit rate: 41% · $0.0062</span>`, 0],
+];
+
+async function playRun() {
+  const term = document.getElementById("term");
+  for (const [html, pause, typed, answer] of run) {
+    const line = document.createElement("div");
+    line.innerHTML = html || "&nbsp;";
+    term.append(line);
+    if (typed && !reduceMotion) {
+      const text = line.textContent;
+      line.classList.add("cur");
+      for (let i = 0; i <= text.length; i += 3) { line.textContent = text.slice(0, i); await wait(12); }
+      line.textContent = text;
+      line.classList.remove("cur");
+    }
+    if (answer) {
+      const slot = line.querySelector(".yes");
+      slot.classList.add("cur");
+      await wait(1100);
+      slot.classList.remove("cur");
+      slot.textContent = answer;
+    }
+    await wait(pause);
+  }
+  const prompt = document.createElement("div");
+  prompt.innerHTML = `<span class="p">$</span> <span class="cur"></span>`;
+  term.append(prompt);
+}
+
+const runObserver = new IntersectionObserver(([entry]) => {
+  if (!entry.isIntersecting) return;
+  runObserver.disconnect();
+  playRun();
+}, { threshold: 0.35 });
+runObserver.observe(document.getElementById("term"));
+// Plugins: pick one to see its tools and what needs approval.
+const plugins = [
+  { name: "GitHub", icon: "i-github", blurb: "Repositories, issues and pull requests", desc: "Explore repositories, read issues and pull requests, and post as you.", access: "Connect with a GitHub OAuth app",
+    note: "Can't merge pull requests, push commits or delete repositories.",
+    tools: [
+      ["github_list_repositories", "List repositories you can access", 0],
+      ["github_get_repository", "Read a repository's details", 0],
+      ["github_list_issues", "List a repository's issues", 0],
+      ["github_get_issue", "Read an issue and its details", 0],
+      ["github_list_issue_comments", "Read the discussion on an issue", 0],
+      ["github_list_pull_requests", "List pull requests", 0],
+      ["github_get_pull_request", "Read a pull request", 0],
+      ["github_list_pull_request_files", "Read changed files and patches", 0],
+      ["github_create_issue", "Open a new issue", 1],
+      ["github_add_comment", "Comment on an issue or pull request", 1],
+      ["github_create_pull_request", "Open a draft pull request from an existing branch", 1],
+    ] },
+  { name: "Gmail", icon: "i-inbox", blurb: "Your own inbox", desc: "Search and read your mail, tidy labels, and draft or send replies.", access: "Connect with Google",
+    note: "Can't permanently delete mail. Scheduled runs can't send without you there to approve.",
+    tools: [
+      ["gmail_search", "Search with Gmail search syntax", 0],
+      ["gmail_read_thread", "Read a whole conversation", 0],
+      ["gmail_read_message", "Read one message", 0],
+      ["gmail_list_labels", "List your labels", 0],
+      ["gmail_create_draft", "Save a draft for you to review", 1],
+      ["gmail_modify_labels", "Mark read, archive or star", 1],
+      ["gmail_send", "Send an email or reply", 1],
+    ] },
+  { name: "Notion", icon: "i-page", blurb: "Pages you share with Pekka", desc: "Find, read and add to the pages you choose to share.", access: "Connect with Notion and pick pages",
+    note: "Only sees pages you share on Notion's consent screen.",
+    tools: [
+      ["notion_search", "Search page titles", 0],
+      ["notion_get_page", "Read a page's properties", 0],
+      ["notion_list_blocks", "Read a page's content", 0],
+      ["notion_create_page", "Create a page under a shared page", 1],
+      ["notion_append_text", "Add text to a page", 1],
+    ] },
+  { name: "Telegram", icon: "i-send", blurb: "Alerts in your chat", desc: "Get results and alerts from your bots in a private Telegram chat.", access: "Link your chat with a one-time code",
+    note: "Only messages your own linked chat, prefixed with the bot's name.",
+    tools: [["telegram_send_message", "Send a message to your linked chat", 1]] },
+  { name: "Bot email", icon: "i-mail", blurb: "A mailbox of its own", desc: "Each bot can get its own address on AgentMail and send plain-text email.", key: "AGENTMAIL_API_KEY",
+    note: "Send-only for now. Bots that never use email don't get a mailbox.",
+    tools: [
+      ["get_email_address", "Get the bot's address, creating it on first use", 1],
+      ["send_email", "Send a plain-text email", 1],
+    ] },
+  { name: "Web search", icon: "i-search", blurb: "Current results", desc: "Live web results from Tavily, falling back to Exa.", key: "TAVILY_API_KEY",
+    note: "Add either key, or both for a fallback.",
+    tools: [["web_search", "Search the web for current sources", 0]] },
+  { name: "Web scraping", icon: "i-globe", blurb: "Read any page", desc: "Read any page as Markdown, text or HTML through ScraperAPI, including ones that need JavaScript.", key: "SCRAPERAPI_API_KEY",
+    note: "Pages that need JavaScript use extra ScraperAPI credits.",
+    tools: [["web_scrape", "Read a page's content", 0]] },
+];
+const pxList = document.getElementById("px-list");
+const pxPanel = document.getElementById("px-panel");
+const allowed = plugins.map(() => true);
+
+function renderPlugin(index) {
+  const plugin = plugins[index];
+  pxList.querySelectorAll(".px-tab").forEach((tab, i) => {
+    tab.setAttribute("aria-selected", String(i === index));
+    tab.tabIndex = i === index ? 0 : -1;
+  });
+  const on = allowed[index];
+  const access = plugin.key
+    ? `<div class="px-access"><div>Turns on with an API key on the server<small>Available to every bot once it's set.</small></div><span class="keypill">${plugin.key}</span></div>`
+    : `<div class="px-access"><div>Allow Pekka to access ${plugin.name}<small>${plugin.access}. Off until you switch it on.</small></div><button class="switch" type="button" role="switch" aria-checked="${on}" aria-label="Allow Pekka to access ${plugin.name}"></button></div>`;
+  const tools = plugin.tools.map(([name, what, asks]) =>
+    `<div class="px-tool"><code>${name}</code><span>${what}</span><em class="${asks ? "ask" : "auto"}">${asks ? "Asks first" : "Automatic"}</em></div>`).join("");
+  pxPanel.innerHTML = `
+    <div class="px-top"><span class="ic"><svg><use href="#${plugin.icon}"/></svg></span><div><h3>${plugin.name}</h3><p>${plugin.desc}</p></div></div>
+    ${access}
+    ${on ? "" : `<p class="px-off">Access is off, so bots can't use any of these tools.</p>`}
+    <div class="px-tools${on ? "" : " off"}">${tools}</div>
+    <p class="px-note"><svg><use href="#i-shield"/></svg>${plugin.note}</p>`;
+  pxPanel.querySelector(".switch")?.addEventListener("click", () => {
+    allowed[index] = !allowed[index];
+    renderPlugin(index);
+    pxPanel.querySelector(".switch").focus();
+  });
+}
+
+plugins.forEach((plugin, index) => {
+  const tab = document.createElement("button");
+  tab.type = "button";
+  tab.className = "px-tab";
+  tab.setAttribute("role", "tab");
+  tab.innerHTML = `<span class="ic"><svg><use href="#${plugin.icon}"/></svg></span><span><strong>${plugin.name}</strong><small>${plugin.blurb}</small></span><span class="count">${plugin.tools.length}</span>`;
+  tab.addEventListener("click", () => renderPlugin(index));
+  tab.addEventListener("keydown", (event) => {
+    const step = { ArrowDown: 1, ArrowRight: 1, ArrowUp: -1, ArrowLeft: -1 }[event.key];
+    if (!step) return;
+    event.preventDefault();
+    const next = (index + step + plugins.length) % plugins.length;
+    pxList.children[next].focus();
+    renderPlugin(next);
+  });
+  pxList.append(tab);
+});
+renderPlugin(0);
+</script>
+</body>
+</html>
