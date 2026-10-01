@@ -1,11 +1,9 @@
 import { existsSync } from "node:fs";
 import type { AgentEvent } from "./agent/events.ts";
-import { runAgent, type AgentResult } from "./agent/loop.ts";
-import { createBot, getBot, listBots, type Bot, type BotProfile } from "./bots.ts";
-import { connectDaytonaComputer } from "./computer/daytona-computer.ts";
+import type { AgentResult } from "./agent/loop.ts";
+import { createBot, getBot, listBots, type BotProfile } from "./bots.ts";
 import { loadConfig } from "./config.ts";
-import { createOpenRouterModel } from "./model/openrouter.ts";
-import { defaultTools } from "./tools/index.ts";
+import { executeTask, sandboxNameFor, type RunOwner } from "./runtime.ts";
 import { cancelScheduledJob, listScheduledJobs, runScheduler } from "./scheduler.ts";
 import { getDatabase, LOCAL_USER } from "./database/database.ts";
 import { importLocalData } from "./database/import-local.ts";
@@ -21,7 +19,7 @@ async function main(args: string[]): Promise<void> {
     run: async (args) => {
       const task = args.join(" ").trim();
       if (!task) throw new Error(USAGE);
-      return runTask(task);
+      return runTask(task, { userId: LOCAL_USER });
     },
     bot: manageBots,
     jobs: manageJobs,
@@ -35,6 +33,9 @@ async function main(args: string[]): Promise<void> {
   if (!command || !Object.hasOwn(commands, command)) throw new Error(USAGE);
   await commands[command]!(rest);
 }
+
+// The CLI always acts as the local user. Bots and jobs that people create
+// after signing in to the web interface belong to them and are not listed here.
 
 async function manageBots(args: string[]): Promise<void> {
   const [action, ...botArgs] = args;
@@ -50,7 +51,7 @@ async function manageBots(args: string[]): Promise<void> {
   }
   if (action === "run" && botArgs.length === 1 && botArgs[0]) {
     const bot = await getBot(LOCAL_USER, botArgs[0]);
-    await runTask(bot.job, bot);
+    await runTask(bot.job, { userId: LOCAL_USER, bot });
     return;
   }
   throw new Error(USAGE);
@@ -72,28 +73,11 @@ function parseBotOptions(args: string[]): BotProfile {
   return { name: values["--name"], role: values["--role"], job: values["--job"] };
 }
 
-async function runTask(task: string, bot?: Bot, userId = LOCAL_USER): Promise<AgentResult> {
-  if (existsSync(".env")) process.loadEnvFile(".env");
+async function runTask(task: string, owner: RunOwner): Promise<AgentResult> {
   const config = loadConfig();
 
-  const sandboxName = bot ? `${config.sandboxName.slice(0, 30)}-bot-${bot.id}` : config.sandboxName;
-  console.log(`Connecting to sandbox "${sandboxName}"...`);
-  const computer = await connectDaytonaComputer({
-    apiKey: config.daytonaApiKey,
-    sandboxName,
-    workspace: Boolean(bot),
-  });
-  const model = createOpenRouterModel({ apiKey: config.openRouterApiKey, model: config.model });
-
-  const result = await runAgent(task, {
-    model,
-    computer,
-    tools: defaultTools,
-    maxSteps: config.maxSteps,
-    userId,
-    bot,
-    onEvent: printEvent,
-  });
+  console.log(`Connecting to sandbox "${sandboxNameFor(config, owner)}"...`);
+  const result = await executeTask(task, owner, printEvent);
 
   if (result.status === "step_limit") {
     console.log(`\nStopped after ${result.steps} steps without finishing (PEKKA_MAX_STEPS).`);
@@ -176,7 +160,8 @@ async function startScheduler(once: boolean): Promise<void> {
   try {
     await runScheduler(async (job) => {
       console.log(`\nRunning scheduled job "${job.name}" (${job.id})...`);
-      const { status, answer, steps, usage } = await runTask(job.task, job.bot, job.userId);
+      // Each job runs as the user who created it, with their own plugins and sandbox.
+      const { status, answer, steps, usage } = await runTask(job.task, { userId: job.userId, bot: job.bot });
       return { status, answer, steps, usage };
     }, { once, signal: controller.signal });
   } finally {
