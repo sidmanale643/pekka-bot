@@ -1703,6 +1703,13 @@ const scheduleTemplates = [
     hour: 7,
   },
   {
+    name: "Today's agenda",
+    summary: "Your meetings and reminders for the day, first thing.",
+    task: "Check my Google Calendar for today and my Google Tasks that are due today or overdue. Write a short agenda: each meeting with its time and who it's with, then the tasks. Flag overlapping meetings and invitations I haven't answered. Do not change any events or tasks.",
+    interval: 86400,
+    hour: 7,
+  },
+  {
     name: "Telegram reminder",
     summary: "Get a one-time nudge on Telegram.",
     task: "Send me a Telegram message reminding me to [what to remember].",
