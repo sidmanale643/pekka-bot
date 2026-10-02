@@ -18,7 +18,7 @@
   --mono: "Geist Mono", ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
   --radius: 3px;
   --radius-soft: 8px;
-  --measure: 680px;
+  --measure: 816px;
   --panel: 300px;
 
   font-family: var(--sans);
