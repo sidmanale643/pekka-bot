@@ -1,4 +1,4 @@
-<p align="center"><img src="src/web/logo.png" alt="Pekka logo" width="160" /></p>
+<p align="center"><img src="src/web/logo.svg" alt="Pekka logo" width="160" /></p>
 
 # Pekka
 

@@ -1,0 +1,260 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Pekka">
+  <title>Pekka</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0.35" y2="1">
+      <stop offset="0" stop-color="#8ed6ff"/>
+      <stop offset="0.55" stop-color="#a8c4ff"/>
+      <stop offset="1" stop-color="#cbb6f6"/>
+    </linearGradient>
+    <radialGradient id="halo" cx="0.5" cy="0.42" r="0.5">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.8"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="floor" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#33287f" stop-opacity="0.42"/>
+      <stop offset="1" stop-color="#33287f" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="helm" cx="0.34" cy="0.24" r="0.9">
+      <stop offset="0" stop-color="#8f99b8"/>
+      <stop offset="0.4" stop-color="#555d7a"/>
+      <stop offset="1" stop-color="#2a2f42"/>
+    </radialGradient>
+    <linearGradient id="plate" x1="0" y1="0" x2="0.55" y2="1">
+      <stop offset="0" stop-color="#7a83a2"/>
+      <stop offset="0.5" stop-color="#4a516a"/>
+      <stop offset="1" stop-color="#2c3144"/>
+    </linearGradient>
+    <linearGradient id="pauldron" x1="0.2" y1="0" x2="0.5" y2="1">
+      <stop offset="0" stop-color="#9aa4c3"/>
+      <stop offset="0.45" stop-color="#5c6582"/>
+      <stop offset="1" stop-color="#33394e"/>
+    </linearGradient>
+    <linearGradient id="dark" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#30354a"/>
+      <stop offset="1" stop-color="#1a1d29"/>
+    </linearGradient>
+    <linearGradient id="visor" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0d1019"/>
+      <stop offset="1" stop-color="#252a3b"/>
+    </linearGradient>
+    <linearGradient id="horn" x1="0" y1="1" x2="0.4" y2="0">
+      <stop offset="0" stop-color="#1a64d8"/>
+      <stop offset="0.55" stop-color="#36b0ff"/>
+      <stop offset="1" stop-color="#bff5ff"/>
+    </linearGradient>
+    <linearGradient id="spikeL" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#c4f6ff"/>
+      <stop offset="1" stop-color="#2588f0"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.45" r="0.6">
+      <stop offset="0" stop-color="#f4feff"/>
+      <stop offset="0.45" stop-color="#84eaff"/>
+      <stop offset="1" stop-color="#1ca4ff"/>
+    </radialGradient>
+    <linearGradient id="bladeL" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#e4e8f6"/>
+    </linearGradient>
+    <linearGradient id="bladeR" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#c3cbe2"/>
+      <stop offset="1" stop-color="#9aa4c1"/>
+    </linearGradient>
+    <linearGradient id="shine" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0"/>
+      <stop offset="0.5" stop-color="#ffffff" stop-opacity="0.95"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="bloom" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="7"/>
+    </filter>
+    <filter id="soft" x="-30%" y="-60%" width="160%" height="220%">
+      <feGaussianBlur stdDeviation="5"/>
+    </filter>
+    <clipPath id="bladeClip">
+      <path d="M-27-44H27V-196L0-228-27-196Z"/>
+    </clipPath>
+    <path id="spark" d="M0-12C1.5-3 3-1.5 12 0 3 1.5 1.5 3 0 12-1.5 3-3 1.5-12 0-3-1.5-1.5-3 0-12Z"/>
+    <path id="eye" d="M199 218 242 229C245 230 247 233 246 236L243 247C242 250 239 251 236 250L206 242C202 241 199 237 199 233Z"/>
+  </defs>
+
+  <style>
+    .bob { animation: bob 3.6s ease-in-out infinite; }
+    .nod { animation: nod 3.6s ease-in-out infinite; animation-delay: -0.3s; }
+    .shadow { animation: shadow 3.6s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+    .sway { animation: sway 3.6s ease-in-out infinite; }
+    .wave { animation: wave 4.8s ease-in-out infinite; }
+    .blink { animation: blink 5.2s infinite; transform-box: fill-box; transform-origin: center; }
+    .pulse { animation: pulse 3.6s ease-in-out infinite; }
+    .glint { animation: glint 4.8s ease-in-out infinite; }
+    .twinkle { animation: twinkle 4.8s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+    .drift { animation: drift 6s linear infinite; }
+    .drift.b { animation-delay: -2s; }
+    .drift.c { animation-delay: -4s; }
+
+    @keyframes bob { 50% { transform: translateY(-6px); } }
+    @keyframes nod { 50% { transform: translateY(-3px) rotate(-1.2deg); } }
+    @keyframes shadow { 50% { transform: scaleX(0.94); opacity: 0.8; } }
+    @keyframes sway { 50% { transform: rotate(-4deg); } }
+    @keyframes wave {
+      0%, 46%, 100% { transform: rotate(0deg); }
+      10% { transform: rotate(-16deg); }
+      20% { transform: rotate(8deg); }
+      30% { transform: rotate(-16deg); }
+      38% { transform: rotate(6deg); }
+    }
+    @keyframes blink {
+      0%, 90%, 100% { transform: scaleY(1); }
+      93% { transform: scaleY(0.08); }
+      96% { transform: scaleY(1); }
+    }
+    @keyframes pulse { 50% { opacity: 0.55; } }
+    @keyframes glint {
+      0%, 55% { transform: translateY(40px); }
+      85%, 100% { transform: translateY(-260px); }
+    }
+    @keyframes twinkle {
+      0%, 72%, 100% { transform: scale(0) rotate(0deg); opacity: 0; }
+      82% { transform: scale(1.2) rotate(45deg); opacity: 1; }
+      92% { transform: scale(0) rotate(90deg); opacity: 0; }
+    }
+    @keyframes drift {
+      0% { transform: translateY(0); opacity: 0; }
+      20% { opacity: 0.9; }
+      100% { transform: translateY(-120px); opacity: 0; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      * { animation: none !important; }
+    }
+  </style>
+
+  <!-- Backdrop -->
+  <rect width="512" height="512" rx="116" fill="url(#bg)"/>
+  <ellipse cx="256" cy="226" rx="230" ry="210" fill="url(#halo)"/>
+  <ellipse cx="256" cy="440" rx="176" ry="34" fill="#ffffff" opacity="0.16"/>
+  <g fill="#ffffff">
+    <circle class="drift" cx="96" cy="380" r="4" opacity="0"/>
+    <circle class="drift b" cx="428" cy="420" r="3" opacity="0"/>
+    <circle class="drift c" cx="70" cy="260" r="2.5" opacity="0"/>
+  </g>
+  <ellipse class="shadow" cx="256" cy="440" rx="140" ry="20" fill="url(#floor)"/>
+
+  <!-- Legs and boots stay planted -->
+  <rect x="208" y="352" width="38" height="56" rx="10" fill="url(#dark)"/>
+  <rect x="266" y="352" width="38" height="56" rx="10" fill="url(#dark)"/>
+  <path d="M176 440C166 440 162 432 165 423 170 406 184 396 202 396H238C246 396 251 401 251 409V430C251 436 246 440 240 440Z" fill="url(#plate)"/>
+  <path d="M336 440C346 440 350 432 347 423 342 406 328 396 310 396H274C266 396 261 401 261 409V430C261 436 266 440 272 440Z" fill="url(#plate)"/>
+  <path d="M166 430H251V432C251 437 247 441 241 441H175C170 441 166 437 166 432Z" fill="#1b1e2c"/>
+  <path d="M261 430H346V432C346 437 342 441 337 441H271C265 441 261 437 261 432Z" fill="#1b1e2c"/>
+  <path d="M180 410C186 403 194 400 204 400" stroke="#c2cbee" stroke-width="3.5" stroke-linecap="round" fill="none" opacity="0.55"/>
+  <path d="M276 400H306" stroke="#c2cbee" stroke-width="3" stroke-linecap="round" opacity="0.3"/>
+
+  <g class="bob">
+    <!-- Torso -->
+    <path d="M186 282C186 276 192 270 200 270H312C320 270 326 276 326 282L320 352C319 364 310 372 298 372H214C202 372 193 364 192 352Z" fill="url(#plate)"/>
+    <path d="M206 284H306L298 328 256 346 214 328Z" fill="#6b7493" opacity="0.6"/>
+    <path d="M208 288 216 326 256 342" stroke="#c2cbee" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0.35"/>
+    <path class="pulse" d="M256 292 270 300V318L256 326 242 318V300Z" fill="#3fd0ff" filter="url(#bloom)"/>
+    <path d="M256 294 268 301V317L256 324 244 317V301Z" fill="url(#glow)"/>
+    <path d="M202 366H246L243 394 208 390Z" fill="url(#plate)"/>
+    <path d="M310 366H266L269 394 304 390Z" fill="url(#plate)"/>
+    <rect x="196" y="348" width="120" height="20" rx="7" fill="url(#dark)"/>
+    <rect x="242" y="350" width="28" height="16" rx="4" fill="#5a6280"/>
+    <rect x="249" y="356" width="14" height="4" rx="2" fill="#84eaff"/>
+
+    <!-- Waving arm (viewer's left) -->
+    <path d="M170 306 114 328" stroke="#30354a" stroke-width="26" stroke-linecap="round"/>
+    <g transform="translate(112 328)">
+      <g class="wave">
+        <circle r="15" fill="url(#plate)"/>
+        <path d="M-2-4-14-50" stroke="url(#plate)" stroke-width="32" stroke-linecap="round"/>
+        <g transform="translate(-20 -76) rotate(-12)">
+          <path d="M-19 8V-24C-19-35-11-41 0-41 11-41 19-35 19-24V8C19 17 13 22 4 22H-9C-15 22-19 16-19 8Z" fill="url(#pauldron)"/>
+          <path d="M-6-39V-14M6-39V-14" stroke="#2a2f41" stroke-width="2.5" stroke-linecap="round"/>
+          <rect x="14" y="-8" width="14" height="26" rx="7" fill="#4c546e" transform="rotate(32 21 5)"/>
+          <path d="M-13-28C-13-34-9-37-4-38" stroke="#e1e7fb" stroke-width="3" stroke-linecap="round" fill="none" opacity="0.7"/>
+        </g>
+      </g>
+    </g>
+
+    <!-- Pauldrons with spikes -->
+    <path d="M336 306 382 340" stroke="#30354a" stroke-width="26" stroke-linecap="round"/>
+    <path d="M120 312C118 284 138 270 162 270 186 270 204 284 206 304V310C206 324 196 332 182 332H134C126 332 120 326 120 318Z" fill="url(#pauldron)"/>
+    <path d="M392 312C394 284 374 270 350 270 326 270 308 284 306 304V310C306 324 316 332 330 332H378C386 332 392 326 392 318Z" fill="url(#pauldron)"/>
+    <path d="M121 318H206C204 326 196 332 182 332H134C127 332 122 326 121 318Z" fill="#262a3b" opacity="0.7"/>
+    <path d="M391 318H306C308 326 316 332 330 332H378C385 332 390 326 391 318Z" fill="#262a3b" opacity="0.7"/>
+    <path d="M130 302C132 286 144 277 162 277" stroke="#e1e7fb" stroke-width="4" stroke-linecap="round" fill="none" opacity="0.55"/>
+    <path d="M320 284C328 279 338 277 350 277" stroke="#e1e7fb" stroke-width="3" stroke-linecap="round" fill="none" opacity="0.35"/>
+    <path d="M134 284 132 246 164 274Z" fill="url(#spikeL)"/>
+    <path d="M378 284 380 246 348 274Z" fill="url(#spikeL)"/>
+    <path d="M134 284 132 246 146 272Z" fill="#ffffff" opacity="0.25"/>
+
+    <!-- Sword arm (viewer's right) -->
+        <circle cx="384" cy="342" r="15" fill="url(#plate)"/>
+    <path d="M386 338 394 304" stroke="url(#plate)" stroke-width="32" stroke-linecap="round"/>
+    <g transform="translate(396 302) rotate(14)">
+      <g class="sway">
+        <circle cy="54" r="11" fill="url(#pauldron)"/>
+        <circle cy="54" r="4" fill="url(#glow)"/>
+        <rect x="-9" y="-24" width="18" height="72" rx="6" fill="#252939"/>
+        <path d="M-9 30H9M-9 39H9" stroke="#3b4159" stroke-width="3"/>
+        <path d="M-27-44H0V-228L-27-196Z" fill="url(#bladeL)"/>
+        <path d="M0-44H27V-196L0-228Z" fill="url(#bladeR)"/>
+        <path d="M-20-48V-192M20-48V-192" stroke="#ffffff" stroke-width="2" opacity="0.5"/>
+        <path class="pulse" d="M0-62V-200" stroke="#3fd0ff" stroke-width="10" stroke-linecap="round" filter="url(#bloom)"/>
+        <path d="M0-62V-200" stroke="#9ff0ff" stroke-width="3.5" stroke-linecap="round"/>
+        <g clip-path="url(#bladeClip)">
+          <rect class="glint" x="-34" y="-60" width="68" height="46" fill="url(#shine)" transform="skewY(-28)"/>
+        </g>
+        <path d="M-52-34C-52-42-46-47-38-47H38C46-47 52-42 52-34 52-26 46-22 38-24L8-22H-8L-38-24C-46-22-52-26-52-34Z" fill="url(#pauldron)"/>
+        <path d="M-44-40H44" stroke="#d6ddf5" stroke-width="2.5" stroke-linecap="round" opacity="0.6"/>
+        <circle class="pulse" cy="-34" r="11" fill="#3fd0ff" filter="url(#bloom)"/>
+        <circle cy="-34" r="7.5" fill="url(#glow)"/>
+        <rect x="-23" y="-22" width="46" height="44" rx="15" fill="url(#pauldron)"/>
+        <path d="M-13-8H15M-13 4H15" stroke="#2a2f41" stroke-width="3" stroke-linecap="round"/>
+        <path d="M-15-15C-12-19-6-20 0-20" stroke="#e1e7fb" stroke-width="3" stroke-linecap="round" fill="none" opacity="0.6"/>
+        <g transform="translate(0 -230)"><use href="#spark" class="twinkle" fill="#ffffff"/></g>
+      </g>
+    </g>
+
+    <!-- Helmet's shadow on the shoulders -->
+    <ellipse cx="256" cy="284" rx="98" ry="12" fill="#0f121c" opacity="0.5" filter="url(#soft)"/>
+
+    <!-- Helmet -->
+    <g class="nod">
+      <path d="M160 178C110 166 92 114 112 60 124 100 150 126 198 136Z" fill="url(#horn)"/>
+      <path d="M352 178C402 166 420 114 400 60 388 100 362 126 314 136Z" fill="url(#horn)"/>
+      <path d="M122 82C120 104 130 126 150 142" stroke="#e6fbff" stroke-width="3.5" stroke-linecap="round" fill="none" opacity="0.75"/>
+      <path d="M390 82C392 104 382 126 362 142" stroke="#e6fbff" stroke-width="3" stroke-linecap="round" fill="none" opacity="0.45"/>
+      <path d="M148 206C148 132 194 92 256 92 318 92 364 132 364 206L360 258C359 274 346 284 330 284H182C166 284 153 274 152 258Z" fill="url(#helm)"/>
+      <path d="M161 198C162 142 196 106 244 100" stroke="#cbd4f6" stroke-width="4.5" stroke-linecap="round" fill="none" opacity="0.5"/>
+      <path d="M346 140C358 160 362 184 361 212" stroke="#8fe3ff" stroke-width="3.5" stroke-linecap="round" fill="none" opacity="0.4"/>
+      <ellipse cx="206" cy="130" rx="36" ry="16" transform="rotate(-30 206 130)" fill="#ffffff" opacity="0.18"/>
+      <ellipse cx="190" cy="124" rx="7" ry="4" transform="rotate(-30 190 124)" fill="#ffffff" opacity="0.55"/>
+      <path d="M245 95C249 92 263 92 267 95L264 168H248Z" fill="#6f7896"/>
+      <path d="M248 97H253L251 166H248Z" fill="#ffffff" opacity="0.2"/>
+      <path d="M152 260C154 274 166 284 182 284H330C346 284 358 274 360 260" stroke="#1a1d29" stroke-width="4" fill="none" opacity="0.5"/>
+      <path d="M178 196C178 178 190 168 208 168H304C322 168 334 178 334 196L330 252C329 264 320 272 308 272H204C192 272 183 264 182 252Z" fill="url(#visor)"/>
+      <path d="M170 180 256 204 342 180V160C300 148 212 148 170 160Z" fill="url(#plate)"/>
+      <path d="M176 163C210 153 300 153 336 163" stroke="#d6ddf5" stroke-width="3" stroke-linecap="round" fill="none" opacity="0.45"/>
+      <g class="pulse" fill="#3fd0ff" filter="url(#bloom)">
+        <use href="#eye"/>
+        <use href="#eye" transform="matrix(-1 0 0 1 512 0)"/>
+      </g>
+      <g class="blink" fill="url(#glow)">
+        <use href="#eye"/>
+        <use href="#eye" transform="matrix(-1 0 0 1 512 0)"/>
+      </g>
+      <g fill="#2e3447">
+        <rect x="239" y="254" width="6" height="11" rx="3"/>
+        <rect x="253" y="254" width="6" height="11" rx="3"/>
+        <rect x="267" y="254" width="6" height="11" rx="3"/>
+      </g>
+      <circle cx="164" cy="238" r="5" fill="#8a93b2"/>
+      <circle cx="348" cy="238" r="5" fill="#5a6280"/>
+    </g>
+  </g>
+
+  <!-- Sparkles -->
+  <g transform="translate(86 140)"><use href="#spark" class="twinkle" fill="#ffffff" style="animation-delay:-1.6s"/></g>
+  <g transform="translate(446 350)"><use href="#spark" class="twinkle" fill="#ffffff" style="animation-delay:-3.2s"/></g>
+</svg>

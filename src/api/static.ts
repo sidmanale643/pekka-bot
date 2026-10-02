@@ -9,6 +9,8 @@ const assets = new Map([
   ["/styles.css", { file: "styles.css", type: "text/css; charset=utf-8" }],
   ["/favicon.png", { file: "favicon.png", type: "image/png" }],
   ["/logo.png", { file: "logo.png", type: "image/png" }],
+  ["/head.svg", { file: "head.svg", type: "image/svg+xml" }],
+  ["/logo.svg", { file: "logo.svg", type: "image/svg+xml" }],
   [
     "/vendor/marked.js",
     {

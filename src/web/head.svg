@@ -1,0 +1,163 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Pekka">
+  <title>Pekka</title>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0.35" y2="1">
+      <stop offset="0" stop-color="#8ed6ff"/>
+      <stop offset="0.55" stop-color="#a8c4ff"/>
+      <stop offset="1" stop-color="#cbb6f6"/>
+    </linearGradient>
+    <radialGradient id="halo" cx="0.5" cy="0.42" r="0.5">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.8"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="floor" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#33287f" stop-opacity="0.42"/>
+      <stop offset="1" stop-color="#33287f" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="helm" cx="0.34" cy="0.24" r="0.9">
+      <stop offset="0" stop-color="#8f99b8"/>
+      <stop offset="0.4" stop-color="#555d7a"/>
+      <stop offset="1" stop-color="#2a2f42"/>
+    </radialGradient>
+    <linearGradient id="plate" x1="0" y1="0" x2="0.55" y2="1">
+      <stop offset="0" stop-color="#7a83a2"/>
+      <stop offset="0.5" stop-color="#4a516a"/>
+      <stop offset="1" stop-color="#2c3144"/>
+    </linearGradient>
+    <linearGradient id="pauldron" x1="0.2" y1="0" x2="0.5" y2="1">
+      <stop offset="0" stop-color="#9aa4c3"/>
+      <stop offset="0.45" stop-color="#5c6582"/>
+      <stop offset="1" stop-color="#33394e"/>
+    </linearGradient>
+    <linearGradient id="dark" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#30354a"/>
+      <stop offset="1" stop-color="#1a1d29"/>
+    </linearGradient>
+    <linearGradient id="visor" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0d1019"/>
+      <stop offset="1" stop-color="#252a3b"/>
+    </linearGradient>
+    <linearGradient id="horn" x1="0" y1="1" x2="0.4" y2="0">
+      <stop offset="0" stop-color="#1a64d8"/>
+      <stop offset="0.55" stop-color="#36b0ff"/>
+      <stop offset="1" stop-color="#bff5ff"/>
+    </linearGradient>
+    <linearGradient id="spikeL" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#c4f6ff"/>
+      <stop offset="1" stop-color="#2588f0"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.45" r="0.6">
+      <stop offset="0" stop-color="#f4feff"/>
+      <stop offset="0.45" stop-color="#84eaff"/>
+      <stop offset="1" stop-color="#1ca4ff"/>
+    </radialGradient>
+    <linearGradient id="bladeL" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#e4e8f6"/>
+    </linearGradient>
+    <linearGradient id="bladeR" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#c3cbe2"/>
+      <stop offset="1" stop-color="#9aa4c1"/>
+    </linearGradient>
+    <linearGradient id="shine" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0"/>
+      <stop offset="0.5" stop-color="#ffffff" stop-opacity="0.95"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="bloom" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="7"/>
+    </filter>
+    <filter id="soft" x="-30%" y="-60%" width="160%" height="220%">
+      <feGaussianBlur stdDeviation="5"/>
+    </filter>
+    <clipPath id="bladeClip">
+      <path d="M-27-44H27V-196L0-228-27-196Z"/>
+    </clipPath>
+    <path id="spark" d="M0-12C1.5-3 3-1.5 12 0 3 1.5 1.5 3 0 12-1.5 3-3 1.5-12 0-3-1.5-1.5-3 0-12Z"/>
+    <path id="eye" d="M199 218 242 229C245 230 247 233 246 236L243 247C242 250 239 251 236 250L206 242C202 241 199 237 199 233Z"/>
+  </defs>
+
+  <style>
+    .float { animation: float 4s ease-in-out infinite; transform-origin: 256px 260px; }
+    .shadow { animation: shadow 4s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+    .look { animation: look 7s ease-in-out infinite; }
+    .blink { animation: blink 5.2s infinite; transform-box: fill-box; transform-origin: center; }
+    .pulse { animation: pulse 3.6s ease-in-out infinite; }
+    .twinkle { animation: twinkle 4.8s ease-in-out infinite; transform-box: fill-box; transform-origin: center; }
+
+    @keyframes float {
+      0%, 100% { transform: translateY(0) rotate(0deg); }
+      30% { transform: translateY(-12px) rotate(-2deg); }
+      70% { transform: translateY(-4px) rotate(1.5deg); }
+    }
+    @keyframes shadow {
+      0%, 100% { transform: scaleX(1); opacity: 1; }
+      30% { transform: scaleX(0.86); opacity: 0.65; }
+      70% { transform: scaleX(0.95); opacity: 0.9; }
+    }
+    @keyframes look {
+      0%, 18%, 100% { transform: translateX(0); }
+      24%, 40% { transform: translateX(-7px); }
+      48%, 64% { transform: translateX(7px); }
+      72% { transform: translateX(0); }
+    }
+    @keyframes blink {
+      0%, 90%, 100% { transform: scaleY(1); }
+      93% { transform: scaleY(0.08); }
+      96% { transform: scaleY(1); }
+    }
+    @keyframes pulse { 50% { opacity: 0.55; } }
+    @keyframes twinkle {
+      0%, 72%, 100% { transform: scale(0) rotate(0deg); opacity: 0; }
+      82% { transform: scale(1.2) rotate(45deg); opacity: 1; }
+      92% { transform: scale(0) rotate(90deg); opacity: 0; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      * { animation: none !important; }
+    }
+  </style>
+
+  <rect width="512" height="512" rx="116" fill="url(#bg)"/>
+  <ellipse cx="256" cy="236" rx="236" ry="216" fill="url(#halo)"/>
+  <ellipse class="shadow" cx="256" cy="438" rx="136" ry="18" fill="url(#floor)"/>
+  <g class="float">
+    <g transform="translate(256 244) scale(1.32) translate(-256 -176)">
+          <path d="M160 178C110 166 92 114 112 60 124 100 150 126 198 136Z" fill="url(#horn)"/>
+      <path d="M352 178C402 166 420 114 400 60 388 100 362 126 314 136Z" fill="url(#horn)"/>
+      <path d="M122 82C120 104 130 126 150 142" stroke="#e6fbff" stroke-width="3.5" stroke-linecap="round" fill="none" opacity="0.75"/>
+      <path d="M390 82C392 104 382 126 362 142" stroke="#e6fbff" stroke-width="3" stroke-linecap="round" fill="none" opacity="0.45"/>
+      <path d="M148 206C148 132 194 92 256 92 318 92 364 132 364 206L360 254C358 280 342 296 318 296H194C170 296 154 280 152 254Z" fill="url(#helm)"/>
+      <path d="M161 198C162 142 196 106 244 100" stroke="#cbd4f6" stroke-width="4.5" stroke-linecap="round" fill="none" opacity="0.5"/>
+      <path d="M346 140C358 160 362 184 361 212" stroke="#8fe3ff" stroke-width="3.5" stroke-linecap="round" fill="none" opacity="0.4"/>
+      <ellipse cx="206" cy="130" rx="36" ry="16" transform="rotate(-30 206 130)" fill="#ffffff" opacity="0.18"/>
+      <ellipse cx="190" cy="124" rx="7" ry="4" transform="rotate(-30 190 124)" fill="#ffffff" opacity="0.55"/>
+      <path d="M245 95C249 92 263 92 267 95L264 168H248Z" fill="#6f7896"/>
+      <path d="M248 97H253L251 166H248Z" fill="#ffffff" opacity="0.2"/>
+      <path d="M153 262C157 283 173 296 194 296H318C339 296 355 283 359 262" stroke="#1a1d29" stroke-width="4" fill="none" opacity="0.5"/>
+      <path d="M178 196C178 178 190 168 208 168H304C322 168 334 178 334 196L330 252C329 264 320 272 308 272H204C192 272 183 264 182 252Z" fill="url(#visor)"/>
+      <path d="M170 180 256 204 342 180V160C300 148 212 148 170 160Z" fill="url(#plate)"/>
+      <path d="M176 163C210 153 300 153 336 163" stroke="#d6ddf5" stroke-width="3" stroke-linecap="round" fill="none" opacity="0.45"/>
+      <g class="look">
+      <g class="pulse" fill="#3fd0ff" filter="url(#bloom)">
+        <use href="#eye"/>
+        <use href="#eye" transform="matrix(-1 0 0 1 512 0)"/>
+      </g>
+      <g class="blink" fill="url(#glow)">
+        <use href="#eye"/>
+        <use href="#eye" transform="matrix(-1 0 0 1 512 0)"/>
+      </g>
+      </g>
+      <g fill="#2e3447">
+        <rect x="239" y="254" width="6" height="11" rx="3"/>
+        <rect x="253" y="254" width="6" height="11" rx="3"/>
+        <rect x="267" y="254" width="6" height="11" rx="3"/>
+      </g>
+      <circle cx="164" cy="238" r="5" fill="#8a93b2"/>
+      <circle cx="348" cy="238" r="5" fill="#5a6280"/>
+      <path d="M196 288H316" stroke="#c4cdf2" stroke-width="3" stroke-linecap="round" opacity="0.25"/>
+    </g>
+  </g>
+  <g transform="translate(74 300)"><use href="#spark" class="twinkle" fill="#ffffff" style="animation-delay:-1.6s"/></g>
+  <g transform="translate(440 320)"><use href="#spark" class="twinkle" fill="#ffffff" style="animation-delay:-3.4s"/></g>
+  <g transform="translate(380 70)"><use href="#spark" class="twinkle" fill="#ffffff" style="animation-delay:-0.4s"/></g>
+</svg>

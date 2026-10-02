@@ -7,13 +7,20 @@
     <meta name="theme-color" content="#efeee9" />
     <title>Pekka</title>
     <link rel="icon" type="image/png" href="/favicon.png" />
-    <link rel="apple-touch-icon" href="/logo.png" />
+    <link rel="icon" type="image/svg+xml" href="/head.svg" />
+    <link rel="apple-touch-icon" href="/favicon.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500;600&display=swap"
+    />
     <link rel="stylesheet" href="/styles.css" />
     <script type="module" src="/app.js"></script>
   </head>
   <body>
     <main id="sign-in" class="sign-in" hidden>
-      <img src="/logo.png" alt="" width="88" height="88" />
+      <img src="/head.svg" alt="" width="128" height="128" />
       <h1>Sign in to Pekka</h1>
       <p>Use your Google account. Your bots, schedules and plugin connections are private to you.</p>
       <p id="sign-in-error" class="error" role="alert"></p>
@@ -23,7 +30,7 @@
       <aside class="sidebar" id="sidebar">
         <div class="brand">
           <a class="wordmark" href="#workspace" aria-label="Pekka home"
-            ><img class="mark" src="/favicon.png" alt="" width="44" height="44" />pekka</a
+            ><img class="mark" src="/head.svg" alt="" width="42" height="42" /><span>pekka</span></a
           >
           <button class="button secondary small" id="new-bot">New bot</button>
         </div>
