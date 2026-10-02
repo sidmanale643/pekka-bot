@@ -1,6 +1,7 @@
 import type { ChatMessage, Model, ModelReply, ToolCall, ToolDefinition } from "./model.ts";
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
+const MODELS_URL = "https://openrouter.ai/api/v1/models";
 const MAX_ATTEMPTS = 3;
 
 export class OpenRouterError extends Error {
@@ -41,6 +42,30 @@ export function createOpenRouterModel(options: { apiKey: string; model: string }
       return readStream(response, onDelta);
     },
   };
+}
+
+const contextWindows = new Map<string, number>();
+
+/**
+ * The model's context window in tokens: the largest among its providers, since
+ * OpenRouter only routes a prompt to one that fits it. Undefined when OpenRouter
+ * doesn't list one, as for routers like openrouter/auto.
+ */
+export async function fetchContextWindow(model: string): Promise<number | undefined> {
+  const known = contextWindows.get(model);
+  if (known) return known;
+  try {
+    const response = await fetch(`${MODELS_URL}/${model}/endpoints`, { signal: AbortSignal.timeout(5000) });
+    if (!response.ok) return undefined;
+    const body = (await response.json()) as { data?: { endpoints?: { context_length?: number | null }[] } };
+    const window = Math.max(0, ...(body.data?.endpoints ?? []).map((endpoint) => endpoint.context_length ?? 0));
+    if (window === 0) return undefined;
+    contextWindows.set(model, window);
+    return window;
+  } catch {
+    // Lookup failures aren't cached, so the next run tries again.
+    return undefined;
+  }
 }
 
 async function postWithRetry(apiKey: string, payload: unknown): Promise<Response> {
