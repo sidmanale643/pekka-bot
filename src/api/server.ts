@@ -20,7 +20,8 @@ import { createAccess, type Access, type Route } from "./auth.ts";
 import { body, fail, HttpError, json } from "./http.ts";
 import { serveAsset } from "./static.ts";
 import { pluginRoutes } from "./plugins.ts";
-import { getGmailService, GmailError, type GmailService } from "../plugins/gmail.ts";
+import { getGmailService, type GmailService } from "../plugins/gmail.ts";
+import { GoogleError } from "../plugins/google.ts";
 import { getGitHubService, GitHubError, type GitHubService } from "../plugins/github.ts";
 import { getNotionService, NotionError, type NotionService } from "../plugins/notion.ts";
 import { getTelegramService, TelegramError, type TelegramService } from "../plugins/telegram.ts";
@@ -227,7 +228,7 @@ export function createApiServer(options: ServerOptions = {}) {
     response.setHeader("X-Content-Type-Options", "nosniff");
     response.setHeader("X-Frame-Options", "DENY");
     dispatch(request, response, routes, access).catch((error: unknown) => {
-      if (error instanceof NotionError || error instanceof GmailError || error instanceof TelegramError || error instanceof GitHubError) { fail(response, new HttpError(400, error.message)); return; }
+      if (error instanceof NotionError || error instanceof GoogleError || error instanceof TelegramError || error instanceof GitHubError) { fail(response, new HttpError(400, error.message)); return; }
       fail(response, error instanceof DatabaseConfigError ? new HttpError(503, "Storage requires Cloudflare D1 configuration.") : error);
     });
   });
