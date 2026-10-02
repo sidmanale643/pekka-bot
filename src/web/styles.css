@@ -852,6 +852,31 @@ main {
   border-radius: var(--radius-soft) var(--radius-soft) var(--radius) var(--radius-soft);
   line-height: 1.55;
 }
+.message-actions {
+  display: flex;
+  margin-top: 2px;
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+.message.assistant .message-actions,
+.message.error .message-actions {
+  /* Lines the icon up with the text instead of the button's edge. */
+  margin-left: -8px;
+}
+.message:hover .message-actions,
+.message:focus-within .message-actions {
+  opacity: 1;
+}
+@media (hover: none) {
+  .message-actions {
+    opacity: 1;
+  }
+}
+.copy-message {
+  width: 28px;
+  height: 28px;
+  color: var(--ink-3);
+}
 .message-trail {
   display: grid;
   gap: 10px;

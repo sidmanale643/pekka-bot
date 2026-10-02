@@ -395,6 +395,36 @@ function renderMessage(message) {
   return body;
 }
 
+const copyIcon = '<svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><rect x="7" y="7" width="10" height="10" rx="2" fill="none" stroke="currentColor" stroke-width="1.4" /><path d="M13 7V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2" fill="none" stroke="currentColor" stroke-width="1.4" /></svg>';
+const copiedIcon = '<svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><path d="m4 10.5 4 4 8-9" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" /></svg>';
+
+// Copies the message as written, so an answer keeps its markdown rather than the rendered text.
+function messageActions(text) {
+  const actions = element("div", "message-actions");
+  const button = element("button", "icon-button copy-message");
+  button.type = "button";
+  const show = (label, icon) => {
+    button.title = label;
+    button.setAttribute("aria-label", label);
+    button.innerHTML = icon;
+  };
+  show("Copy message", copyIcon);
+  let reset;
+  button.addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(text);
+    } catch {
+      notify("Could not copy the message. Your browser blocked clipboard access.");
+      return;
+    }
+    show("Copied", copiedIcon);
+    clearTimeout(reset);
+    reset = setTimeout(() => show("Copy message", copyIcon), 1500);
+  });
+  actions.append(button);
+  return actions;
+}
+
 const greetingsKey = "pekka.greetings.v1";
 const greetingTtl = 6 * 60 * 60 * 1000;
 // Greetings cost a model call, so they are reused for a few hours unless the bot changes.
@@ -463,7 +493,7 @@ function chatIntro(bot) {
   const meta = element("div", "message-meta");
   meta.append(avatar(bot.name, 18), element("strong", "", bot.name));
   message.append(meta);
-  if (greeting) message.append(renderMessage({ role: "assistant", text: greeting.message }));
+  if (greeting) message.append(renderMessage({ role: "assistant", text: greeting.message }), messageActions(greeting.message));
   else {
     const typing = element("div", "typing");
     typing.setAttribute("aria-label", `${bot.name} is writing`);
@@ -627,6 +657,8 @@ function renderTranscript(forceScroll = false) {
           message.status,
         ),
       );
+    // An answer still streaming is redrawn on every token, so it gets its copy button once it settles.
+    if (message.text && !message.pending) row.append(messageActions(message.text));
     transcript.append(row);
   }
   if (forceScroll || nearBottom) transcript.scrollTop = transcript.scrollHeight;
