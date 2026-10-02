@@ -1,6 +1,6 @@
 ---
 name: github
-description: Inspect GitHub repositories, issues, discussions, and pull-request changes, or create issues, comments, and draft pull requests with Pekka's GitHub plugin.
+description: Inspect GitHub repositories, issues, pull requests and their comments and changed files, or create issues, comments, and draft pull requests with Pekka's GitHub plugin.
 ---
 
 # GitHub
@@ -11,7 +11,7 @@ Use Pekka's `github_*` tools with the user's enabled GitHub connection. If acces
 
 - Use `github_list_repositories` to discover accessible repositories, and `github_get_repository` for metadata. Repository-specific tools require explicit `owner` and `repo`; resolve ambiguous targets before writing.
 - Use `github_list_issues` with `state` (`open`, `closed`, or `all`), then `github_get_issue` with `issue_number`. Issue listings also include pull requests, identified by their `pull_request` field; distinguish them when counting or reporting issues.
-- Use `github_list_issue_comments` with `issue_number` for discussion on either an issue or a pull request.
+- Use `github_list_issue_comments` with `issue_number` for the conversation on either an issue or a pull request. Inline code review comments and GitHub Discussions are not available.
 - Use `github_list_pull_requests`, `github_get_pull_request` with `pull_number`, and `github_list_pull_request_files` to inspect changes. Metadata alone is insufficient for a code review.
 - List tools take `page` and `per_page` (1–100). Request the next page when the current page is full and more results are needed.
 - File patches can be absent or truncated. State that limitation when it affects review coverage. These plugin tools do not retrieve complete repository file contents or CI logs, or execute tests; do not claim those checks were performed.
