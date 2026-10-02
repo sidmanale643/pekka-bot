@@ -1,7 +1,7 @@
 import { characterPrompt, getCharacter } from "../characters.ts";
 import type { Computer } from "../computer/computer.ts";
 import type { ChatMessage, Model, Usage } from "../model/model.ts";
-import { toToolDefinition, type Tool } from "../tools/tool.ts";
+import { toToolDefinition, type Delegate, type Tool } from "../tools/tool.ts";
 import { ContextManager, DEFAULT_CONTEXT_WINDOW } from "./context.ts";
 import type { EventHandler } from "./events.ts";
 import { executeToolCall } from "./execute-tool-call.ts";
@@ -33,6 +33,8 @@ export interface AgentOptions {
   database?: Database;
   onEvent?: EventHandler;
   approveAction?: ApproveAction;
+  /** Given only to the chief of staff. Delegated runs count toward this run's usage. */
+  delegate?: Delegate;
 }
 
 export interface AgentResult {
@@ -61,6 +63,11 @@ export async function runAgent(task: string, options: AgentOptions): Promise<Age
   const availableSkills = catalog.skills.slice(0, 20).map((skill) => ({ name: skill.name, description: skill.description.slice(0, 300) }));
   const skillSummary = `\n\nAvailable skill summaries (${catalog.skills.length} total; use list_skills for full descriptions and additional entries):\n${JSON.stringify(availableSkills)}${catalog.errors.length ? `\n${catalog.errors.length} invalid skill folders; use list_skills to inspect errors.` : ""}`;
   const persona = options.bot ? characterPrompt(await getCharacter(options.bot.id, database)) : "";
+  const delegate: Delegate | undefined = options.delegate && (async (bot, task) => {
+    const result = await options.delegate!(bot, task);
+    addUsage(usage, result.usage);
+    return result;
+  });
   const context = new ContextManager([
     { role: "system", content: systemPrompt(options.bot, maxSteps) + savedMemory + skillSummary + persona },
     ...(options.conversation ?? []).slice(-20).map(({ role, content }) => ({ role, content: content.slice(0, 4000) })),
@@ -88,7 +95,7 @@ export async function runAgent(task: string, options: AgentOptions): Promise<Age
 
     const results = await Promise.all(calls.map(async (call): Promise<ChatMessage> => {
       emit({ type: "tool_call", name: call.function.name, arguments: call.function.arguments });
-      const result = await executeToolCall(call, tools, { computer, database, userId: options.userId, bot: options.bot, memory, skills, approveAction: options.approveAction });
+      const result = await executeToolCall(call, tools, { computer, database, userId: options.userId, bot: options.bot, memory, skills, approveAction: options.approveAction, delegate });
       emit({ type: "tool_result", name: call.function.name, ...result });
       return { role: "tool", tool_call_id: call.id, content: result.output };
     }));

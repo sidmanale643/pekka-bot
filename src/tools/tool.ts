@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { Computer } from "../computer/computer.ts";
-import type { ToolDefinition } from "../model/model.ts";
+import type { ToolDefinition, Usage } from "../model/model.ts";
 import type { Bot } from "../bots.ts";
 import type { BotMemory } from "../bot-memory.ts";
 import type { SkillStore } from "../skills.ts";
@@ -9,6 +9,9 @@ import { authorizeAction, type ApproveAction, type ToolPermission } from "../per
 
 /** Tool output is trimmed to this size so one command can't flood the model's context. */
 export const MAX_OUTPUT_CHARS = 20_000;
+
+/** Runs a task as another of the user's bots, in its own workspace, and returns its answer. */
+export type Delegate = (bot: Bot, task: string) => Promise<{ status: "done" | "step_limit"; answer: string; steps: number; usage: Usage }>;
 
 export interface ToolContext {
   computer: Computer;
@@ -19,6 +22,8 @@ export interface ToolContext {
   memory?: BotMemory;
   skills?: SkillStore;
   approveAction?: ApproveAction;
+  /** Only the chief of staff can hand work to other bots. */
+  delegate?: Delegate;
 }
 
 /**
