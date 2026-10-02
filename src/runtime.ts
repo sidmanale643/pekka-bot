@@ -5,7 +5,7 @@ import { connectDaytonaComputer } from "./computer/daytona-computer.ts";
 import { loadConfig, type Config } from "./config.ts";
 import { LOCAL_USER } from "./database/database.ts";
 import { createOpenRouterModel, fetchContextWindow } from "./model/openrouter.ts";
-import { defaultTools, unnamedTools } from "./tools/index.ts";
+import { chiefTools, defaultTools, unnamedTools } from "./tools/index.ts";
 import type { ApproveAction } from "./permissions/policy.ts";
 
 /** Who a run is for, and which of their bots runs it. Unnamed runs have no bot. */
@@ -39,5 +39,6 @@ export async function executeTask(task: string, owner: RunOwner, onEvent?: Event
   });
   const model = createOpenRouterModel({ apiKey: config.openRouterApiKey, model: config.model });
   const contextWindow = config.contextWindow ?? await fetchContextWindow(config.model);
-  return runAgent(task, { model, computer, tools: owner.bot ? defaultTools : unnamedTools, maxSteps: config.maxSteps, contextWindow, userId: owner.userId, bot: owner.bot, approveAction: owner.approveAction, conversation: owner.conversation, onEvent });
+  const chief = owner.bot?.primary === true;
+  return runAgent(task, { model, computer, tools: chief ? chiefTools : owner.bot ? defaultTools : unnamedTools, maxSteps: config.maxSteps, contextWindow, userId: owner.userId, bot: owner.bot, approveAction: owner.approveAction, conversation: owner.conversation, onEvent });
 }
