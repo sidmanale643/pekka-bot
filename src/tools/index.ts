@@ -17,3 +17,9 @@ import { updateBotConfig } from "./bot-config.ts";
 
 /** The tools every bot gets. To add a tool, write one file and list it here. */
 export const defaultTools: Tool[] = [runCommand, readFile, writeFile, editFile, webSearch, webScrape, readMemory, writeMemory, updateBotConfig, listSkills, loadSkill, ...createSchedulingTools(), ...createEmailTools(), ...createGmailTools(), ...createNotionTools(), ...createTelegramTools(), ...createGitHubTools()];
+
+/** These need a named bot's memory, configuration or mailbox, so unnamed runs don't get them. */
+const namedBotTools = new Set([readMemory.name, writeMemory.name, updateBotConfig.name, "get_email_address", "send_email"]);
+
+/** Runs without a named bot get every default tool that works without one. */
+export const unnamedTools: Tool[] = defaultTools.filter((tool) => !namedBotTools.has(tool.name));

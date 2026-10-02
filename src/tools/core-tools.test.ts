@@ -6,6 +6,7 @@ import { FakeComputer } from "../computer/fake-computer.ts";
 import { LOCAL_USER } from "../database/database.ts";
 import { createSqliteDatabase } from "../database/sqlite.ts";
 import { readMemory } from "./bot-memory.ts";
+import { defaultTools, unnamedTools } from "./index.ts";
 import { readFile } from "./read-file.ts";
 import { runCommand } from "./run-command.ts";
 
@@ -58,6 +59,12 @@ it("tells the agent which memory offset to read next", async () => {
   const first = await readMemory.run({ file: "KNOWLEDGE.md", offset: 0 }, context);
   expect(first).toContain("[Truncated. Read from offset 20000 for the rest.]");
   expect(await readMemory.run({ file: "KNOWLEDGE.md", offset: 20_000 }, context)).toBe(`${"a".repeat(5_000)}END`);
+});
+
+it("leaves tools that need a named bot out of unnamed runs", () => {
+  const named = ["read_memory", "write_memory", "update_bot_config", "get_email_address", "send_email"];
+  expect(defaultTools.map((tool) => tool.name)).toEqual(expect.arrayContaining(named));
+  expect(unnamedTools.map((tool) => tool.name)).toEqual(defaultTools.map((tool) => tool.name).filter((name) => !named.includes(name)));
 });
 
 it("tells the agent how many steps it has", () => {
