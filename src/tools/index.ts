@@ -13,10 +13,11 @@ import { createGmailTools } from "./gmail.ts";
 import { createNotionTools } from "./notion.ts";
 import { createTelegramTools } from "./telegram.ts";
 import { createGitHubTools } from "./github.ts";
+import { createCalendarTools } from "./calendar.ts";
 import { updateBotConfig } from "./bot-config.ts";
 
 /** The tools every bot gets. To add a tool, write one file and list it here. */
-export const defaultTools: Tool[] = [runCommand, readFile, writeFile, editFile, webSearch, webScrape, readMemory, writeMemory, updateBotConfig, listSkills, loadSkill, ...createSchedulingTools(), ...createEmailTools(), ...createGmailTools(), ...createNotionTools(), ...createTelegramTools(), ...createGitHubTools()];
+export const defaultTools: Tool[] = [runCommand, readFile, writeFile, editFile, webSearch, webScrape, readMemory, writeMemory, updateBotConfig, listSkills, loadSkill, ...createSchedulingTools(), ...createEmailTools(), ...createGmailTools(), ...createCalendarTools(), ...createNotionTools(), ...createTelegramTools(), ...createGitHubTools()];
 
 /** These need a named bot's memory, configuration or mailbox, so unnamed runs don't get them. */
 const namedBotTools = new Set([readMemory.name, writeMemory.name, updateBotConfig.name, "get_email_address", "send_email"]);
