@@ -91,9 +91,11 @@ pnpm pekka run "Create a hello.txt file containing a short greeting, then read i
 
 The CLI prints model output, tool calls, results, and a final token and cost
 summary. The file in this example is created **inside the Daytona sandbox**,
-not in this repository. Pekka looks up the sandbox by name on each run, creates
-it if needed, and starts it if it was stopped. New sandboxes are configured to
-stop after 15 idle minutes; their files remain available on later runs.
+not in this repository. Pekka starts the sandbox only when a task first runs a
+command or uses a file, looking it up by name and creating it if needed. It
+stops the sandbox as soon as the task ends, and Daytona archives it after an
+hour stopped, so an idle sandbox is not billed. Its files remain available on
+later runs, though starting an archived sandbox takes longer.
 
 For a task that needs current information, add `TAVILY_API_KEY` or
 `EXA_API_KEY` to `.env` before running it. Tavily is tried first; Exa is used
@@ -545,7 +547,7 @@ remain in Daytona.
 
 ## How it works
 
-1. The CLI connects to the named Daytona sandbox and creates an OpenRouter model client.
+1. The CLI creates an OpenRouter model client. The named Daytona sandbox is started the first time a tool needs it and stopped when the task ends.
 2. The [agent loop](src/agent/loop.ts) sends the task and available tool definitions to the model.
 3. Pekka executes requested tools and sends their results back to the model until it gives a reply without a tool call or reaches the step limit.
 4. When the next prompt would fill half the model's context window, the [context manager](src/agent/context.ts) asks the model to summarize the task so far and replaces the older messages with that summary. The system prompt, the user's request and the latest step are kept as they were.

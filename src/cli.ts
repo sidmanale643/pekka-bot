@@ -84,7 +84,7 @@ function parseBotOptions(args: string[]): BotProfile {
 async function runTask(task: string, owner: RunOwner): Promise<AgentResult> {
   const config = loadConfig();
 
-  console.log(`Connecting to sandbox "${sandboxNameFor(config, owner)}"...`);
+  console.log(`Sandbox "${sandboxNameFor(config, owner)}" starts when the task first needs it.`);
   const result = await executeTask(task, { ...owner, approveAction: terminalReviewer() }, printEvent);
 
   if (result.status === "step_limit") {

@@ -1,7 +1,7 @@
 import type { EventHandler } from "./agent/events.ts";
 import { runAgent, type ConversationMessage } from "./agent/loop.ts";
 import { findBotById, type Bot } from "./bots.ts";
-import { connectDaytonaComputer } from "./computer/daytona-computer.ts";
+import { openDaytonaComputer } from "./computer/daytona-computer.ts";
 import { loadConfig, type Config } from "./config.ts";
 import { LOCAL_USER } from "./database/database.ts";
 import { createOpenRouterModel, fetchContextWindow } from "./model/openrouter.ts";
@@ -38,18 +38,20 @@ export async function executeTask(task: string, owner: RunOwner, onEvent?: Event
     owner = { ...owner, bot };
   }
   const config = loadConfig();
-  const computer = await connectDaytonaComputer({
-    apiKey: config.daytonaApiKey,
-    sandboxName: sandboxNameFor(config, owner),
-    workspace: Boolean(owner.bot),
-  });
-  const model = createOpenRouterModel({ apiKey: config.openRouterApiKey, model: config.model });
-  const contextWindow = config.contextWindow ?? await fetchContextWindow(config.model);
-  const chief = owner.bot?.primary === true;
-  return runAgent(task, {
-    model, computer, tools: chief ? chiefTools : owner.bot ? defaultTools : unnamedTools, maxSteps: config.maxSteps, contextWindow, userId: owner.userId, bot: owner.bot,
-    approveAction: owner.approveAction, conversation: owner.conversation, delegate: chief ? delegateFor(owner, onEvent) : undefined, onEvent,
-  });
+  const sandboxName = sandboxNameFor(config, owner);
+  const { computer, release } = openDaytonaComputer({ apiKey: config.daytonaApiKey, sandboxName, workspace: Boolean(owner.bot) });
+  try {
+    const model = createOpenRouterModel({ apiKey: config.openRouterApiKey, model: config.model });
+    const contextWindow = config.contextWindow ?? await fetchContextWindow(config.model);
+    const chief = owner.bot?.primary === true;
+    return await runAgent(task, {
+      model, computer, tools: chief ? chiefTools : owner.bot ? defaultTools : unnamedTools, maxSteps: config.maxSteps, contextWindow, userId: owner.userId, bot: owner.bot,
+      approveAction: owner.approveAction, conversation: owner.conversation, delegate: chief ? delegateFor(owner, onEvent) : undefined, onEvent,
+    });
+  } finally {
+    // Not awaited, so the answer isn't held up while the sandbox stops.
+    release().catch((error) => console.error(`Could not stop sandbox "${sandboxName}": ${error instanceof Error ? error.message : error}`));
+  }
 }
 
 const delegating = new Set<string>();
