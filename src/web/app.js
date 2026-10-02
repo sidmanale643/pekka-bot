@@ -1030,7 +1030,7 @@ $("#search").addEventListener("input", renderBots);
 $("#menu").addEventListener("click", () =>
   setSidebarExpanded(!sidebarExpanded()),
 );
-$("main").addEventListener("click", (event) => {
+$(".app > main").addEventListener("click", (event) => {
   if (!event.target.closest("#menu")) closeDrawer();
 });
 $("#task").addEventListener("input", updateComposer);
