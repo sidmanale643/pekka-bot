@@ -464,12 +464,15 @@ files inside that skill folder. Long files return `next_offset` for continuation
 Malformed skills are reported without disabling valid skills.
 
 Plugin skills are included in `skills/notion`, `skills/gmail`,
-`skills/telegram`, and `skills/github`. Save them as shared skills using the
-existing CLI:
+`skills/calendar`, `skills/drive`, `skills/contacts`, `skills/telegram`, and
+`skills/github`. Save them as shared skills using the existing CLI:
 
 ```bash
 pnpm pekka skills add ./skills/notion
 pnpm pekka skills add ./skills/gmail
+pnpm pekka skills add ./skills/calendar
+pnpm pekka skills add ./skills/drive
+pnpm pekka skills add ./skills/contacts
 pnpm pekka skills add ./skills/telegram
 pnpm pekka skills add ./skills/github
 pnpm pekka skills list
@@ -517,6 +520,19 @@ for a copyable template.
 | `CLOUDFLARE_API_TOKEN` | Cloudflare API token with D1 Edit permission; required for bots and jobs | — |
 | `CLOUDFLARE_ACCOUNT_ID` | Cloudflare account that owns the D1 database | — |
 | `CLOUDFLARE_D1_DATABASE_ID` | ID of the D1 database Pekka stores data in | — |
+
+Plugin configuration is optional:
+
+| Variables | Used for |
+| --- | --- |
+| `PEKKA_PLUGIN_KEY` | Stable encryption key for OAuth tokens; generate with `openssl rand -hex 32` |
+| `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` | Google sign-in and Google plugins |
+| `GOOGLE_REDIRECT_URI` | Gmail callback; Calendar, Drive, and Contacts derive their callback host from it |
+| `NOTION_CLIENT_ID`, `NOTION_CLIENT_SECRET`, `NOTION_REDIRECT_URI` | Notion OAuth |
+| `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET`, `GITHUB_REDIRECT_URI` | GitHub OAuth; requires `gh` on the server |
+| `TELEGRAM_BOT_TOKEN` | Telegram linking and messaging |
+
+See [Plugins](#plugins) for connection steps and callback paths.
 
 Without a search key, the `web_search` tool returns an error when called.
 `PEKKA_MAX_STEPS` limits model replies, not the number of commands within a
@@ -586,6 +602,11 @@ Destructive deletion and disk commands, destructive Git operations, privilege/sy
 
 Scheduled runs, noninteractive CLI runs and non-streaming API runs have no reviewer. They can read, but actions requiring approval are rejected. There are no permanent approval grants or automatic plugin-write exemptions.
 
+## Plugins
+
+Connect plugins from the web interface. Connections belong to the user and
+are available to all of that user's bots after access is enabled.
+
 ### Notion plugin
 
 Open **Plugins** to add Notion. A Notion public OAuth connection must first be configured on the Pekka server:
@@ -612,7 +633,35 @@ While the app's publishing status is **Testing**, Google expires the connection 
 
 Each user connects their own Gmail. With sign-in on, set `GOOGLE_REDIRECT_URI` to `<PEKKA_URL>/api/plugins/gmail/callback`. While the consent screen is in **Testing**, only the test users you add can connect Gmail.
 
-Bots get `gmail_search` (Gmail search syntax), `gmail_read_message`, `gmail_read_thread`, `gmail_send`, `gmail_create_draft`, `gmail_list_labels` and `gmail_modify_labels` (mark read or unread, archive, star). Reads are automatic; sends, drafts and label changes require one-time approval through the permission gate. Scheduled runs cannot send mail without a reviewer. The `gmail.modify` scope cannot permanently delete mail. Access is checked on every request. **Disconnect** revokes the token at Google and removes the saved credentials. Tokens are encrypted with `PEKKA_PLUGIN_KEY` and never reach model prompts or the bot's computer.
+Bots get `gmail_search` (Gmail search syntax), `gmail_read_message`, `gmail_read_thread`, `gmail_send`, `gmail_create_draft`, `gmail_read_attachment`, `gmail_list_labels` and `gmail_modify_labels` (mark read or unread, archive, star). Like every tool, they run without asking unless `PEKKA_REQUIRE_APPROVAL=true`; then sends, drafts and label changes need one-time approval, and scheduled runs cannot send mail. The `gmail.modify` scope cannot permanently delete mail. Access is checked on every request. **Disconnect** revokes the token at Google and removes the saved credentials. Tokens are encrypted with `PEKKA_PLUGIN_KEY` and never reach model prompts or the bot's computer.
+
+### Google Calendar, Drive and Contacts plugins
+
+These plugins use the same Google OAuth client and settings as Gmail. Each has its own connection and **Allow** switch, so you can enable only the ones you want. `GOOGLE_REDIRECT_URI` must be Gmail's callback; the others use the same host with their own path.
+
+1. In the same Google Cloud project, enable the **Google Calendar API**, **Google Tasks API**, **Google Drive API**, **Google Docs API**, **Google Sheets API** and **People API** for the plugins you want.
+2. Add their scopes to the consent screen (listed below).
+3. Add each plugin's redirect URI to the OAuth client next to Gmail's, for example `http://127.0.0.1:3000/api/plugins/calendar/callback`, `/api/plugins/drive/callback` and `/api/plugins/contacts/callback` on the same host. With sign-in on, use `<PEKKA_URL>/api/plugins/<id>/callback`.
+4. Open **Plugins**, click **Connect** on the plugin, allow every permission on Google's consent screen, then turn on its **Allow** switch. A connection with any permission unticked is refused.
+
+| Plugin | Scopes | Bots can |
+| --- | --- | --- |
+| Google Calendar | `calendar.events`, `calendar.readonly`, `tasks` | List calendars and events, find free time, create, change, answer and delete events (with Meet links and reminders), and list, add, change and complete Google Tasks |
+| Google Drive | `drive.readonly`, `documents`, `spreadsheets` | Search and read Drive files (including PDFs and scans), create Google Docs and Sheets, append to Docs, and read, append to and overwrite Sheets |
+| Google Contacts | `contacts.readonly`, `contacts.other.readonly`, `userinfo.email` | Search saved contacts and people the user has emailed |
+
+Google Reminders now live in Google Tasks, so the Calendar plugin's `tasks_*` tools are how bots set reminders. Google Tasks stores a due date but not a time; for a reminder at a set time, bots create a calendar event with a pop-up reminder.
+
+Calendar tools never email guests unless asked (`notify_attendees`), and deleted events stay in Google Calendar's trash for 30 days. Drive is read-only: bots cannot move, share or delete files. Sheets values are stored as plain text unless a bot sets `interpret_formulas`, so formulas copied from emails or web pages don't run. Contacts is read-only. As with Gmail, writes need one-time approval when `PEKKA_REQUIRE_APPROVAL=true`, access is checked on every request, **Disconnect** revokes the token at Google, and tokens are encrypted with `PEKKA_PLUGIN_KEY`.
+
+### PDFs, scans and attachments
+
+`drive_read_file` and `gmail_read_attachment` turn PDFs and images (PNG, JPEG, TIFF, GIF and BMP) into Markdown with [LiteParse](https://developers.llamaindex.ai/liteparse/), which runs on the Pekka server with no cloud service. Scanned pages and photos go through OCR. Text files such as CSV are read directly. Word, Excel and PowerPoint files are not supported, because LiteParse needs LibreOffice for them.
+
+Pekka parses up to 200 pages and 25 MB per PDF or image (text files are limited
+to 5 MB), and returns 15,000 characters per call. It keeps the 20 most recently read files in memory, so a long document is parsed once while a bot reads through it. Files are parsed in two worker processes with a two-minute limit, to limit parsing time and isolate parsing failures.
+
+OCR downloads its English language data (about 15 MB) the first time it is needed and caches it in `PEKKA_TESSDATA_PATH`, which defaults to the system temp directory. Set `PEKKA_OCR=false` to turn OCR off; scanned files then come back without text.
 
 ### Telegram plugin
 
