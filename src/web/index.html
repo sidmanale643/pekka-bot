@@ -85,7 +85,19 @@
             </svg>
           </button>
           <div id="heading"></div>
-          <button id="details" class="button ghost" hidden>Details</button>
+          <button
+            id="details"
+            class="icon-button"
+            aria-label="Toggle bot panel"
+            aria-controls="context-panel"
+            aria-expanded="false"
+            hidden
+          >
+            <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true">
+              <rect x="2.5" y="3.5" width="15" height="13" rx="1" fill="none" stroke="currentColor" stroke-width="1.3" />
+              <path d="M12.5 3.5v13" stroke="currentColor" stroke-width="1.3" />
+            </svg>
+          </button>
         </header>
         <div id="notice" role="status" hidden></div>
         <section id="welcome" class="welcome" hidden>
@@ -99,23 +111,26 @@
           <div id="templates" class="templates"></div>
         </section>
         <section id="conversation" hidden>
-          <div id="transcript" role="log" aria-label="Task history"></div>
-          <div class="composer-area">
-            <form id="composer">
-              <textarea
-                id="task"
-                aria-label="Task for bot"
-                placeholder="Send a message"
-                rows="1"
-                maxlength="100000"
-                required
-              ></textarea
-              ><button id="send" class="button primary" type="submit">Send</button>
-            </form>
-            <div class="composer-note">
-              <span id="send-hint"></span>
+          <div class="chat-column">
+            <div id="transcript" role="log" aria-label="Task history"></div>
+            <div class="composer-area">
+              <form id="composer">
+                <textarea
+                  id="task"
+                  aria-label="Task for bot"
+                  placeholder="Send a message"
+                  rows="1"
+                  maxlength="100000"
+                  required
+                ></textarea
+                ><button id="send" class="button primary" type="submit">Send</button>
+              </form>
+              <div class="composer-note">
+                <span id="send-hint"></span>
+              </div>
             </div>
           </div>
+          <aside id="context-panel" class="context-panel" aria-label="Bot panel"></aside>
         </section>
         <section id="scheduled" class="scheduled" hidden>
           <div class="schedule-sidebar">

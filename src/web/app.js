@@ -452,7 +452,7 @@ function chatIntro(bot) {
   return intro;
 }
 
-// Write tools whose results become cards under the answer.
+// Write tools whose results become cards under the answer and in the bot panel.
 const toolOutputs = {
   notion_create_page: ["Notion", "Created page"],
   notion_append_text: ["Notion", "Added to page"],
@@ -580,6 +580,7 @@ function renderTranscript(forceScroll = false) {
     transcript.append(row);
   }
   if (forceScroll || nearBottom) transcript.scrollTop = transcript.scrollHeight;
+  renderContext();
 }
 
 function updateComposer() {
@@ -634,12 +635,8 @@ function applyEvent(event, data, message) {
         data.answer || message.text || "Task finished without a text response.";
       message.status =
         data.status === "done" ? "" : `Run ended: ${data.status}`;
-      if (data.usage) {
-        const { promptTokens, completionTokens, cacheHitRate, costUsd } = data.usage;
-        const cache = cacheHitRate == null ? "unavailable" : `${(cacheHitRate * 100).toFixed(1)}%`;
-        const metrics = `${promptTokens.toLocaleString()} input tokens · ${completionTokens.toLocaleString()} output tokens · Cache hit rate: ${cache} · $${costUsd.toFixed(4)}`;
-        message.status = [message.status, metrics].filter(Boolean).join(" · ");
-      }
+      // Token use and cost move to the bot panel instead of trailing every answer.
+      if (data.usage) message.usage = data.usage;
     },
     error: () => {
       throw new Error(data.error || "Task execution failed.");
@@ -1156,6 +1153,151 @@ mobileSidebar.addEventListener("change", closeDrawer);
 mobileSidebar.addEventListener("change", renderBots);
 syncSidebarToggle();
 
+// Wide screens keep the bot panel beside the chat, remembered per browser; narrower ones open it over the chat.
+const widePanel = window.matchMedia("(min-width: 1280px)");
+const panelKey = "pekka.bot-panel.v1";
+let panelPinned = true;
+let panelOverlay = false;
+try {
+  panelPinned = localStorage.getItem(panelKey) !== "closed";
+} catch {}
+
+function panelOpen() {
+  return widePanel.matches ? panelPinned : panelOverlay;
+}
+
+function setPanelOpen(open) {
+  if (widePanel.matches) {
+    panelPinned = open;
+    try {
+      localStorage.setItem(panelKey, open ? "open" : "closed");
+    } catch {}
+  } else panelOverlay = open;
+  syncPanel();
+}
+
+function syncPanel() {
+  const open = panelOpen();
+  $("#context-panel").hidden = !open;
+  $("#context-panel").classList.toggle("overlay", !widePanel.matches);
+  $("#details").setAttribute("aria-expanded", String(open));
+  $("#details").title = open ? "Hide bot panel" : "Show bot panel";
+  renderContext();
+}
+
+widePanel.addEventListener("change", () => {
+  panelOverlay = false;
+  syncPanel();
+});
+syncPanel();
+
+function markdownLinks(text) {
+  const pattern = /\[([^\]\n]+)\]\((https?:\/\/[^\s<>)]+)\)|https?:\/\/[^\s<>)\]]+/g;
+  return [...text.matchAll(pattern)].map((match) => ({
+    url: (match[2] || match[0]).replace(/[.,;:!?]+$/, ""),
+    label: match[1] || "",
+  }));
+}
+
+function panelSection(title, ...children) {
+  const section = element("section", "context-section");
+  section.append(element("h3", "", title), ...children);
+  return section;
+}
+
+function renderContext() {
+  const panel = $("#context-panel");
+  if (!selected || panel.hidden || currentPage !== "workspace") return;
+  const bot = selected;
+  const messages = entries(bot);
+  panel.replaceChildren();
+
+  const about = element("header", "context-about");
+  const name = element("div", "");
+  name.append(element("h2", "", bot.name), element("p", "", bot.role));
+  about.append(avatar(bot.name, 40), name);
+  const tabs = element("div", "context-tabs");
+  for (const [tab, label] of [["purpose", "Edit"], ["memory", "Memory"], ["skills", "Skills"], ["character", "Character"]]) {
+    const button = element("button", "button ghost small", label);
+    button.type = "button";
+    button.addEventListener("click", () => {
+      $("#details-dialog").showModal();
+      showDetails(tab, bot);
+    });
+    tabs.append(button);
+  }
+  panel.append(about);
+  if (bot.job) panel.append(element("p", "context-job", bot.job));
+  panel.append(tabs);
+
+  const upcoming = jobs.filter((job) => job.bot?.name === bot.name && upcomingStatuses.includes(job.status));
+  const schedule = element("div", "context-list");
+  for (const job of upcoming) {
+    const row = element("a", "context-row");
+    row.href = "#scheduled/" + encodeURIComponent(job.id);
+    row.append(element("strong", "", job.name), element("small", "", jobSummary(job)));
+    schedule.append(row);
+  }
+  if (!upcoming.length) {
+    const add = element("a", "context-empty", "Nothing scheduled. Schedule a task →");
+    add.href = "#scheduled/new";
+    schedule.append(add);
+  }
+  panel.append(panelSection("Scheduled", schedule));
+
+  const answers = messages.filter((message) => message.role === "assistant").reverse();
+  const outputs = answers.flatMap((message) => (message.tools ?? []).map((tool) => tool.output).filter(Boolean));
+  if (outputs.length) {
+    const cards = element("div", "output-cards");
+    for (const output of outputs.slice(0, 6)) cards.append(outputCard(output));
+    panel.append(panelSection("Created in this chat", cards));
+  }
+
+  const seen = new Set(outputs.map((output) => output.url));
+  const links = element("div", "context-list");
+  for (const link of answers.flatMap((message) => markdownLinks(message.text))) {
+    if (seen.has(link.url) || links.children.length >= 8) continue;
+    seen.add(link.url);
+    let host = link.url;
+    try {
+      host = new URL(link.url).hostname.replace(/^www\./, "");
+    } catch {}
+    const row = element("a", "context-row");
+    row.href = link.url;
+    row.target = "_blank";
+    row.rel = "noopener noreferrer";
+    row.append(element("strong", "", link.label || host), element("small", "", host));
+    links.append(row);
+  }
+  if (links.children.length) panel.append(panelSection("Links", links));
+
+  const counts = new Map();
+  for (const tool of answers.flatMap((message) => message.tools ?? []))
+    counts.set(tool.name, (counts.get(tool.name) ?? 0) + 1);
+  if (counts.size) {
+    const tools = element("div", "tools-used");
+    for (const [tool, count] of counts) tools.append(element("code", "", count > 1 ? `${tool} ×${count}` : tool));
+    panel.append(panelSection("Tools used", tools));
+  }
+
+  const usage = answers.find((message) => message.usage)?.usage;
+  if (usage) {
+    const facts = element("dl", "context-facts");
+    const cache = usage.cacheHitRate == null ? "—" : `${(usage.cacheHitRate * 100).toFixed(0)}%`;
+    for (const [term, value] of [
+      ["Input", `${usage.promptTokens.toLocaleString()} tokens`],
+      ["Output", `${usage.completionTokens.toLocaleString()} tokens`],
+      ["Cache hits", cache],
+      ["Cost", `$${usage.costUsd.toFixed(4)}`],
+    ])
+      facts.append(element("dt", "", term), element("dd", "", value));
+    panel.append(panelSection("Last run", facts));
+  }
+
+  if (!messages.length)
+    panel.append(element("p", "context-empty", "Pages, links and tools from this chat collect here."));
+}
+
 $("#new-bot").addEventListener("click", () => openCreate());
 $("#rail-new-bot").addEventListener("click", () => openCreate());
 $("#welcome-create").addEventListener("click", () => openCreate());
@@ -1165,6 +1307,7 @@ $("#menu").addEventListener("click", () =>
 );
 $(".app > main").addEventListener("click", (event) => {
   if (!event.target.closest("#menu")) closeDrawer();
+  if (panelOverlay && !event.target.closest("#context-panel, #details")) setPanelOpen(false);
 });
 $("#task").addEventListener("input", updateComposer);
 $("#composer").addEventListener("submit", (event) => {
@@ -1177,10 +1320,7 @@ $("#task").addEventListener("keydown", (event) => {
     sendTask($("#task").value);
   }
 });
-$("#details").addEventListener("click", () => {
-  $("#details-dialog").showModal();
-  showDetails();
-});
+$("#details").addEventListener("click", () => setPanelOpen(!panelOpen()));
 document
   .querySelectorAll("[data-tab]")
   .forEach((button) =>
@@ -1208,7 +1348,10 @@ document.addEventListener("keydown", (event) => {
     setSidebarExpanded(true);
     $("#search").focus();
   }
-  if (event.key === "Escape") closeDrawer();
+  if (event.key === "Escape") {
+    closeDrawer();
+    if (panelOverlay && !document.querySelector("dialog[open]")) setPanelOpen(false);
+  }
 });
 window.addEventListener("beforeunload", (event) => {
   if (running.size) {
@@ -1915,6 +2058,7 @@ function loadJobs() {
       jobsLoaded = true;
       jobsRequest = undefined;
       renderScheduledCount();
+      renderContext();
     });
   return jobsRequest;
 }
