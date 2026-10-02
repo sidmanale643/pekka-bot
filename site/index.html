@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Pekka — It does the work. You sign off.</title>
-<meta name="description" content="Pekka is an open-source AI agent you can give real work to. A chief of staff hands tasks to your bots, each with its own cloud computer, memory and skills. They work across GitHub, Gmail, Google Calendar, Drive, Notion and Telegram, and ask before they change anything.">
+<meta name="description" content="Pekka is an open-source AI agent you can give real work to. A chief of staff hands tasks to your bots, each with its own cloud computer, memory and skills. They read your documents, work across GitHub, Gmail, Google Calendar, Drive, Notion and Telegram, and ask before they change anything.">
 <meta name="theme-color" content="#080a11">
 <link rel="icon" href="favicon.png">
 <link rel="icon" type="image/svg+xml" href="head.svg">
@@ -247,7 +247,7 @@ code { font-family: var(--mono); font-size: 0.88em; }
 @keyframes drip { 0% { transform: translateY(-100%); } 60%, 100% { transform: translateY(100%); } }
 .tape { position: relative; z-index: 1; background: var(--accent); color: #eef0ff; overflow: hidden; }
 .tape-track { display: flex; width: max-content; }
-.js .tape-track { animation: tape 70s linear infinite; }
+.js .tape-track { animation: tape 100s linear infinite; }
 .tape:hover .tape-track { animation-play-state: paused; }
 .tape-track > span { display: flex; align-items: center; gap: 10px; padding: 14px 0; font-family: var(--mono); font-size: 12.5px; white-space: nowrap; }
 .tape-track > span::after { content: ""; width: 5px; height: 5px; margin: 0 30px 0 22px; background: currentColor; opacity: 0.45; transform: rotate(45deg); }
@@ -439,6 +439,25 @@ h2 .mute { display: block; }
 .voices span { color: var(--ink-3); }
 @keyframes pick { 0%, 36%, 100% { border-color: var(--rule); } 3%, 33% { border-color: var(--ink); } }
 @keyframes radio { 0%, 36%, 100% { border: 1.5px solid var(--rule-strong); } 3%, 33% { border: 4px solid var(--ink); } }
+.ocr-body { position: relative; display: grid; gap: 3px; padding: 10px 14px 12px; font-family: var(--mono); font-size: 12px; color: var(--ink-2); overflow: hidden; }
+.ocr-body b { font-weight: 500; color: var(--ink); }
+.ocr-body::after { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 2px; background: var(--accent); box-shadow: 0 0 12px 2px rgba(42, 60, 240, 0.3); animation: scan 3.6s var(--ease) infinite; }
+@keyframes scan { 0% { top: 0; opacity: 0; } 12%, 80% { opacity: 1; } 100% { top: 100%; opacity: 0; } }
+.ctx { display: grid; gap: 8px; font-size: 13px; }
+.ctx-row { display: flex; justify-content: space-between; font-family: var(--mono); font-size: 12px; color: var(--ink-3); }
+.ctx-row b { font-weight: 500; color: var(--ink-2); }
+.ctx-bar { position: relative; height: 10px; border-radius: 999px; background: var(--sunk); overflow: hidden; }
+.ctx-bar::before { content: ""; position: absolute; left: 50%; top: 0; bottom: 0; width: 1px; background: var(--rule-strong); z-index: 1; }
+.ctx-bar i { position: absolute; inset: 0 auto 0 0; width: 14%; border-radius: inherit; background: var(--accent); animation: fill 7s var(--ease) infinite; }
+@keyframes fill { 0% { width: 14%; } 60%, 66% { width: 50%; background: var(--warn); } 74%, 100% { width: 18%; background: var(--accent); } }
+.ctx-note { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: 1px solid var(--rule); border-radius: 6px; background: var(--sheet); color: var(--ink-2); animation: compact 7s infinite; }
+.ctx-note::before { content: ""; flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--rule-strong); animation: inherit; animation-name: compactDot; }
+@keyframes compact { 0%, 58%, 82%, 100% { border-color: var(--rule); } 62%, 76% { border-color: var(--accent); } }
+@keyframes compactDot { 0%, 58%, 82%, 100% { background: var(--rule-strong); } 62%, 76% { background: var(--accent); } }
+.nope { display: flex; flex-wrap: wrap; gap: 6px; }
+.nope span { display: inline-flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 12px; padding: 4px 9px; border-radius: 4px; border: 1px dashed var(--rule-strong); background: var(--sheet); color: var(--ink-3); text-decoration: line-through; text-decoration-color: var(--no); animation: deny 8s infinite; animation-delay: calc(var(--i) * 2s); }
+.nope svg { width: 12px; height: 12px; color: var(--no); }
+@keyframes deny { 0%, 18%, 100% { border-color: var(--rule-strong); background: var(--sheet); transform: none; } 3%, 14% { border-color: var(--no); background: var(--no-soft); } 4% { transform: translateX(-2px); } 6% { transform: translateX(2px); } 8% { transform: none; } }
 
 /* Crew: ID badges hanging from lanyards. */
 .crew { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 22px; }
@@ -834,6 +853,7 @@ footer .brand img { width: 30px; height: 30px; border-radius: 8px; }
         <span><b>Inbox Manager</b> gmail_create_draft “Re: renewal terms” <em>→ asks first</em></span>
         <span><b>Issue Triage</b> github_add_comment on issue #412 <em>→ approved once</em></span>
         <span><b>Librarian</b> notion_search “onboarding” <em>→ automatic</em></span>
+        <span><b>Librarian</b> drive_read_file signed-contract.pdf <em>→ scanned, read with OCR</em></span>
         <span><b>Scout</b> write_file reports/2026-10-01.md <em>→ approved once</em></span>
         <span><b>Librarian</b> telegram_send_message <em>→ asks first</em></span>
         <span><b>Inbox Manager</b> calendar_find_free_time “before Thursday” <em>→ automatic</em></span>
@@ -1000,8 +1020,8 @@ footer .brand img { width: 30px; height: 30px; border-radius: 8px; }
             <div class="card-top"></div><div class="card-av">L</div>
             <div class="card-body">
               <h3>Librarian</h3><p class="role">Knowledge keeper</p>
-              <p class="job">Finds and updates your team's Notion pages, and sends you a summary on Telegram.</p>
-              <dl><dt>Tools</dt><dd>Notion, Telegram</dd><dt>Runs</dt><dd>When the chief asks</dd></dl>
+              <p class="job">Reads the contracts and scans in your Drive, keeps your Notion pages up to date and sends you a summary on Telegram.</p>
+              <dl><dt>Tools</dt><dd>Drive, Notion, Telegram</dd><dt>Runs</dt><dd>When the chief asks</dd></dl>
               <div class="card-id"><span>PK-004</span><i></i></div>
             </div>
           </div>
@@ -1016,7 +1036,7 @@ footer .brand img { width: 30px; height: 30px; border-radius: 8px; }
       <div class="head reveal">
         <p class="kicker"><b>05</b>Features</p>
         <h2>Built for real work. <span class="mute">And built to be trusted with it.</span></h2>
-        <p class="lede">Bots that remember, keep their own files, run on a schedule and never act behind your back.</p>
+        <p class="lede">Bots that remember, keep their own files, read your documents, run on a schedule and never act behind your back.</p>
       </div>
       <div class="sheet reveal">
         <div class="cell" data-n="01">
@@ -1063,6 +1083,28 @@ footer .brand img { width: 30px; height: 30px; border-radius: 8px; }
             <div style="--i:2"><i></i>Custom <span>describe your own</span></div>
           </div>
         </div>
+        <div class="cell" data-n="07">
+          <h3>Reads PDFs and scans</h3>
+          <p>Drive files and Gmail attachments come back as Markdown, scanned pages and photos included. Parsing and OCR run on your server, with no cloud service.</p>
+          <div class="vis"><div class="doc">
+            <div class="doc-tabs"><span>signed-contract.pdf</span><span class="on">Markdown</span></div>
+            <div class="ocr-body"><b># Master Services Agreement</b><span>Term: 24 months from 1 Nov 2026</span><span>Renews unless cancelled 60 days ahead</span></div>
+          </div></div>
+        </div>
+        <div class="cell" data-n="08">
+          <h3>Long tasks keep going</h3>
+          <p>When a task fills half the model's context window, Pekka summarises the earlier steps and carries on. Your request and the latest step stay word for word.</p>
+          <div class="vis ctx">
+            <div class="ctx-row"><span>Context window</span><b>128k tokens</b></div>
+            <div class="ctx-bar"><i></i></div>
+            <div class="ctx-note">Summarizing earlier work to free up context…</div>
+          </div>
+        </div>
+        <div class="cell" data-n="09">
+          <h3>Lines it can't cross</h3>
+          <p>Deleting files, force-pushing, sudo and piping a download into a shell are blocked outright, whether or not anyone is watching.</p>
+          <div class="vis nope"><span style="--i:0"><svg><use href="#i-lock"/></svg>rm -rf</span><span style="--i:1"><svg><use href="#i-lock"/></svg>git push --force</span><span style="--i:2"><svg><use href="#i-lock"/></svg>sudo</span><span style="--i:3"><svg><use href="#i-lock"/></svg>curl … | sh</span></div>
+        </div>
       </div>
     </div>
   </section>
@@ -1105,7 +1147,7 @@ footer .brand img { width: 30px; height: 30px; border-radius: 8px; }
         <div class="node core">
           <h3><svg><use href="#i-cpu"/></svg>Pekka</h3>
           <p>The API and scheduler you run. They hold the keys.</p>
-          <div class="rows"><span>Agent loop and delegation</span><span>Permission gate</span><span>Scheduler</span><span>Encrypted plugin tokens</span></div>
+          <div class="rows"><span>Agent loop and delegation</span><span>Permission gate</span><span>Scheduler</span><span>PDF parsing and OCR</span><span>Encrypted plugin tokens</span></div>
         </div>
         <div class="wire"><i></i><i></i></div>
         <div class="outs">
@@ -1194,7 +1236,7 @@ footer .brand img { width: 30px; height: 30px; border-radius: 8px; }
         </details>
         <details>
           <summary><span>08</span>What can't it do yet?</summary>
-          <p>Bots can't drive a web browser yet, and email is send-only for now. Scheduled tasks run while the <code>pekka scheduler</code> process is running.</p>
+          <p>Bots can't drive a web browser yet, and a bot's own email address is send-only for now. Word, Excel and PowerPoint files can't be read yet. Scheduled tasks run while the <code>pekka scheduler</code> process is running.</p>
         </details>
       </div>
     </div>
