@@ -48,10 +48,16 @@ export function createNotionTools(service: NotionService = getNotionService()) {
     defineTool({
       name: "notion_create_page",
       permission: { effect: "write", plugin: "notion" },
-      description: "Create a Notion child page with a title and plain-text content under a shared parent page. Only write when authorized by the user's request. Never automatically retry an uncertain write.",
-      input: z.object({ parent_page_id: id, title: z.string().min(1).max(2000), text }),
+      description: `Create a Notion page with a title and plain-text content. Pass parent_page_id to create it under a shared page. Omit it to create a private page at the top level of the user's workspace, which they can move later; do this when no shared page is a sensible home. Cannot create database rows. Returns the new page, including its id and url. ${WRITE}`,
+      input: z.object({
+        parent_page_id: id.optional().describe("Shared page to create the new page under. Omit for a top-level page in the user's workspace."),
+        title: z.string().min(1).max(2000).describe("Page title, up to 2,000 characters."),
+        text,
+      }),
       async run({ parent_page_id, title, text: content }, { userId }) {
-        return JSON.stringify(await service.request(userId, "/pages", "POST", { parent: { type: "page_id", page_id: parent_page_id }, properties: { title: { type: "title", title: [{ type: "text", text: { content: title } }] } }, children: paragraphs(content) }));
+        // OAuth connections may create private workspace-level pages that the user can move later.
+        const parent = parent_page_id ? { type: "page_id", page_id: parent_page_id } : { type: "workspace", workspace: true };
+        return JSON.stringify(await service.request(userId, "/pages", "POST", { parent, properties: { title: { type: "title", title: [{ type: "text", text: { content: title } }] } }, children: paragraphs(content) }));
       },
     }),
     defineTool({

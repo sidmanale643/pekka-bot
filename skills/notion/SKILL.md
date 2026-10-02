@@ -13,11 +13,12 @@ Use the `notion_*` tools for the user's shared Notion pages. If access is disabl
 - Use `notion_get_page` with `page_id` for properties, and `notion_list_blocks` with that ID as `block_id` for content.
 - For search and block listings, pass `next_cursor` as `start_cursor` while `has_more` is true. `page_size` supports 1–100 results.
 - Read nested blocks with `has_children` by calling `notion_list_blocks` on their IDs. A page's first block listing may not contain all its content.
-- Resolve an ambiguous destination before writing. Never invent page IDs or assume an unshared page is accessible.
+- Resolve an ambiguous destination before writing; a new top-level page is a valid destination when the user just wants the content saved. Never invent page IDs or assume an unshared page is accessible.
 
 ## Write
 
 - Use `notion_create_page` with `parent_page_id`, `title`, and `text` to create a child of a shared page.
+- Omit `parent_page_id` to create a new private page at the top level of the user's workspace. Use this when the user asks for a new page and no shared page is a sensible parent, instead of writing into an unrelated page such as a database row. The user can move it later in Notion.
 - Use `notion_append_text` with `block_id` and `text` to add paragraphs. Appending does not replace existing content.
 - Both tools accept plain text up to 20,000 characters; creation accepts a title up to 2,000 characters. Markdown is not converted into formatted Notion blocks.
 - Write only what the user's task authorizes. These tools do not edit existing blocks, delete pages, or create database rows.

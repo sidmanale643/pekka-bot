@@ -37,8 +37,11 @@ it("registers Notion tools and sends validated page writes only while enabled", 
     const chunks = (calls[2]!.data as { children: { paragraph: { rich_text: { text: { content: string } }[] } }[] }).children
       .map((block) => block.paragraph.rich_text[0]!.text.content);
     expect(chunks).toEqual([`${"a".repeat(1999)}😀`, "b"]);
+    call.function.arguments = JSON.stringify({ title: "Digest", text: "Hello" });
+    expect((await executeToolCall(call, tools, context)).isError).toBe(false);
+    expect(calls[3]).toMatchObject({ url: "https://api.notion.com/v1/pages", data: { parent: { type: "workspace", workspace: true } } });
     call.function.arguments = JSON.stringify({ parent_page_id: "https://evil.example", title: "Notes", text: "Hello" });
     expect((await executeToolCall(call, tools, context)).isError).toBe(true);
-    expect(calls).toHaveLength(3);
+    expect(calls).toHaveLength(4);
   } finally { database.close(); }
 });
