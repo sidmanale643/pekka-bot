@@ -665,7 +665,7 @@ OCR downloads its English language data (about 15 MB) the first time it is neede
 
 ### Telegram plugin
 
-Bots can message you on Telegram after you approve the exact message during an interactive run:
+Bots can message your own Telegram chat, including from scheduled jobs. With `PEKKA_REQUIRE_APPROVAL=true`, each message needs your approval and scheduled runs cannot send. To set it up:
 
 1. Create a bot with [@BotFather](https://t.me/BotFather) and set `TELEGRAM_BOT_TOKEN` in `.env`. Use a dedicated bot without a webhook: Pekka reads the bot's updates with `getUpdates` to link your chat. Restart the API.
 2. Open **Plugins**, click **Link Telegram**, open the `t.me` link and press **Start**. Pekka links the private chat that sent the one-time code, which expires after 10 minutes.
