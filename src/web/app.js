@@ -21,7 +21,14 @@ const unread = new Set();
 let loaded = false;
 let notionPlugin;
 let githubPlugin;
-let gmailPlugin;
+// Google plugins share one sign-in flow and card layout; each keeps its own connection and access switch.
+const googlePlugins = {
+  gmail: { name: "Gmail", grant: "Gmail access", enabled: "Gmail access enabled. Bots can now read and send your email." },
+  calendar: { name: "Google Calendar", grant: "calendar and tasks access", enabled: "Google Calendar access enabled. Bots can now see and change your events and reminders." },
+  drive: { name: "Google Drive", grant: "Drive, Docs and Sheets access", enabled: "Google Drive access enabled. Bots can now read your files and write Docs and Sheets." },
+  contacts: { name: "Google Contacts", grant: "contacts access", enabled: "Google Contacts access enabled. Bots can now look up your contacts." },
+};
+let googleStatus = {};
 let telegramPlugin;
 let telegramLink;
 let telegramPoll;
@@ -1247,7 +1254,7 @@ function renderPlugins() {
   $("#notion-disconnect").disabled = pluginsBusy;
   $("#plugins-refresh").disabled = pluginsBusy;
   $("#notion-use").hidden = !connected;
-  renderGmail();
+  for (const id of Object.keys(googlePlugins)) renderGoogle(id);
   renderTelegram();
   renderGithub();
   renderPluginCatalog();
@@ -1259,7 +1266,7 @@ function renderPluginCatalog() {
   const query = $("#plugin-search").value.trim().toLowerCase();
   const installed = $("#plugin-installed");
   installed.replaceChildren();
-  const connections = { notion: notionPlugin, gmail: gmailPlugin, telegram: telegramPlugin, github: githubPlugin };
+  const connections = { notion: notionPlugin, ...googleStatus, telegram: telegramPlugin, github: githubPlugin };
   $("#plugin-count").textContent = document.querySelectorAll("[data-plugin]").length;
   let connectedCount = 0;
   let visibleCount = 0;
@@ -1314,23 +1321,25 @@ $("#plugin-reset").addEventListener("click", () => {
   $("#plugin-search").focus();
 });
 
-function renderGmail() {
-  const connected = Boolean(gmailPlugin?.connected);
-  const configured = Boolean(gmailPlugin?.configured);
-  $("#gmail-card").setAttribute("aria-busy", String(pluginsBusy));
-  $("#gmail-state").textContent = !gmailPlugin ? (pluginsBusy ? "Loading…" : "Unavailable") : connected ? (gmailPlugin.enabled ? "Access enabled" : "Access off") : configured ? "Not connected" : "Setup required";
-  $("#gmail-state").classList.toggle("enabled", connected && gmailPlugin.enabled);
-  $("#gmail-setup").hidden = !gmailPlugin || configured;
-  $("#gmail-account").hidden = !connected;
-  $("#gmail-account").textContent = connected ? `Connected to ${gmailPlugin.workspaceName || "your Gmail account"}` : "";
-  $("#gmail-permission").hidden = !connected;
-  if (!pluginsBusy) $("#gmail-enabled").checked = connected && gmailPlugin.enabled;
-  $("#gmail-enabled").disabled = pluginsBusy || !connected;
-  $("#gmail-connect").textContent = connected ? "Reconnect Gmail" : "Connect Gmail";
-  $("#gmail-connect").disabled = pluginsBusy || !configured;
-  $("#gmail-disconnect").hidden = !connected;
-  $("#gmail-disconnect").disabled = pluginsBusy;
-  $("#gmail-use").hidden = !connected;
+function renderGoogle(id) {
+  const plugin = googleStatus[id];
+  const { name } = googlePlugins[id];
+  const connected = Boolean(plugin?.connected);
+  const configured = Boolean(plugin?.configured);
+  $(`#${id}-card`).setAttribute("aria-busy", String(pluginsBusy));
+  $(`#${id}-state`).textContent = !plugin ? (pluginsBusy ? "Loading…" : "Unavailable") : connected ? (plugin.enabled ? "Access enabled" : "Access off") : configured ? "Not connected" : "Setup required";
+  $(`#${id}-state`).classList.toggle("enabled", connected && plugin.enabled);
+  $(`#${id}-setup`).hidden = !plugin || configured;
+  $(`#${id}-account`).hidden = !connected;
+  $(`#${id}-account`).textContent = connected ? `Connected to ${plugin.workspaceName || "your Google account"}` : "";
+  $(`#${id}-permission`).hidden = !connected;
+  if (!pluginsBusy) $(`#${id}-enabled`).checked = connected && plugin.enabled;
+  $(`#${id}-enabled`).disabled = pluginsBusy || !connected;
+  $(`#${id}-connect`).textContent = connected ? `Reconnect ${name}` : `Connect ${name}`;
+  $(`#${id}-connect`).disabled = pluginsBusy || !configured;
+  $(`#${id}-disconnect`).hidden = !connected;
+  $(`#${id}-disconnect`).disabled = pluginsBusy;
+  $(`#${id}-use`).hidden = !connected;
 }
 
 function renderTelegram() {
@@ -1363,7 +1372,11 @@ async function loadPlugins() {
   const callback = new URL(location.href);
   const outcomes = {
     notion: { connected: "Notion connected. Choose whether to allow Pekka access below.", denied: "Notion connection was cancelled. You can try again whenever you're ready.", error: "Notion could not be connected. Try again or check the server's OAuth setup." },
-    gmail: { connected: "Gmail connected. Choose whether to allow Pekka access below.", denied: "Gmail connection was cancelled. You can try again whenever you're ready.", error: "Gmail could not be connected. Make sure you allowed Gmail access on Google's consent screen, or check the server's OAuth setup." },
+    ...Object.fromEntries(Object.entries(googlePlugins).map(([id, { name, grant }]) => [id, {
+      connected: `${name} connected. Choose whether to allow Pekka access below.`,
+      denied: `${name} connection was cancelled. You can try again whenever you're ready.`,
+      error: `${name} could not be connected. Make sure you allowed ${grant} on Google's consent screen, or check the server's OAuth setup.`,
+    }])),
     github: { connected: "GitHub connected. Choose whether to allow Pekka access below.", denied: "GitHub connection was cancelled. You can try again whenever you're ready.", error: "GitHub could not be connected. Try again or check the server's OAuth setup." },
   };
   for (const [id, messages] of Object.entries(outcomes)) {
@@ -1379,7 +1392,7 @@ async function loadPlugins() {
   try {
     const data = await api("/api/plugins");
     notionPlugin = data.plugins.find((plugin) => plugin.id === "notion");
-    gmailPlugin = data.plugins.find((plugin) => plugin.id === "gmail");
+    googleStatus = Object.fromEntries(Object.keys(googlePlugins).map((id) => [id, data.plugins.find((plugin) => plugin.id === id)]));
     telegramPlugin = data.plugins.find((plugin) => plugin.id === "telegram");
     stopTelegramLink();
     telegramLink = telegramPlugin?.linkUrl;
@@ -1390,7 +1403,7 @@ async function loadPlugins() {
     githubPlugin = data.plugins.find((plugin) => plugin.id === "github");
   } catch (error) {
     notionPlugin = undefined;
-    gmailPlugin = undefined;
+    googleStatus = {};
     telegramPlugin = undefined;
     githubPlugin = undefined;
     $("#plugin-status").textContent = `Could not load plugins: ${error.message}`;
@@ -1485,36 +1498,39 @@ $("#notion-connect").addEventListener("click", () => changeNotion("connect"));
 $("#notion-disconnect").addEventListener("click", () => changeNotion("disconnect"));
 $("#notion-enabled").addEventListener("change", () => changeNotion("permission"));
 
-async function changeGmail(action) {
+async function changeGoogle(id, action) {
   if (pluginsBusy) return;
   pluginsBusy = true;
-  const enabled = $("#gmail-enabled").checked;
+  const { name } = googlePlugins[id];
+  const enabled = $(`#${id}-enabled`).checked;
   renderPlugins();
   $("#plugin-status").textContent = action === "connect" ? "Opening Google…" : "Saving…";
   try {
     if (action === "connect") {
-      const result = await api("/api/plugins/gmail/connect", { method: "POST", body: "{}" });
+      const result = await api(`/api/plugins/${id}/connect`, { method: "POST", body: "{}" });
       const target = new URL(result.url);
       if (target.protocol !== "https:" || target.hostname !== "accounts.google.com") throw new Error("Invalid Google authorization URL.");
       location.assign(target.href);
       return;
     }
-    gmailPlugin = await api("/api/plugins/gmail", action === "disconnect" ? { method: "DELETE" } : { method: "PUT", body: JSON.stringify({ enabled }) });
-    $("#plugin-status").textContent = action === "disconnect" ? "Gmail disconnected. Pekka no longer has access." : enabled ? "Gmail access enabled. Bots can now read and send your email." : "Gmail access turned off.";
+    googleStatus[id] = await api(`/api/plugins/${id}`, action === "disconnect" ? { method: "DELETE" } : { method: "PUT", body: JSON.stringify({ enabled }) });
+    $("#plugin-status").textContent = action === "disconnect" ? `${name} disconnected. Pekka no longer has access.` : enabled ? googlePlugins[id].enabled : `${name} access turned off.`;
   } catch (error) {
-    const message = `Could not update Gmail: ${error.message}`;
+    const message = `Could not update ${name}: ${error.message}`;
     pluginsBusy = false;
     await loadPlugins();
-    $("#plugin-status").textContent = gmailPlugin ? message : `${message} Refresh to check the current connection state.`;
+    $("#plugin-status").textContent = googleStatus[id] ? message : `${message} Refresh to check the current connection state.`;
   } finally {
     pluginsBusy = false;
     renderPlugins();
   }
 }
 
-$("#gmail-connect").addEventListener("click", () => changeGmail("connect"));
-$("#gmail-disconnect").addEventListener("click", () => changeGmail("disconnect"));
-$("#gmail-enabled").addEventListener("change", () => changeGmail("permission"));
+for (const id of Object.keys(googlePlugins)) {
+  $(`#${id}-connect`).addEventListener("click", () => changeGoogle(id, "connect"));
+  $(`#${id}-disconnect`).addEventListener("click", () => changeGoogle(id, "disconnect"));
+  $(`#${id}-enabled`).addEventListener("change", () => changeGoogle(id, "permission"));
+}
 
 function stopTelegramLink() {
   clearTimeout(telegramPoll);
