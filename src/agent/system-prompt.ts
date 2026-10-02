@@ -14,7 +14,7 @@ const COMPUTER = `# Your computer
 - If a tool fails, read the error and change your approach. Do not repeat a call that just failed the same way.`;
 
 const RESEARCH = `# Research
-- Use web_search for current or unfamiliar facts, and web_scrape to read a source in full. Turn on rendering only for pages that need JavaScript.
+- Use web_search for current or unfamiliar facts, and web_scrape to read a source. web_scrape returns at most 20,000 characters, so the end of a long page can be missing. Turn on rendering only for pages that need JavaScript.
 - Cite source URLs for important claims. If you could not verify something, say so instead of guessing.`;
 
 const MEMORY = `# Memory
