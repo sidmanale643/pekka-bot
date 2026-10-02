@@ -534,11 +534,16 @@ remain in Daytona.
 3. Pekka executes requested tools and sends their results back to the model until it gives a reply without a tool call or reaches the step limit.
 4. When the next prompt would fill half the model's context window, the [context manager](src/agent/context.ts) asks the model to summarize the task so far and replaces the older messages with that summary. The system prompt, the user's request and the latest step are kept as they were.
 
-The available tools are `run_command`, `read_file`, `write_file`,
+The core tools are `run_command`, `read_file`, `write_file`,
 `edit_file`, `web_search`, `web_scrape`, `read_memory`, `write_memory`,
-`list_skills`, `load_skill`, `schedule_job`, `list_scheduled_jobs`,
+`update_bot_config`, `list_skills`, `load_skill`, `schedule_job`, `list_scheduled_jobs`,
 `cancel_scheduled_job`, `get_email_address`, and `send_email`.
-Shell and file operations run on the Daytona computer.
+Connected plugins add the tools described below; Chief of Staff also gets bot
+management and delegation tools. Shell and file operations run on Daytona.
+`read_file` returns up to 20,000 characters per call and pages through longer
+files by line with `offset` and `limit`. Long `run_command` output keeps its
+first and last 10,000 characters. Unnamed runs don't get `read_memory`,
+`write_memory`, `update_bot_config` or the email tools, which need a named bot.
 `write_file` replaces the entire target file. `edit_file` replaces an exact
 piece of text in an existing file and leaves the rest unchanged; the text must
 match exactly once unless `replace_all` is set. Web search calls Tavily or Exa
