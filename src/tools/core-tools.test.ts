@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
+import { systemPrompt } from "../agent/system-prompt.ts";
 import { BotMemory } from "../bot-memory.ts";
 import { createBot } from "../bots.ts";
 import { FakeComputer } from "../computer/fake-computer.ts";
@@ -57,4 +58,8 @@ it("tells the agent which memory offset to read next", async () => {
   const first = await readMemory.run({ file: "KNOWLEDGE.md", offset: 0 }, context);
   expect(first).toContain("[Truncated. Read from offset 20000 for the rest.]");
   expect(await readMemory.run({ file: "KNOWLEDGE.md", offset: 20_000 }, context)).toBe(`${"a".repeat(5_000)}END`);
+});
+
+it("tells the agent how many steps it has", () => {
+  expect(systemPrompt(undefined, 12)).toContain("You have 12 steps.");
 });

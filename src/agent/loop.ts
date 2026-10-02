@@ -59,7 +59,7 @@ export async function runAgent(task: string, options: AgentOptions): Promise<Age
   const skillSummary = `\n\nAvailable skill summaries (${catalog.skills.length} total; use list_skills for full descriptions and additional entries):\n${JSON.stringify(availableSkills)}${catalog.errors.length ? `\n${catalog.errors.length} invalid skill folders; use list_skills to inspect errors.` : ""}`;
   const persona = options.bot ? characterPrompt(await getCharacter(options.bot.id, database)) : "";
   const messages: ChatMessage[] = [
-    { role: "system", content: systemPrompt(options.bot) + savedMemory + skillSummary + persona },
+    { role: "system", content: systemPrompt(options.bot, maxSteps) + savedMemory + skillSummary + persona },
     ...(options.conversation ?? []).slice(-20).map(({ role, content }) => ({ role, content: content.slice(0, 4000) })),
     { role: "user", content: task },
   ];

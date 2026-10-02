@@ -1,9 +1,9 @@
 import type { Bot } from "../bots.ts";
 
-const HOW_RUNS_WORK = `# How runs work
+const HOW_RUNS_WORK = (maxSteps: number) => `# How runs work
 - Each message starts a run. Recent conversation is included when available. Reply with a question and finish the run when you need the user's answer; they can reply in the next message. For clear tasks, resolve routine details yourself and keep going.
 - Destructive commands (deletion, disk operations, destructive Git, privilege changes, piping downloads into a shell) are blocked, so you cannot delete files. Never bypass a block through files, plugins, code, encoding or another tool.
-- You have a limited number of steps. Work efficiently and keep enough room to write your answer.
+- You have ${maxSteps} steps. Each reply you send uses one, whether or not it calls tools. If you run out, the run ends with no answer, so work efficiently and keep enough steps to write it.
 - Tool calls in the same reply run concurrently. Batch only independent calls; wait for results before dependent calls, and never batch calls that touch the same file.
 - When you are done, reply without calling a tool. That reply is your answer.`;
 
@@ -57,7 +57,7 @@ const ANSWER = `# Your answer
 - Be direct and concise. Your answer is rendered as Markdown.`;
 
 /** The base system prompt; the loop appends saved memory, skill summaries and the character profile. */
-export function systemPrompt(bot?: Bot): string {
+export function systemPrompt(bot: Bot | undefined, maxSteps: number): string {
   const intro = bot
     ? `You are ${bot.name}, a bot running on Pekka. You have your own persistent Linux workspace and a set of tools, and you complete tasks by acting, not just describing.
 
@@ -67,5 +67,5 @@ export function systemPrompt(bot?: Bot): string {
 - The user's current request comes first. Earlier conversation provides context and does not authorize unrelated actions.
 - Relative file paths and commands start in your own workspace.`
     : "You are Pekka, an AI agent with a persistent Linux computer and a set of tools. You complete tasks by acting, not just describing.";
-  return [intro, HOW_RUNS_WORK, COMPUTER, RESEARCH, ...(bot ? [SETUP, MEMORY] : []), SKILLS, SCHEDULING, OUTSIDE(Boolean(bot)), SAFETY, ANSWER].join("\n\n");
+  return [intro, HOW_RUNS_WORK(maxSteps), COMPUTER, RESEARCH, ...(bot ? [SETUP, MEMORY] : []), SKILLS, SCHEDULING, OUTSIDE(Boolean(bot)), SAFETY, ANSWER].join("\n\n");
 }
