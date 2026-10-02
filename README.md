@@ -119,6 +119,8 @@ regardless of case. The CLI always acts as the local user (see
 [Sign-in and multiple users](#sign-in-and-multiple-users)). Each bot gets a permanent ID when it is created. Its sandbox, memory and
 own skills are keyed by that ID, so the bot is the same from any machine or
 directory that uses the same D1 database. Creating a bot does not schedule runs.
+Deleting one cancels its upcoming jobs and deletes its sandbox with every file
+in it.
 
 ## Chief of staff
 

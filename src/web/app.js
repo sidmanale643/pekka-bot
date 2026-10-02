@@ -1104,12 +1104,15 @@ async function saveBotProfile(bot, form, status) {
 }
 
 async function removeBotProfile(bot, form, status) {
-  if (!window.confirm(`Delete ${bot.name}? Upcoming schedules will be cancelled. Sandbox files and saved memory will be retained.`)) return;
+  if (!window.confirm(`Delete ${bot.name}? Its sandbox, with every file in it, and its chat history in this browser will be deleted, and upcoming schedules cancelled. Saved memory will be retained.`)) return;
   for (const button of form.querySelectorAll("button")) button.disabled = true;
   status.textContent = "Deleting…";
   try {
     await api(`/api/bots/${encodeURIComponent(bot.name)}`, { method: "DELETE" });
     bots = bots.filter((item) => item.id !== bot.id);
+    // History is kept by name, so a new bot given this name would otherwise inherit the chat.
+    delete history[bot.name.toLowerCase()];
+    persist();
     drafts.delete(bot.name);
     unread.delete(bot.name);
     forgetGreeting(bot);

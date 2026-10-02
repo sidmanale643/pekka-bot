@@ -62,6 +62,19 @@ export function openDaytonaComputer(options: SandboxOptions): { computer: Comput
   };
 }
 
+/** Deletes the named sandbox and every file in it. A bot that never used its computer has none. */
+export async function deleteDaytonaSandbox(options: { apiKey: string; sandboxName: string }): Promise<void> {
+  const daytona = new Daytona({ apiKey: options.apiKey });
+  let sandbox: Sandbox;
+  try {
+    sandbox = await daytona.get(options.sandboxName);
+  } catch (error) {
+    if (error instanceof DaytonaNotFoundError) return;
+    throw error;
+  }
+  await sandbox.delete();
+}
+
 async function connect(options: SandboxOptions): Promise<OpenSandbox> {
   await stopping.get(options.sandboxName)?.catch(() => {});
   const daytona = new Daytona({ apiKey: options.apiKey });

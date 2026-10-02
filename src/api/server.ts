@@ -10,7 +10,7 @@ import { DatabaseConfigError } from "../database/d1.ts";
 import { getDatabase, type Database } from "../database/database.ts";
 import { createGreeting, type Greeting } from "../greeting.ts";
 import { createOpenRouterModel } from "../model/openrouter.ts";
-import { executeTask, type Reserve, type RunOwner } from "../runtime.ts";
+import { deleteBotSandbox, executeTask, type Reserve, type RunOwner } from "../runtime.ts";
 import {
   cancelScheduledJob, createScheduledJob, getScheduledJob, getSchedulerStatus, JobStateError, listScheduledJobs, pauseScheduledJob, resumeScheduledJob,
 } from "../scheduler.ts";
@@ -47,11 +47,13 @@ const jobInput = z.object({
 
 type Execute = (task: string, owner: RunOwner, onEvent?: EventHandler) => Promise<AgentResult>;
 type Greet = (bot: Bot) => Promise<Greeting>;
+type DeleteSandbox = (userId: string, bot: Bot) => Promise<void>;
 type Handler = Route[2];
 
 interface ServerOptions {
   execute?: Execute;
   greet?: Greet;
+  deleteSandbox?: DeleteSandbox;
   database?: Database;
   notion?: NotionService;
   telegram?: TelegramService;
@@ -75,6 +77,10 @@ export function createApiServer(options: ServerOptions = {}) {
     let config;
     try { config = loadConfig(); } catch { throw new HttpError(503, "Greetings require valid provider configuration."); }
     return createGreeting(bot, createOpenRouterModel({ apiKey: config.openRouterApiKey, model: config.model }), database());
+  });
+  const deleteSandbox: DeleteSandbox = options.deleteSandbox ?? ((userId, bot) => {
+    try { loadConfig(); } catch { throw new HttpError(503, "Deleting a bot's sandbox requires valid provider configuration."); }
+    return deleteBotSandbox(userId, bot);
   });
   const active = new Set<string>();
   const permissions = new PermissionManager();
@@ -147,6 +153,12 @@ export function createApiServer(options: ServerOptions = {}) {
   const removeBot: Handler = async (_request, response, [name], userId) => {
     const { bot, scheduled } = await idleBot(userId, name!);
     if (bot.primary) throw new HttpError(409, "The chief of staff can't be deleted. Rename it or change its purpose instead.");
+    // The sandbox goes first, so a failure leaves the bot in place to try again rather than an orphaned sandbox.
+    try { await deleteSandbox(userId, bot); }
+    catch (error) {
+      if (error instanceof HttpError) throw error;
+      throw new HttpError(502, `Could not delete ${bot.name}'s sandbox, so the bot was kept. ${error instanceof Error ? `${error.message} ` : ""}Try again.`);
+    }
     for (const job of scheduled.filter((job) => job.status === "pending" || job.status === "paused")) await cancelScheduledJob(userId, job.id, database());
     await deleteBot(userId, bot.id, database());
     json(response, 200, { deleted: true });

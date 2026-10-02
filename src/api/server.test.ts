@@ -17,8 +17,9 @@ let directory: string;
 let database: ReturnType<typeof createSqliteDatabase>;
 let server: Server;
 let base: string;
+let deletedSandboxes: string[];
 
-async function start(instance = createApiServer({ database, execute: async (_task, _bot, emit) => {
+async function start(instance = createApiServer({ database, deleteSandbox: async (_userId, bot) => { deletedSandboxes.push(bot.id); }, execute: async (_task, _bot, emit) => {
   emit?.({ type: "message_delta", text: "Finished" });
   return result;
 } })) {
@@ -35,6 +36,7 @@ beforeEach(async () => {
   directory = await mkdtemp(join(tmpdir(), "pekka-api-"));
   process.chdir(directory);
   database = createSqliteDatabase();
+  deletedSandboxes = [];
 });
 
 afterEach(async () => {
@@ -80,10 +82,22 @@ describe("HTTP API", () => {
     const job = await (await post("/api/jobs", { ...schedule, botName: "Researcher" })).json() as { id: string };
     const other = await (await post("/api/jobs", { ...schedule, botName: "Other" })).json() as { id: string };
     expect((await fetch(`${base}/api/bots/Researcher`, { method: "DELETE" })).status).toBe(200);
+    expect(deletedSandboxes).toEqual([bot.id]);
     expect((await fetch(`${base}/api/bots/Researcher`)).status).toBe(404);
     expect(await (await fetch(`${base}/api/jobs/${job.id}`)).json()).toMatchObject({ status: "cancelled" });
     expect(await (await fetch(`${base}/api/jobs/${other.id}`)).json()).toMatchObject({ status: "pending" });
     expect(await new BotMemory(changed, database).read("KNOWLEDGE.md")).toBe("Saved knowledge");
+  });
+
+  it("keeps a bot and its jobs when its sandbox can't be deleted", async () => {
+    await start(createApiServer({ database, auth: null, deleteSandbox: async () => { throw new Error("Daytona is unavailable."); } }));
+    const bot = await (await post("/api/bots", { name: "Scout", role: "Research", job: "Find sources" })).json() as Bot;
+    const job = await (await post("/api/jobs", { name: "Report", task: "Check", runAt: new Date(Date.now() + 60000).toISOString(), botName: "Scout" })).json() as { id: string };
+    const removal = await fetch(`${base}/api/bots/Scout`, { method: "DELETE" });
+    expect(removal.status).toBe(502);
+    expect(await removal.json()).toEqual({ error: expect.stringContaining("Daytona is unavailable.") });
+    expect(await findBotById(LOCAL_USER, bot.id, database)).toEqual(bot);
+    expect(await (await fetch(`${base}/api/jobs/${job.id}`)).json()).toMatchObject({ status: "pending" });
   });
 
   it("never edits or deletes another user's bot", async () => {

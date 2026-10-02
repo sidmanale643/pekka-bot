@@ -1,7 +1,7 @@
 import type { EventHandler } from "./agent/events.ts";
 import { runAgent, type ConversationMessage } from "./agent/loop.ts";
 import { findBotById, type Bot } from "./bots.ts";
-import { openDaytonaComputer } from "./computer/daytona-computer.ts";
+import { deleteDaytonaSandbox, openDaytonaComputer } from "./computer/daytona-computer.ts";
 import { loadConfig, type Config } from "./config.ts";
 import { LOCAL_USER } from "./database/database.ts";
 import { createOpenRouterModel, fetchContextWindow } from "./model/openrouter.ts";
@@ -52,6 +52,12 @@ export async function executeTask(task: string, owner: RunOwner, onEvent?: Event
     // Not awaited, so the answer isn't held up while the sandbox stops.
     release().catch((error) => console.error(`Could not stop sandbox "${sandboxName}": ${error instanceof Error ? error.message : error}`));
   }
+}
+
+/** Deletes a bot's sandbox and every file in it. */
+export function deleteBotSandbox(userId: string, bot: Bot): Promise<void> {
+  const config = loadConfig();
+  return deleteDaytonaSandbox({ apiKey: config.daytonaApiKey, sandboxName: sandboxNameFor(config, { userId, bot }) });
 }
 
 const delegating = new Set<string>();
