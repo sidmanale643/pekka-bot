@@ -2,22 +2,35 @@
 
 # Pekka
 
-Pekka is a command-line AI agent that works on tasks in a persistent Linux
-sandbox. It uses [OpenRouter](https://openrouter.ai) for a tool-capable model
-and [Daytona](https://daytona.io) for the computer where it runs commands and
+Pekka is an open-source AI workspace with a web interface and CLI. Its bots
+work on tasks in persistent Linux sandboxes. Pekka uses
+[OpenRouter](https://openrouter.ai) for a tool-capable model and
+[Daytona](https://daytona.io) for the computer where it runs commands and
 reads and writes files. You can run a one-off task or save a named bot with a
 name and description. In the web interface, the bot learns your context and
 working preferences through conversation.
 
-Pekka currently has a CLI, a local web interface and HTTP API, an agent loop,
-shell and file tools, and optional web search, web scraping, and scheduled jobs.
-Bot profiles and scheduled jobs are stored in [Cloudflare
-D1](https://developers.cloudflare.com/d1/). There is no browser control or
-bot-to-bot delegation yet.
+Start with **Chief of Staff**, your primary bot, or create specialist bots for
+research, email, and other work. The chief can delegate tasks to several bots
+at once, and you can follow their progress live.
+
+- **Persistent workspaces:** each bot has its own Daytona computer, instructions, memory, and skills.
+- **Connected tools:** Gmail, Calendar and Tasks, Drive with Docs and Sheets, Contacts, Notion, GitHub, and Telegram.
+- **Scheduled work:** one-time or recurring tasks, executed by a separate scheduler process.
+- **Web and CLI:** streamed replies, tool activity, optional approval prompts, and an HTTP API.
+- **Optional Google sign-in:** separate bots, jobs, and plugin connections for each user.
+
+Bot data lives in [Cloudflare D1](https://developers.cloudflare.com/d1/),
+workspace files in Daytona, and chat history in your browser. Web search and
+scraping require provider keys; interactive browser control is not implemented.
+
+[Get started](#get-started) · [Web interface](#web-interface) ·
+[Configuration](#configuration) · [Plugins](#plugins) ·
+[HTTP API](#http-api) · [Troubleshooting](#troubleshooting)
 
 ## Requirements
 
-- Node.js 22.13 or newer and pnpm 11 (the project specifies pnpm 11.3.0).
+- Node.js 22.13 or newer and pnpm 11.3 or newer within version 11 (`^11.3.0`).
 - An [OpenRouter API key](https://openrouter.ai/settings/keys) and a model that supports tool calling.
 - A [Daytona API key](https://app.daytona.io/dashboard/keys).
 - A [Cloudflare D1 database](https://developers.cloudflare.com/d1/get-started/) and an [API token](https://dash.cloudflare.com/profile/api-tokens) with the **Account > D1 > Edit** permission.
@@ -27,6 +40,7 @@ bot-to-bot delegation yet.
 
 ```bash
 pnpm install
+# For a new checkout; keep your existing .env if already configured.
 cp .env.example .env
 ```
 
@@ -38,8 +52,22 @@ database connection:
 pnpm pekka db check
 ```
 
-Pekka creates its tables the first time it uses the database. If you used
-Pekka before it stored data in D1, run the import once from the same project
+Start the web interface:
+
+```bash
+pnpm api
+```
+
+Open [Pekka](http://127.0.0.1:3000) and send Chief of Staff a task. Keep this
+process running while using the app. Connect optional integrations later from
+**Plugins**. To require approval before writes and other actions, set
+`PEKKA_REQUIRE_APPROVAL=true` before starting Pekka; prompts are off by default.
+
+Pekka creates its tables the first time it uses the database.
+
+### Existing local data
+
+If you used Pekka before it stored data in D1, run the import once from the same project
 directory you used before:
 
 ```bash
@@ -51,7 +79,11 @@ It copies bots from `.pekka/bots.json`, each bot's memory and skills from
 `.pekka/jobs/scheduler.sqlite`. Imported bots keep the key their sandbox was
 named after, so they reuse their existing Daytona sandboxes. The import skips
 anything already in D1, so it is safe to run again, and it leaves the local
-files in place. Then run a task:
+files in place.
+
+### Run a task from the CLI
+
+In another terminal, run:
 
 ```bash
 pnpm pekka run "Create a hello.txt file containing a short greeting, then read it back to verify it"
@@ -393,7 +425,7 @@ the Daytona workspace.
 
 ## Configuration
 
-The CLI loads `.env` from the current directory when it exists. Environment
+The CLI and `pnpm api` load `.env` from the current directory when it exists. Environment
 variables can also be supplied by your shell. See [.env.example](.env.example)
 for a copyable template.
 
@@ -401,7 +433,7 @@ for a copyable template.
 | --- | --- | --- |
 | `OPENROUTER_API_KEY` | OpenRouter authentication; required to run a task | — |
 | `DAYTONA_API_KEY` | Daytona authentication; required to run a task | — |
-| `PEKKA_MODEL` | OpenRouter model ID; choose one with tool calling | `z-ai/glm-5.3-flash` |
+| `PEKKA_MODEL` | OpenRouter model ID; choose one with tool calling | `stealth/space-bunny-alpha` |
 | `PEKKA_SANDBOX_NAME` | Name used to find or create the persistent sandbox | `pekka-computer` |
 | `PEKKA_MAX_STEPS` | Maximum model replies per task | `30` |
 | `PEKKA_CONTEXT_WINDOW` | Model context window in tokens; a task's older messages are summarized at half of it | the model's window on OpenRouter, or `128000` |
@@ -409,7 +441,10 @@ for a copyable template.
 | `PEKKA_URL` | Address people open Pekka at; turns on Google sign-in | unset (no sign-in, localhost only) |
 | `PEKKA_ALLOWED_EMAILS` | Comma-separated addresses or `@domain` entries allowed to sign in | — |
 | `PEKKA_OWNER_EMAIL` | Google account that takes over data created before sign-in | unset |
-| `PEKKA_API_HOST` | Address the API listens on | `127.0.0.1` |
+| `PEKKA_API_HOST` | Address `pnpm api` listens on | `127.0.0.1` |
+| `PEKKA_API_PORT` | Port for `pnpm api` | `3000` |
+| `DAYTONA_TARGET` | Optional Daytona SDK region for new sandboxes | SDK / organization default |
+| `PEKKA_PUBLIC_ACCESS` | Shared unauthenticated access in `server.ts` only; requires `PEKKA_URL` | unset |
 | `TAVILY_API_KEY` | Enables Tavily web search | unset |
 | `EXA_API_KEY` | Enables Exa web search or fallback | unset |
 | `SCRAPERAPI_API_KEY` | Enables ScraperAPI web scraping | unset |
@@ -444,11 +479,11 @@ Shell and file operations run on the Daytona computer.
 `write_file` replaces the entire target file. `edit_file` replaces an exact
 piece of text in an existing file and leaves the rest unchanged; the text must
 match exactly once unless `replace_all` is set. Web search calls Tavily or Exa
-from the CLI process and returns result titles, URLs, and snippets for the
+from the Pekka process and returns result titles, URLs, and snippets for the
 model to assess.
 
 Set `SCRAPERAPI_API_KEY` to use `web_scrape` for reading HTTP/HTTPS URLs.
-It calls ScraperAPI from the CLI process and returns Markdown by default;
+It calls ScraperAPI from the Pekka process and returns Markdown by default;
 `output_format` also accepts `text` or `html`. Set `render: true` for pages
 that require JavaScript (this uses additional API credits). Requests time out
 after 90 seconds, and tool output is limited to 20,000 characters. Without
