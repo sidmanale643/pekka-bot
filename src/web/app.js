@@ -233,17 +233,56 @@ function botRow(bot) {
   return row;
 }
 
+// The chief of staff sits above the other bots, with the team it runs and who on it is working.
+function chiefCard(chief, team) {
+  const active = selected === chief && currentPage === "workspace";
+  const button = element("button", "chief-main");
+  button.type = "button";
+  button.setAttribute("aria-current", active ? "true" : "false");
+  if (sidebarRail()) button.title = `${chief.name}, chief of staff`;
+  const working = team.filter((bot) => running.has(bot.name));
+  const last = entries(chief).at(-1);
+  const preview = running.has(chief.name)
+    ? working.length ? `Working with ${working.map((bot) => bot.name).join(", ")}…` : "Running…"
+    : (last?.text && plainText(last.text)) || "Ask me anything. I'll get it to the right bot.";
+  const copy = element("span", "bot-copy");
+  // A renamed chief keeps its title, so it still reads as the one in charge.
+  if (chief.name.toLowerCase() !== "chief of staff") copy.append(element("small", "chief-label", "Chief of staff"));
+  copy.append(element("strong", "", chief.name), element("small", "", preview));
+  const strip = element("span", "chief-team");
+  const faces = element("span", "chief-faces");
+  for (const bot of team.slice(0, 5)) {
+    const face = avatar(bot.name, 18);
+    if (running.has(bot.name)) face.classList.add("working");
+    faces.append(face);
+  }
+  const summary = working.length
+    ? `${working.length === 1 ? working[0].name : `${working.length} bots`} working`
+    : team.length ? `Runs ${team.length} ${team.length === 1 ? "bot" : "bots"}` : "No other bots yet";
+  strip.append(faces, element("span", working.length ? "live" : "", summary));
+  button.append(avatar(chief.name, 34), copy, ...stateDot(chief), strip);
+  button.addEventListener("click", () => selectBot(chief));
+  const card = element("div", `chief-card${active ? " active" : ""}`);
+  card.append(button, editButton(chief));
+  return card;
+}
+
 function renderBots() {
   const list = $("#bot-list");
   list.replaceChildren();
+  const chief = bots.find((bot) => bot.primary);
+  const team = bots.filter((bot) => !bot.primary);
+  $("#chief-slot").replaceChildren(...(chief ? [chiefCard(chief, team)] : []));
   const query = $("#search").value.toLowerCase();
-  const filtered = bots.filter((bot) =>
+  const filtered = team.filter((bot) =>
     `${bot.name} ${bot.role}`.toLowerCase().includes(query),
   );
-  $("#bot-count").textContent = bots.length;
+  $("#bot-count").textContent = team.length;
   for (const bot of filtered) list.append(botRow(bot));
-  if (bots.length && !filtered.length)
+  if (team.length && !filtered.length)
     list.append(element("p", "empty-list", "No bots match."));
+  if (!team.length && chief)
+    list.append(element("p", "empty-list", `None yet. Ask ${chief.name} to set one up, or use New bot.`));
 }
 
 function selectBot(bot) {
@@ -475,6 +514,8 @@ const toolOutputs = {
   send_email: ["Email", "Sent email"],
   telegram_send_message: ["Telegram", "Sent message"],
   schedule_job: ["Scheduled", "Scheduled task"],
+  create_bot: ["Team", "Created bot"],
+  delegate_task: ["Team", "Delegated task"],
   write_file: ["Sandbox", "Saved file"],
 };
 
@@ -496,6 +537,7 @@ function toolOutput(name, args, output) {
     input.title ||
     input.subject ||
     input.name ||
+    input.bot_name ||
     input.path ||
     (input.issue_number ? `${repository}#${input.issue_number}` : "") ||
     (input.text ? input.text.slice(0, 80) : "") ||
@@ -503,15 +545,25 @@ function toolOutput(name, args, output) {
   const detail = [kind[1], repository && !title.startsWith(repository) ? repository : "", [input.to].flat().filter(Boolean).join(", ")]
     .filter(Boolean)
     .join(" · ");
-  return { plugin: kind[0], title, detail, ...(url ? { url } : {}) };
+  return { plugin: kind[0], title, detail, ...(url ? { url } : {}), ...(name === "delegate_task" && input.bot_name ? { bot: input.bot_name } : {}) };
 }
 
-function outputCard(output) {
-  const card = element(output.url ? "a" : "div", "output-card");
+/** `message` is the answer the card belongs to, so a handoff card can reopen that run's handoff modal. */
+function outputCard(output, message) {
+  const card = element(output.url || output.bot ? "a" : "div", "output-card");
   if (output.url) {
     card.href = output.url;
     card.target = "_blank";
     card.rel = "noopener noreferrer";
+  } else if (output.bot) {
+    // Opens the bot's chat, or the handoff modal while this page still has that run's details.
+    card.href = "#bot/" + encodeURIComponent(output.bot);
+    card.addEventListener("click", (event) => {
+      const item = handoff.message === message && handoff.items.findLast(({ delegation }) => delegation.name.toLowerCase() === output.bot.toLowerCase());
+      if (!item) return;
+      event.preventDefault();
+      openHandoff(item.delegation.id);
+    });
   }
   const copy = element("span", "output-copy");
   copy.append(element("strong", "", output.title), element("small", "", output.detail));
@@ -526,7 +578,7 @@ function toolTrail(message) {
   const outputs = message.tools.map((tool) => tool.output).filter(Boolean);
   if (outputs.length) {
     const cards = element("div", "output-cards");
-    for (const output of outputs) cards.append(outputCard(output));
+    for (const output of outputs) cards.append(outputCard(output, message));
     trail.append(cards);
   }
   const used = element("div", "tools-used");
@@ -548,7 +600,7 @@ function renderTranscript(forceScroll = false) {
   transcript.replaceChildren();
   if (!messages.length) transcript.append(chatIntro(selected));
   for (const message of messages) {
-    const row = element("article", `message ${message.role}`);
+    const row = element("article", `message ${message.role}${message.from ? " delegated" : ""}`);
     const time = new Date(message.time).toLocaleString([], {
       month: "short",
       day: "numeric",
@@ -556,19 +608,17 @@ function renderTranscript(forceScroll = false) {
       minute: "2-digit",
     });
     const meta = element("div", "message-meta");
-    if (message.role !== "user") meta.append(avatar(selected.name, 18));
-    meta.append(
-      element(
-        "strong",
-        "",
-        message.role === "user" ? profile.displayName || "You" : selected.name,
-      ),
-      element("time", "", time),
-    );
+    // A brief the chief of staff sent this bot is shown as theirs, not the user's.
+    const author = message.role === "user" ? message.from || profile.displayName || "You" : selected.name;
+    if (message.role !== "user" || message.from) meta.append(avatar(author, 18));
+    const stamp = element("time", "", time);
+    stamp.dateTime = new Date(message.time).toISOString();
+    meta.append(element("strong", "", author), stamp);
     row.append(meta);
     if (message.text) row.append(renderMessage(message));
     if (message.tools?.length && !message.pending) row.append(toolTrail(message));
     for (const request of message.permissions ?? []) row.append(permissionCard(request, message));
+    if (message.pending) for (const delegation of message.delegations ?? []) row.append(delegationLine(delegation));
     if (message.status)
       row.append(
         element(
@@ -581,6 +631,161 @@ function renderTranscript(forceScroll = false) {
   }
   if (forceScroll || nearBottom) transcript.scrollTop = transcript.scrollHeight;
   renderContext();
+}
+
+function delegationLine(delegation) {
+  const line = element("a", `delegation-line${delegation.done ? "" : " live"}`);
+  line.href = "#bot/" + encodeURIComponent(delegation.name);
+  line.title = `Open ${delegation.name} to follow its work`;
+  line.append(avatar(delegation.name, 16), element("strong", "", delegation.name), element("span", "", delegation.status));
+  line.addEventListener("click", (event) => {
+    if (!handoff.items.some((item) => item.delegation === delegation)) return;
+    event.preventDefault();
+    openHandoff(delegation.id);
+  });
+  return line;
+}
+
+// The handoff modal follows the chief of staff's delegations in its current run.
+// It opens by itself on the first one, unless the user has closed it during this run.
+const handoff = { message: undefined, chief: undefined, items: [], focus: undefined, dismissed: false };
+
+function openHandoff(id) {
+  handoff.focus = id;
+  renderHandoff();
+  if (!$("#handoff-dialog").open) $("#handoff-dialog").showModal();
+}
+
+function focusedHandoff() {
+  return handoff.items.findLast((item) => item.delegation.id === handoff.focus) ?? handoff.items.at(-1);
+}
+
+function renderHandoff() {
+  const item = focusedHandoff();
+  if (!item) return;
+  const { delegation } = item;
+  const arrow = element("span", `handoff-arrow${delegation.done ? "" : " live"}`, "→");
+  arrow.setAttribute("aria-hidden", "true");
+  $("#handoff-title").replaceChildren(
+    avatar(handoff.chief.name, 24), arrow, avatar(delegation.name, 24),
+    element("span", "", `${handoff.chief.name} handed this to ${delegation.name}`),
+  );
+  const tabs = $("#handoff-tabs");
+  tabs.hidden = handoff.items.length < 2;
+  tabs.replaceChildren(...handoff.items.map((other) => {
+    const tab = element("button", other === item ? "active" : "", other.delegation.name);
+    tab.type = "button";
+    if (!other.delegation.done) tab.prepend(element("span", "handoff-dot"));
+    tab.addEventListener("click", () => openHandoff(other.delegation.id));
+    return tab;
+  }));
+  const target = bots.find((bot) => bot.id === delegation.id);
+  $("#handoff-open").textContent = `Open ${delegation.name}'s chat`;
+  $("#handoff-open").hidden = !target;
+  renderHandoffWork();
+}
+
+/** Redrawn on every event the bot reports, so it stays out of the heading and tabs. */
+function renderHandoffWork() {
+  const item = focusedHandoff();
+  if (!item) return;
+  const previous = $("#handoff-content .handoff-work");
+  const following = !previous || previous.scrollHeight - previous.scrollTop - previous.clientHeight < 40;
+  const brief = element("div", "handoff-brief");
+  linkedText(brief, item.task);
+  const work = element("div", "handoff-work");
+  if (item.reply.text) work.append(renderMessage(item.reply));
+  const steps = (item.reply.tools ?? []).map((tool) => element("code", tool.isError ? "failed" : "", tool.name));
+  if (steps.length) {
+    const used = element("div", "tools-used");
+    used.append(element("span", "", `${steps.length} ${steps.length === 1 ? "step" : "steps"}`), ...steps);
+    work.append(used);
+  }
+  const status = item.delegation.status || "Finished";
+  work.append(element("div", `run-status${item.delegation.done ? "" : " live"}`, status));
+  $("#handoff-content").replaceChildren(
+    element("p", "handoff-label", "Brief"), brief,
+    element("p", "handoff-label", `${item.delegation.name} is ${item.delegation.done ? "done" : "working"}`), work,
+  );
+  if (following) work.scrollTop = work.scrollHeight;
+}
+
+$("#handoff-dialog").addEventListener("close", () => { handoff.dismissed = true; });
+$("#handoff-close").addEventListener("click", () => $("#handoff-dialog").close());
+$("#handoff-open").addEventListener("click", () => {
+  const target = bots.find((bot) => bot.id === focusedHandoff()?.delegation.id);
+  $("#handoff-dialog").close();
+  if (target) selectBot(target);
+});
+
+// A bot's live reply to a brief from the chief of staff, by bot ID. Each bot takes one brief at a time.
+const delegatedReplies = new Map();
+
+const delegationEndings = { done: "Finished", step_limit: "Ran out of steps before finishing", failed: "Failed" };
+
+// The chief of staff's delegations play out live in the other bot's own chat,
+// and as a status line under the chief's reply. Returns whether that line changed.
+function applyDelegation(event, data, message, chief) {
+  const target = bots.find((item) => item.id === data.bot.id);
+  message.delegations ??= [];
+  if (event === "delegation_start") {
+    const delegation = { id: data.bot.id, name: target?.name || data.bot.name, status: "Starting…" };
+    message.delegations.push(delegation);
+    const reply = { role: "assistant", text: "", time: Date.now(), pending: true, status: "Starting…" };
+    delegatedReplies.set(data.bot.id, reply);
+    if (handoff.message !== message) Object.assign(handoff, { message, chief, items: [], dismissed: false });
+    handoff.items.push({ delegation, task: data.task, reply });
+    const watching = selected === chief && currentPage === "workspace" && !document.querySelector("dialog[open]");
+    if ($("#handoff-dialog").open) renderHandoff();
+    else if (watching && !handoff.dismissed) openHandoff(delegation.id);
+    // A bot created earlier in this run isn't in the sidebar yet; its work still shows under the chief's reply.
+    if (target) {
+      const key = target.name.toLowerCase();
+      history[key] ||= [];
+      history[key].push({ role: "user", from: chief.name, text: data.task, time: Date.now() }, reply);
+      running.add(target.name);
+      persist();
+      renderBots();
+      if (selected === target) updateComposer();
+    }
+  }
+  const delegation = message.delegations.findLast((item) => item.id === data.bot.id);
+  const reply = delegatedReplies.get(data.bot.id);
+  if (!delegation || !reply) return false;
+  const before = delegation.status;
+  if (event === "delegation_event") {
+    applyEvent(data.event.type, data.event, reply);
+    delegation.status = reply.status;
+  }
+  if (event === "delegation_end") {
+    finishReply(reply, data.answer, data.status === "done" ? "" : delegationEndings[data.status]);
+    delegatedReplies.delete(data.bot.id);
+    delegation.done = true;
+    delegation.status = delegationEndings[data.status];
+    if (target) settleBot(target);
+  }
+  if (target && selected === target) renderTranscript();
+  if ($("#handoff-dialog").open) {
+    if (event === "delegation_end") renderHandoff();
+    else renderHandoffWork();
+  }
+  return event !== "delegation_event" || delegation.status !== before;
+}
+
+function finishReply(reply, answer, status) {
+  reply.pending = false;
+  reply.text = answer || reply.text;
+  reply.status = status;
+  for (const tool of reply.tools ?? []) delete tool.arguments;
+}
+
+// Marks a bot idle after a run, flagging the result if the user is looking elsewhere.
+function settleBot(bot) {
+  running.delete(bot.name);
+  if (selected !== bot || currentPage !== "workspace") unread.add(bot.name);
+  persist();
+  renderBots();
+  if (selected === bot) updateComposer();
 }
 
 function updateComposer() {
@@ -734,7 +939,7 @@ async function sendTask(task) {
   const conversation = history[key]
     .filter((entry) => ["user", "assistant"].includes(entry.role) && !entry.pending && entry.text.trim())
     .slice(-20)
-    .map((entry) => ({ role: entry.role, content: entry.text.slice(0, 4000) }));
+    .map((entry) => ({ role: entry.role, content: (entry.from ? `(Brief from ${entry.from}) ${entry.text}` : entry.text).slice(0, 4000) }));
   if (!conversation.length && greetingFor(bot)) conversation.push({ role: "assistant", content: greetingFor(bot).message });
   const message = {
     role: "assistant",
@@ -769,8 +974,9 @@ async function sendTask(task) {
       throw new Error(error.error || "Unable to start this task.");
     }
     await consumeStream(response, (event, data) => {
-      applyEvent(event, data, message);
-      if (selected === bot) renderTranscript();
+      // A delegated bot's text streams into its own chat, so the chief's only redraws when a status line changes.
+      const changed = event.startsWith("delegation_") ? applyDelegation(event, data, message, bot) : (applyEvent(event, data, message), true);
+      if (changed && selected === bot) renderTranscript();
     });
   } catch (error) {
     message.role = "error";
@@ -779,10 +985,23 @@ async function sendTask(task) {
   } finally {
     message.pending = false;
     for (const tool of message.tools ?? []) delete tool.arguments;
+    // Bots still working when the chief's connection ended may finish on the server.
+    for (const delegation of (message.delegations ?? []).filter((item) => !item.done)) {
+      const reply = delegatedReplies.get(delegation.id);
+      if (reply) finishReply(reply, "", "Connection ended. The task may still be running.");
+      delegatedReplies.delete(delegation.id);
+      delegation.done = true;
+      delegation.status = "Connection ended. The task may still be running.";
+      const target = bots.find((item) => item.id === delegation.id);
+      if (target) settleBot(target);
+    }
+    if (handoff.message === message && $("#handoff-dialog").open) renderHandoff();
+    delete message.delegations;
     try {
       const updated = await api(`/api/bots/${encodeURIComponent(bot.name)}`);
       if (updated.role !== bot.role || updated.job !== bot.job) forgetGreeting(bot);
       Object.assign(bot, updated);
+      if (message.tools?.some((tool) => ["create_bot", "update_bot"].includes(tool.name) && !tool.isError)) await refreshBots();
     } catch {}
     running.delete(bot.name);
     if (selected !== bot || currentPage !== "workspace") unread.add(bot.name);
@@ -851,6 +1070,17 @@ $("#create-form").addEventListener("submit", async (event) => {
     $("#create-submit").disabled = false;
   }
 });
+
+// The chief of staff can create and reconfigure other bots while it works.
+async function refreshBots() {
+  const latest = (await api("/api/bots")).bots;
+  bots = latest.map((item) => {
+    const known = bots.find((bot) => bot.id === item.id);
+    if (!known) return item;
+    if (known.role !== item.role || known.job !== item.job) forgetGreeting(known);
+    return Object.assign(known, item);
+  });
+}
 
 async function saveBotProfile(bot, form, status) {
   for (const button of form.querySelectorAll("button")) button.disabled = true;
@@ -1010,15 +1240,21 @@ const detailViews = {
     status.setAttribute("role", "status");
     const actions = element("div", "form-actions");
     const save = element("button", "button primary", "Save changes");
-    const remove = element("button", "button secondary", "Delete bot");
-    remove.type = "button";
-    actions.append(save, remove);
-    form.append(actions, status, element("p", "muted", "Deleting cancels upcoming schedules and removes this bot from Pekka. Sandbox files and saved memory are retained."));
+    actions.append(save);
+    form.append(actions, status);
+    if (bot.primary) {
+      form.append(element("p", "muted", "This is your chief of staff, your primary bot. It runs your other bots and can't be deleted, but you can rename it and change its purpose."));
+    } else {
+      const remove = element("button", "button secondary", "Delete bot");
+      remove.type = "button";
+      remove.addEventListener("click", () => removeBotProfile(bot, form, status));
+      actions.append(remove);
+      form.append(element("p", "muted", "Deleting cancels upcoming schedules and removes this bot from Pekka. Sandbox files and saved memory are retained."));
+    }
     form.addEventListener("submit", (event) => {
       event.preventDefault();
       saveBotProfile(bot, form, status);
     });
-    remove.addEventListener("click", () => removeBotProfile(bot, form, status));
     panel.append(form);
   },
   memory: async (panel, bot) => {
@@ -1902,7 +2138,7 @@ function renderActivity() {
     if (bot) row.href = "#bot/" + encodeURIComponent(bot.name);
     const meta = element("div", "activity-meta");
     meta.append(
-      element("strong", "", bot?.name || task.key),
+      element("strong", "", (bot?.name || task.key) + (task.from ? ` · from ${task.from}` : "")),
       element("time", "", new Date(task.time).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })),
     );
     row.append(meta, element("p", "", task.text));
