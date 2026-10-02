@@ -173,9 +173,15 @@ server is required; the interface and API share the same local address.
 
 Task history is saved in this browser's local storage, not on the server. It
 does not transfer between browsers or addresses, and clearing browser data
-removes it. Each task starts a fresh model conversation: earlier chat messages
-are not sent automatically. The bot's persistent workspace and explicit memory
-remain available across runs.
+removes it. The web interface sends up to 20 recent user and assistant messages
+with each task, capped at 4,000 characters per message. CLI and scheduled runs
+start without that browser history. Saved instructions, explicit memory, and
+workspace files remain available across runs.
+
+Use **Profile** for your browser-local profile, **Settings** for display
+preferences and JSON history export, **Activity** to revisit tasks, and **Help**
+for usage guidance. Profile and display preferences do not configure a bot's
+persistent memory. Bot details include instructions, character, memory, and skills.
 
 Open **Scheduled** in the sidebar to create recurring or one-time tasks for a
 bot, start from a template, and pause, resume, cancel or duplicate tasks. Each
