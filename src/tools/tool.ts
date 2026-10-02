@@ -8,7 +8,7 @@ import type { Database } from "../database/database.ts";
 import { authorizeAction, type ApproveAction, type ToolPermission } from "../permissions/policy.ts";
 
 /** Tool output is trimmed to this size so one command can't flood the model's context. */
-const MAX_OUTPUT_CHARS = 20_000;
+export const MAX_OUTPUT_CHARS = 20_000;
 
 export interface ToolContext {
   computer: Computer;
