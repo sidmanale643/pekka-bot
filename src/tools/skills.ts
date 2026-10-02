@@ -7,8 +7,8 @@ export const listSkills = defineTool({
   permission: { effect: "read" },
   description: "Discover available skills by name and description without loading their instructions. Follow next_offset for more skills. Invalid skills appear in errors.",
   input: z.object({
-    offset: z.number().int().min(0).default(0),
-    limit: z.number().int().min(1).max(20).default(20),
+    offset: z.number().int().min(0).default(0).describe("Pagination offset; start at zero."),
+    limit: z.number().int().min(1).max(20).default(20).describe("Number of skills to return, up to 20."),
   }),
   async run({ offset, limit }, { skills }) {
     if (!skills) throw new Error("Skill storage is unavailable.");
@@ -27,10 +27,10 @@ export const loadSkill = defineTool({
   permission: { effect: "read" },
   description: "Load a selected skill's SKILL.md instructions only when relevant. Set file to a referenced supporting text file, relative to that skill's folder, when needed. Skill files are stored by Pekka, not on the Linux sandbox; this tool reads text and never executes scripts. Follow next_offset for remaining content.",
   input: z.object({
-    name: skillName,
-    file: z.string().min(1).default("SKILL.md"),
-    offset: z.number().int().min(0).default(0),
-    limit: z.number().int().min(1).max(16_000).default(12_000),
+    name: skillName.describe("The skill's name, as listed in the skill summaries or by list_skills."),
+    file: z.string().min(1).default("SKILL.md").describe("File to read, relative to the skill's folder. Defaults to SKILL.md."),
+    offset: z.number().int().min(0).default(0).describe("Character position to start reading from; use next_offset from the previous result."),
+    limit: z.number().int().min(1).max(16_000).default(12_000).describe("Number of characters to return, up to 16,000. Defaults to 12,000."),
   }),
   async run({ name, file, offset, limit }, { skills }) {
     if (!skills) throw new Error("Skill storage is unavailable.");
