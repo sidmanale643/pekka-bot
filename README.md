@@ -255,9 +255,12 @@ CLI. The server loads `.env` on startup.
 | GET | `/api/auth/session` | Whether sign-in is required, and the signed-in user |
 | GET | `/api/auth/google` | Start signing in with Google (browser navigation) |
 | POST | `/api/auth/logout` | End the current session |
-| GET / POST | `/api/bots` | List / create bots (`name`, `role`, `job`) |
-| GET | `/api/bots/:name` | Read a bot |
-| POST | `/api/runs` | Execute a task (`task`, optional `botName`) |
+| GET / POST | `/api/bots` | List bots, chief of staff first, creating it if needed / create bots (`name`, `description`; legacy `name`, `role`, `job` also accepted) |
+| GET / PUT / DELETE | `/api/bots/:name` | Read / update (`name`, `role`, `job`) / delete a bot |
+| GET | `/api/characters` | Available character presets |
+| GET / PUT | `/api/bots/:name/character` | Read / replace a bot's character |
+| GET | `/api/bots/:name/greeting` | Generate a greeting |
+| POST | `/api/runs` | Execute a task (`task`, optional `botName` and `conversation`) |
 | GET | `/api/permissions` | Pending permission requests for the signed-in user |
 | POST | `/api/permissions/:id` | Approve or deny a pending action (`approved`: boolean) once |
 | GET / PUT | `/api/bots/:name/memory/:file` | Read / replace memory (`content`) |
@@ -281,13 +284,19 @@ bodies are limited to 1 MB.
 curl http://127.0.0.1:3000/api/bots
 curl http://127.0.0.1:3000/api/bots \
   -H 'Content-Type: application/json' \
-  -d '{"name":"Scout","role":"Researcher","job":"Find interesting repositories"}'
+  -d '{"name":"Scout","description":"Help me research repositories"}'
 curl -N http://127.0.0.1:3000/api/runs \
   -H 'Content-Type: application/json' -H 'Accept: text/event-stream' \
-  -d '{"botName":"Scout"}'
+  -d '{"botName":"Scout","task":"Find interesting repositories about local AI agents"}'
 ```
 
-A run requires `task` or `botName`; omitting `task` runs the named bot's job.
+These examples target the local service without sign-in. A signed-in server
+also requires a session cookie and its configured Origin for writes.
+
+A run requires `task` or `botName`; omitting `task` uses the named bot's saved
+working instructions (`job`). A new bot with no instructions needs an explicit
+task. Optional `conversation` accepts up to 20 objects with `role` (`user` or
+`assistant`) and `content` (up to 4,000 characters).
 By default, the request waits for a JSON result containing `status`, `answer`,
 `steps`, and `usage`. With `Accept: text/event-stream`, it streams agent events
 (`step`, `message_delta`, `message`, `tool_call`, `tool_result`), followed by
@@ -297,7 +306,9 @@ work: `delegation_start` (`bot` with `id` and `name`, and the `task`),
 `delegation_end` (`bot`, a `status` of `done`, `step_limit` or `failed`, and
 the `answer`). Each event's `data` is JSON. A streaming failure uses an
 `error` event because HTTP headers have already been sent. Disconnecting does
-not cancel execution. Run history is not persisted.
+not cancel execution. The API does not persist chat history. With approval
+review enabled, it also emits `permission_requested` and `permission_resolved`;
+long runs can emit `compaction` when older context is summarized.
 
 Job creation accepts `name`, `task`, `runAt` (a future ISO timestamp with an
 explicit timezone offset), optional `intervalSeconds`, and optional `botName`.
