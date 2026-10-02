@@ -20,6 +20,9 @@ import { createAccess, type Access, type Route } from "./auth.ts";
 import { body, fail, HttpError, json } from "./http.ts";
 import { serveAsset } from "./static.ts";
 import { pluginRoutes } from "./plugins.ts";
+import { getCalendarService, type CalendarService } from "../plugins/calendar.ts";
+import { getContactsService, type ContactsService } from "../plugins/contacts.ts";
+import { getDriveService, type DriveService } from "../plugins/drive.ts";
 import { getGmailService, type GmailService } from "../plugins/gmail.ts";
 import { GoogleError } from "../plugins/google.ts";
 import { getGitHubService, GitHubError, type GitHubService } from "../plugins/github.ts";
@@ -53,6 +56,9 @@ interface ServerOptions {
   notion?: NotionService;
   telegram?: TelegramService;
   gmail?: GmailService;
+  calendar?: CalendarService;
+  drive?: DriveService;
+  contacts?: ContactsService;
   github?: GitHubService;
   /** Sign-in settings. Defaults to the environment; null turns sign-in off. */
   auth?: AuthConfig | null;
@@ -197,7 +203,11 @@ export function createApiServer(options: ServerOptions = {}) {
       json(response, 200, { approved });
     }],
     ...access.routes,
-    ...pluginRoutes(options.notion ?? getNotionService(), options.telegram ?? getTelegramService(), options.gmail ?? getGmailService(), access.origin, options.github ?? getGitHubService()),
+    ...pluginRoutes({
+      notion: options.notion ?? getNotionService(), gmail: options.gmail ?? getGmailService(), calendar: options.calendar ?? getCalendarService(),
+      drive: options.drive ?? getDriveService(), contacts: options.contacts ?? getContactsService(),
+      telegram: options.telegram ?? getTelegramService(), github: options.github ?? getGitHubService(),
+    }, access.origin),
     ["GET", /^\/api\/characters$/, async (_request, response) => { json(response, 200, { characters: characters.map(({ style, ...item }) => item) }); }],
     ["GET", /^\/api\/bots\/([^/]+)\/character$/, character],
     ["PUT", /^\/api\/bots\/([^/]+)\/character$/, character],

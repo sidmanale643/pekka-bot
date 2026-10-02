@@ -1,8 +1,11 @@
 import { randomBytes } from "node:crypto";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { z } from "zod";
+import type { CalendarService } from "../plugins/calendar.ts";
+import type { ContactsService } from "../plugins/contacts.ts";
+import type { DriveService } from "../plugins/drive.ts";
 import type { GmailService } from "../plugins/gmail.ts";
-import { getGitHubService, type GitHubService } from "../plugins/github.ts";
+import type { GitHubService } from "../plugins/github.ts";
 import type { NotionService } from "../plugins/notion.ts";
 import type { TelegramService } from "../plugins/telegram.ts";
 import type { Route } from "./auth.ts";
@@ -99,14 +102,26 @@ function oauthRoutes(id: string, name: string, plugin: OAuthPlugin, origin: (req
   ];
 }
 
-export function pluginRoutes(notion: NotionService, telegram: TelegramService, gmail: GmailService, origin: (request: IncomingMessage) => string, github: GitHubService = getGitHubService()): Route[] {
+export interface PluginServices {
+  notion: NotionService;
+  gmail: GmailService;
+  calendar: CalendarService;
+  drive: DriveService;
+  contacts: ContactsService;
+  telegram: TelegramService;
+  github: GitHubService;
+}
+
+export function pluginRoutes({ notion, gmail, calendar, drive, contacts, telegram, github }: PluginServices, origin: (request: IncomingMessage) => string): Route[] {
+  const oauth: [string, string, OAuthPlugin][] = [
+    ["notion", "Notion", notion], ["gmail", "Gmail", gmail], ["calendar", "Google Calendar", calendar],
+    ["drive", "Google Drive", drive], ["contacts", "Google Contacts", contacts], ["github", "GitHub", github],
+  ];
   return [
     ["GET", /^\/api\/plugins$/, async (_request, response, _params, userId) => {
-      json(response, 200, { plugins: [await notion.status(userId), await gmail.status(userId), await telegram.status(userId), await github.status(userId)] });
+      json(response, 200, { plugins: await Promise.all([notion, gmail, calendar, drive, contacts, telegram, github].map((plugin) => plugin.status(userId))) });
     }],
-    ...oauthRoutes("notion", "Notion", notion, origin),
-    ...oauthRoutes("gmail", "Gmail", gmail, origin),
-    ...oauthRoutes("github", "GitHub", github, origin),
+    ...oauth.flatMap(([id, name, plugin]) => oauthRoutes(id, name, plugin, origin)),
     ["POST", /^\/api\/plugins\/telegram\/connect$/, async (request, response, _params, userId) => {
       await body(request, z.object({}).strict());
       json(response, 200, await telegram.startLink(userId));
