@@ -30,6 +30,8 @@
   --ok-soft: #dcefe4;
   --warn: #8a5300;
   --warn-soft: #f6e8cf;
+  --no: #b4372f;
+  --no-soft: #f6dcd8;
   --night: #080a11;
   --night-2: #11141e;
   --night-rule: rgba(236, 235, 230, 0.12);
@@ -103,12 +105,9 @@ code { font-family: var(--mono); font-size: 0.88em; }
 .btn:hover .arrow { transform: translateX(4px); }
 .btn-sm { height: 38px; padding: 0 15px; font-size: 14px; }
 .btn-ink { background: var(--ink); color: var(--paper); --wipe: var(--accent); }
-.btn-line { border-color: var(--rule-strong); --wipe: var(--ink); }
-.btn-line:hover { color: var(--paper); border-color: var(--ink); }
 .btn-moon { background: var(--moon); color: var(--ink); --wipe: #fff; }
 .btn-moon:hover { box-shadow: 0 0 0 4px rgba(63, 208, 255, 0.16), 0 14px 44px -10px rgba(63, 208, 255, 0.55); }
-.btn-ghost { border-color: rgba(236, 235, 230, 0.24); color: var(--moon); --wipe: var(--moon); }
-.btn-ghost:hover { color: var(--ink); border-color: var(--moon); }
+.btn:disabled { cursor: default; opacity: 0.6; }
 
 /* Nav: light text over the night sections, ink over paper. */
 .nav { position: fixed; inset: 0 0 auto; z-index: 50; color: var(--ink); border-bottom: 1px solid transparent; transition: background 0.4s, color 0.4s, border-color 0.4s; }
@@ -125,9 +124,6 @@ code { font-family: var(--mono); font-size: 0.88em; }
 .nav-links a:hover { opacity: 1; }
 .nav-links a:hover::after { transform: scaleX(1); transform-origin: 0 50%; }
 .nav-cta { margin-left: auto; display: flex; gap: 8px; }
-.nav .btn-line { --wipe: var(--ink); }
-.nav.on-dark .btn-line { border-color: rgba(236, 235, 230, 0.24); --wipe: var(--moon); }
-.nav.on-dark .btn-line:hover { color: var(--ink); border-color: var(--moon); }
 .nav.on-dark .btn-ink { background: var(--moon); color: var(--ink); --wipe: #fff; }
 .progress { position: absolute; left: 0; right: 0; bottom: -1px; height: 1px; background: var(--accent); transform: scaleX(0); transform-origin: 0 50%; }
 .nav.on-dark .progress { background: var(--glow); }
@@ -157,16 +153,24 @@ code { font-family: var(--mono); font-size: 0.88em; }
 .ln > span { display: inline-block; }
 .hero-sub { margin-top: 26px; max-width: 450px; font-size: 18px; color: var(--moon-2); }
 .hero-sub b { font-weight: 500; color: var(--moon); }
-.ctas { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 26px; }
-.cmd {
-  margin-top: 18px; display: inline-flex; align-items: center; gap: 12px; max-width: 100%;
-  font-family: var(--mono); font-size: 13px; color: var(--moon-2);
-  border: 1px dashed rgba(236, 235, 230, 0.2); border-radius: var(--radius); padding: 8px 8px 8px 14px;
-}
-.cmd span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.cmd span::before { content: "$ "; color: var(--moon-3); }
-.cmd button { flex: none; font-family: var(--sans); font-size: 12px; padding: 4px 10px; border-radius: 4px; background: rgba(236, 235, 230, 0.08); color: var(--moon-2); transition: background 0.2s, color 0.2s; }
-.cmd button:hover { background: rgba(236, 235, 230, 0.16); color: var(--moon); }
+
+/* Waitlist: an email field and button in one frame, over the night sections. */
+.wl { margin-top: 26px; max-width: 480px; }
+.wl-row { display: flex; gap: 6px; padding: 5px; border: 1px solid rgba(236, 235, 230, 0.24); border-radius: 10px; background: rgba(8, 10, 17, 0.4); transition: border-color 0.3s, box-shadow 0.5s var(--ease); }
+.wl-row:focus-within { border-color: rgba(63, 208, 255, 0.6); box-shadow: 0 0 0 4px rgba(63, 208, 255, 0.12); }
+.wl input { flex: 1; min-width: 0; height: 46px; padding: 0 12px; border: 0; background: none; color: var(--moon); font: inherit; font-size: 15px; }
+.wl input::placeholder { color: var(--moon-3); }
+.wl input:focus-visible { outline: none; }
+.wl input:-webkit-autofill { -webkit-text-fill-color: var(--moon); transition: background-color 600000s 0s; }
+.wl .btn { flex: none; height: 46px; }
+.wl-note { margin-top: 12px; font-size: 13.5px; color: var(--moon-3); }
+.wl-msg { margin-top: 12px; display: flex; gap: 8px; align-items: center; font-size: 15px; color: var(--moon); }
+.wl-msg:empty { display: none; }
+.wl-msg svg { width: 17px; height: 17px; flex: none; color: var(--glow); }
+.wl-msg.err { color: #ff9d92; }
+.wl-msg:focus { outline: none; }
+.wl.sent .wl-row, .wl.sent .wl-note { display: none; }
+.trap { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
 
 /* The knight */
 .stage { grid-column: 7 / 13; grid-row: 1; position: relative; z-index: 2; padding-bottom: 22%; }
@@ -493,18 +497,40 @@ h2 .mute { display: block; }
 .arch-note { margin-top: 32px; display: flex; gap: 10px; align-items: flex-start; font-size: 14.5px; color: var(--ink-2); max-width: 720px; }
 .arch-note svg { width: 18px; height: 18px; color: var(--accent); flex: none; margin-top: 2px; }
 
-/* Get started */
+/* Early access: the waitlist as a permission slip, stamped once you're on it. */
 .start { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); gap: 64px; align-items: start; }
 .start .kicker { margin-bottom: 26px; }
 .start h2, .faq-grid h2 { font-size: clamp(42px, 4.8vw, 70px); }
 .free-sub { margin-top: 20px; color: var(--ink-2); font-size: 17px; max-width: 460px; }
-.needs { list-style: none; padding: 0; margin: 32px 0 0; border-top: 1px solid var(--rule); }
-.needs li { display: grid; grid-template-columns: 140px 1fr; gap: 16px; padding: 13px 0; border-bottom: 1px solid var(--rule); font-size: 15px; }
-.needs li strong { font-weight: 500; }
-.needs li span { color: var(--ink-2); }
-.needs li.opt strong { color: var(--ink-3); }
-.qs .term-body { display: block; height: auto; padding-top: 20px; }
-.qs-foot { margin-top: 18px; display: flex; gap: 14px; flex-wrap: wrap; align-items: center; font-size: 14px; color: var(--ink-3); }
+.perks { list-style: none; padding: 0; margin: 32px 0 0; border-top: 1px solid var(--rule); }
+.perks li { display: grid; grid-template-columns: 140px 1fr; gap: 16px; padding: 13px 0; border-bottom: 1px solid var(--rule); font-size: 15px; }
+.perks li strong { font-weight: 500; }
+.perks li span { color: var(--ink-2); }
+.slip { position: relative; background: var(--sheet); border: 1px solid var(--rule); border-radius: 14px; overflow: hidden; box-shadow: 0 50px 90px -60px rgba(21, 21, 21, 0.55); }
+.slip-bar { display: flex; align-items: center; gap: 7px; padding: 12px 20px; border-bottom: 1px solid #e3c99a; background: var(--warn-soft); color: var(--warn); font-size: 13px; font-weight: 500; }
+.slip-bar svg { width: 14px; height: 14px; }
+.slip-bar small { margin-left: auto; font-family: var(--mono); font-size: 11.5px; font-weight: 400; color: var(--ink-3); }
+.slip-body { padding: 26px 24px 24px; }
+.slip-what { font-size: 21px; line-height: 1.3; letter-spacing: -0.015em; max-width: 380px; }
+.slip-what b { font-weight: 600; }
+.slip-fields { display: grid; gap: 16px; margin-top: 24px; transition: opacity 0.4s; }
+.slip label { display: grid; gap: 7px; }
+.slip label > span { font-family: var(--mono); font-size: 11px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3); }
+.slip label em { font-style: normal; text-transform: none; letter-spacing: 0; }
+.slip input, .slip textarea { width: 100%; border: 1px solid var(--rule-strong); border-radius: var(--radius); background: var(--paper); padding: 11px 13px; font: inherit; font-size: 15px; color: var(--ink); transition: border-color 0.2s, box-shadow 0.3s var(--ease), background 0.2s; }
+.slip textarea { resize: vertical; min-height: 84px; }
+.slip input::placeholder, .slip textarea::placeholder { color: var(--ink-3); }
+.slip input:focus-visible, .slip textarea:focus-visible { outline: none; border-color: var(--accent); background: var(--sheet); box-shadow: 0 0 0 4px rgba(42, 60, 240, 0.12); }
+.slip-acts { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; margin-top: 20px; }
+.slip-acts span { font-size: 13.5px; color: var(--ink-3); }
+.slip .wl-msg { margin-top: 20px; color: var(--ok); }
+.slip .wl-msg svg { color: var(--ok); }
+.slip .wl-msg.err { color: var(--no); }
+.slip .stamp { right: 24px; top: 74px; font-size: 26px; }
+.slip.sent .stamp { animation: slam 0.38s cubic-bezier(0.5, 0, 0.75, 0) forwards; }
+.slip.sent { animation: thud 0.32s 0.3s; }
+.slip.sent .slip-fields { opacity: 0.45; }
+.slip.sent .slip-acts { display: none; }
 
 /* FAQ */
 .faq-grid { display: grid; grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr); gap: 64px; }
@@ -532,7 +558,8 @@ h2 .mute { display: block; }
 .final-hl .ln > span { transition: transform 1.2s var(--ease); transition-delay: calc(var(--d) * 1ms); }
 .js .reveal:not(.in) .final-hl .ln > span { transform: translateY(110%); }
 .final .lead { margin-top: 30px; font-size: 19px; color: var(--moon-2); }
-.final .ctas { justify-content: center; }
+.final .wl { margin: 34px auto 0; }
+.final .wl-note, .final .wl-msg { justify-content: center; text-align: center; }
 
 footer { padding: 120px 0 36px; font-size: 13.5px; color: var(--moon-3); }
 footer .wrap > div { display: flex; justify-content: space-between; align-items: center; gap: 20px; flex-wrap: wrap; padding-top: 26px; border-top: 1px solid var(--night-rule); }
@@ -591,7 +618,6 @@ footer .brand img { width: 30px; height: 30px; border-radius: 8px; }
   :root { --gutter: 16px; }
   .ask-top em { display: none; }
   .nav .wrap { gap: 16px; }
-  .nav-cta .btn-line { display: none; }
   .hero-sub { font-size: 16.5px; }
   .ask { width: min(300px, 100%); padding: 12px 14px 13px; }
   .stamp { font-size: 18px; top: 34px; }
@@ -605,7 +631,11 @@ footer .brand img { width: 30px; height: 30px; border-radius: 8px; }
   .px-top .ic { width: 44px; height: 44px; }
   .px-top h3 { font-size: 28px; }
   .px-tool em { grid-row: auto; grid-column: 2; grid-row-start: 1; }
-  .needs li { grid-template-columns: 1fr; gap: 2px; }
+  .perks li { grid-template-columns: 1fr; gap: 2px; }
+  .wl-row { flex-direction: column; }
+  .wl input { height: 44px; }
+  .slip-body { padding: 22px 18px 20px; }
+  .slip .stamp { top: 64px; right: 16px; font-size: 21px; }
   .term-body { font-size: 12px; height: 440px; padding: 14px; }
   .faq summary { grid-template-columns: 30px 1fr 22px; font-size: 16px; }
   .faq details p { padding-left: 30px; padding-right: 0; }
@@ -618,6 +648,7 @@ footer .brand img { width: 30px; height: 30px; border-radius: 8px; }
   *, *::before, *::after { animation: none !important; transition: none !important; }
   .js .reveal, .js .hero .fade, .js .hero .helm-wake, .js .hero .eyes, .js .hero .halo, .js .ask { opacity: 1; transform: none; }
   .js .hero .seal { opacity: 1; }
+  .slip.sent .stamp { opacity: 0.94; }
   .js .hero .ln > span, .js .reveal .w > span, .js .reveal .final-hl .ln > span { transform: none; }
   .tape-track { overflow-x: auto; }
 }
@@ -692,8 +723,7 @@ footer .brand img { width: 30px; height: 30px; border-radius: 8px; }
       <a href="#faq">FAQ</a>
     </nav>
     <div class="nav-cta">
-      <a class="btn btn-line btn-sm" href="https://github.com/sidmanale643/pekka"><svg><use href="#i-github"/></svg>GitHub</a>
-      <a class="btn btn-ink btn-sm" href="https://pekka-app.vercel.app">Open Pekka</a>
+      <a class="btn btn-ink btn-sm" href="#waitlist">Join the waitlist</a>
     </div>
   </div>
   <i class="progress"></i>
@@ -710,11 +740,17 @@ footer .brand img { width: 30px; height: 30px; border-radius: 8px; }
             <span class="small"><span class="ln"><span style="--d:520">You</span></span> <span class="seal">sign off.</span></span>
           </h1>
           <p class="hero-sub fade" style="--d:800">Give Pekka a role and a job. Your bots work in <b>their own cloud computers</b> and <b>ask before making changes.</b></p>
-          <div class="ctas fade" style="--d:920">
-            <a class="btn btn-moon" href="https://pekka-app.vercel.app">Open Pekka <svg class="arrow"><use href="#i-arrow"/></svg></a>
-            <a class="btn btn-ghost" href="https://github.com/sidmanale643/pekka"><svg><use href="#i-github"/></svg>Open source on GitHub</a>
-          </div>
-          <div class="fade" style="--d:1040"><div class="cmd"><span id="hero-cmd">git clone https://github.com/sidmanale643/pekka.git</span><button type="button" data-copy="hero-cmd">Copy</button></div></div>
+          <form class="wl fade" style="--d:920" action="https://formspree.io/f/YOUR_FORM_ID" method="POST" data-waitlist>
+            <input type="hidden" name="source" value="hero">
+            <input type="hidden" name="_subject" value="New Pekka waitlist signup">
+            <label class="trap" aria-hidden="true">Leave this empty <input type="text" name="_gotcha" tabindex="-1" autocomplete="off"></label>
+            <div class="wl-row">
+              <input type="email" name="email" placeholder="you@company.com" autocomplete="email" aria-label="Email address" required>
+              <button class="btn btn-moon" type="submit">Join the waitlist <svg class="arrow"><use href="#i-arrow"/></svg></button>
+            </div>
+            <p class="wl-note">We'll email you when your spot opens.</p>
+            <p class="wl-msg" role="status" tabindex="-1"></p>
+          </form>
         </div>
 
         <div class="stage" data-helm aria-hidden="true">
@@ -999,37 +1035,39 @@ footer .brand img { width: 30px; height: 30px; border-radius: 8px; }
     </div>
   </section>
 
-  <!-- Get started -->
-  <section id="start">
+  <!-- Early access -->
+  <section id="waitlist">
     <div class="wrap start">
       <div class="reveal">
-        <p class="kicker"><b>07</b>Get started</p>
-        <h2>Open source on GitHub. <span class="mute">Made for the browser.</span></h2>
-        <p class="free-sub">Run Pekka yourself from GitHub and bring your own keys. Its web workspace lets you create bots, assign tasks and approve their work. With Google sign-in enabled, invited users get their own private workspace. Self-hosted users pay only for the services they connect.</p>
-        <p class="free-sub">The hosted app currently opens without login. Everyone shares the same workspace.</p>
-        <ul class="needs">
-          <li><strong>OpenRouter</strong><span>The model your bots think with</span></li>
-          <li><strong>Daytona</strong><span>The computers they work on</span></li>
-          <li><strong>Cloudflare D1</strong><span>Where bots, memory and schedules live</span></li>
-          <li class="opt"><strong>Optional</strong><span>Tavily or Exa, ScraperAPI, AgentMail, and any plugins</span></li>
+        <p class="kicker"><b>07</b>Early access</p>
+        <h2>Get early access. <span class="mute">Be first to sign off.</span></h2>
+        <p class="free-sub">Pekka isn't open to everyone yet. Join the waitlist and we'll email you when your spot opens.</p>
+        <ul class="perks">
+          <li><strong>Chief of staff</strong><span>Takes your requests and hands the work to your bots</span></li>
+          <li><strong>Your own bots</strong><span>Each with its own cloud computer, memory and skills</span></li>
+          <li><strong>Your tools</strong><span>GitHub, Gmail, Calendar, Drive, Notion and Telegram</span></li>
+          <li><strong>Approvals</strong><span>Nothing is written or sent without your yes</span></li>
         </ul>
       </div>
-      <div class="qs reveal">
-        <div class="term-win">
-          <div class="term-bar"><i></i><i></i><i></i><small>quickstart</small><span class="term-state"></span><button class="term-btn" type="button" data-copy="qs">Copy</button></div>
-          <div class="term-body" id="qs"><span class="d"># Node.js 22.13+ and pnpm</span>
-<span class="p">$</span> git clone https://github.com/sidmanale643/pekka.git
-<span class="p">$</span> cd pekka && pnpm install
-<span class="p">$</span> cp .env.example .env     <span class="d"># add your keys</span>
-<span class="p">$</span> pnpm pekka db check
-<span class="g">Connected to Cloudflare D1.</span>
-<span class="p">$</span> pnpm api                 <span class="d"># open http://127.0.0.1:3000</span></div>
+      <form class="slip reveal" action="https://formspree.io/f/YOUR_FORM_ID" method="POST" data-waitlist>
+        <div class="slip-bar"><svg><use href="#i-shield"/></svg>Permission required<small>early access</small></div>
+        <div class="slip-body">
+          <p class="slip-what"><b>Pekka</b> wants to email you when your spot opens.</p>
+          <input type="hidden" name="source" value="early-access">
+          <input type="hidden" name="_subject" value="New Pekka waitlist signup">
+          <label class="trap" aria-hidden="true">Leave this empty <input type="text" name="_gotcha" tabindex="-1" autocomplete="off"></label>
+          <div class="slip-fields">
+            <label><span>Email</span><input type="email" name="email" placeholder="you@company.com" autocomplete="email" required></label>
+            <label><span>What would you hand off first? <em>Optional</em></span><textarea name="note" rows="3" maxlength="1000" placeholder="Every Monday, summarize what changed in our repos and email the team."></textarea></label>
+          </div>
+          <div class="slip-acts">
+            <button class="btn btn-ink" type="submit">Join the waitlist <svg class="arrow"><use href="#i-arrow"/></svg></button>
+            <span>Questions are welcome in the note too.</span>
+          </div>
+          <p class="wl-msg" role="status" tabindex="-1"></p>
         </div>
-        <div class="qs-foot">
-          <a class="btn btn-ink" href="https://github.com/sidmanale643/pekka#get-started">Full setup guide <svg class="arrow"><use href="#i-arrow"/></svg></a>
-          <span>Covers keys, sign-in, plugins and the scheduler.</span>
-        </div>
-      </div>
+        <span class="stamp" aria-hidden="true">On the list</span>
+      </form>
     </div>
   </section>
 
@@ -1039,7 +1077,7 @@ footer .brand img { width: 30px; height: 30px; border-radius: 8px; }
       <aside class="reveal">
         <p class="kicker"><b>08</b>FAQ</p>
         <h2>Common questions</h2>
-        <p>Anything else is probably in the <a href="https://github.com/sidmanale643/pekka#readme">README</a>.</p>
+        <p>Something else? Ask in your <a href="#waitlist">waitlist note</a> and we'll answer when we write.</p>
       </aside>
       <div class="faq reveal">
         <details>
@@ -1090,11 +1128,18 @@ footer .brand img { width: 30px; height: 30px; border-radius: 8px; }
         </div>
       </div>
       <h2 class="final-hl"><span class="ln"><span style="--d:0">Over to</span></span><span class="ln"><span style="--d:120">Pekka.</span></span></h2>
-      <p class="lead">Your first bot is a few minutes away.</p>
-      <div class="ctas">
-        <a class="btn btn-moon" href="https://pekka-app.vercel.app">Open Pekka <svg class="arrow"><use href="#i-arrow"/></svg></a>
-        <a class="btn btn-ghost" href="https://github.com/sidmanale643/pekka"><svg><use href="#i-github"/></svg>Star on GitHub</a>
-      </div>
+      <p class="lead">Your chief of staff is almost ready for you.</p>
+      <form class="wl" action="https://formspree.io/f/YOUR_FORM_ID" method="POST" data-waitlist>
+        <input type="hidden" name="source" value="final">
+        <input type="hidden" name="_subject" value="New Pekka waitlist signup">
+        <label class="trap" aria-hidden="true">Leave this empty <input type="text" name="_gotcha" tabindex="-1" autocomplete="off"></label>
+        <div class="wl-row">
+          <input type="email" name="email" placeholder="you@company.com" autocomplete="email" aria-label="Email address" required>
+          <button class="btn btn-moon" type="submit">Join the waitlist <svg class="arrow"><use href="#i-arrow"/></svg></button>
+        </div>
+        <p class="wl-note">We'll email you when your spot opens.</p>
+        <p class="wl-msg" role="status" tabindex="-1"></p>
+      </form>
     </div>
   </section>
 </main>
@@ -1107,7 +1152,7 @@ footer .brand img { width: 30px; height: 30px; border-radius: 8px; }
         <a href="#features">Features</a>
         <a href="#plugins">Plugins</a>
         <a href="#faq">FAQ</a>
-        <a href="https://github.com/sidmanale643/pekka">GitHub</a>
+        <a href="#waitlist">Waitlist</a>
       </nav>
     </div>
   </div>
@@ -1291,21 +1336,47 @@ for (const item of [...tape.children]) {
   tape.append(copy);
 }
 
-// Copy buttons copy the commands only, without prompts, output or comments.
-document.querySelectorAll("[data-copy]").forEach((button) => {
-  button.addEventListener("click", async () => {
-    const lines = document.getElementById(button.dataset.copy).innerText.split("\n");
-    const commands = lines.length === 1 ? lines : lines.filter((line) => line.startsWith("$"));
-    const text = commands.map((line) => line.replace(/^\$\s*/, "").replace(/\s+#.*$/, "")).join("\n");
+// Waitlist forms post to Formspree and answer in place. Without JavaScript they
+// submit normally and Formspree shows its own thank-you page.
+const waitlists = document.querySelectorAll("[data-waitlist]");
+const say = (form, text, error) => {
+  const message = form.querySelector(".wl-msg");
+  message.classList.toggle("err", error);
+  message.textContent = text;
+  return message;
+};
+// Signing up once fills in every form on the page, so nobody joins twice.
+const joined = (email) => {
+  for (const form of waitlists) {
+    for (const field of form.elements) field.disabled = true;
+    form.classList.add("sent");
+    const message = say(form, `You're on the list. We'll email ${email} when your spot opens.`, false);
+    const check = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    check.innerHTML = '<use href="#i-check"/>';
+    message.prepend(check);
+  }
+};
+for (const form of waitlists) {
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (form.action.includes("YOUR_FORM_ID")) { say(form, "The waitlist isn't connected yet. Try again soon.", true); return; }
+    const button = form.querySelector("[type=submit]");
+    button.disabled = true;
+    say(form, "", false);
     try {
-      await navigator.clipboard.writeText(text);
-      button.textContent = "Copied";
-    } catch {
-      button.textContent = "Select to copy";
+      const response = await fetch(form.action, { method: "POST", body: new FormData(form), headers: { Accept: "application/json" } });
+      if (!response.ok) {
+        const reply = await response.json().catch(() => ({}));
+        throw new Error(reply.errors?.some((error) => error.field === "email") ? "Check your email address and try again." : "Couldn't add you just now. Try again in a moment.");
+      }
+      joined(form.elements.email.value.trim());
+      form.querySelector(".wl-msg").focus();
+    } catch (error) {
+      say(form, error instanceof TypeError ? "Couldn't reach the waitlist. Check your connection and try again." : error.message, true);
+      button.disabled = false;
     }
-    setTimeout(() => (button.textContent = "Copy"), 1600);
   });
-});
+}
 
 // A recorded CLI run, in the format `pnpm pekka bot run` prints.
 // Each line: [html, pause after (ms), typed out?, answer typed at the prompt, point to highlight]
