@@ -16,7 +16,7 @@ export class GmailService extends GoogleService {
   /** `path` is relative to /users/me. */
   protected endpoint(path: string, method: GoogleMethod) {
     if (method !== "GET" && method !== "POST") return undefined;
-    return /^\/(?:profile|labels|messages(?:\/send|\/[\w-]+(?:\/modify)?)?|threads\/[\w-]+|drafts)(?:\?[^#]*)?$/.test(path) ? `${API}${path}` : undefined;
+    return /^\/(?:profile|labels|messages(?:\/send|\/[\w-]+(?:\/modify|\/attachments\/[\w-]+)?)?|threads\/[\w-]+|drafts)(?:\?[^#]*)?$/.test(path) ? `${API}${path}` : undefined;
   }
 
   protected async accountName(accessToken: string) {

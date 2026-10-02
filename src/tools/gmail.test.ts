@@ -1,5 +1,7 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterAll, describe, expect, it, vi } from "vitest";
 import { executeToolCall } from "../agent/execute-tool-call.ts";
+import { closeDocuments } from "../documents.ts";
+import { samplePdf } from "../sample-pdf.ts";
 import { FakeComputer } from "../computer/fake-computer.ts";
 import type { GmailService } from "../plugins/gmail.ts";
 import { buildMime, createGmailTools } from "./gmail.ts";
@@ -26,6 +28,10 @@ function decodeRaw(raw: string) {
   const [head, body] = text.split("\r\n\r\n");
   return { head: head!, body: Buffer.from(body!.replace(/\r\n/g, ""), "base64").toString("utf8") };
 }
+
+// OCR downloads language data on first use; the test PDFs have a text layer.
+process.env.PEKKA_OCR = "false";
+afterAll(closeDocuments);
 
 describe("gmail tools", () => {
   it("is registered for every bot", () => {
@@ -57,6 +63,27 @@ describe("gmail tools", () => {
     const html = { id: "m2", threadId: "t2", payload: { mimeType: "text/html", body: { data: b64("<style>x{}</style><p>One &amp; two</p><p>Three</p>") } } };
     const { call: callHtml } = setup(() => html);
     expect(JSON.parse((await callHtml("gmail_read_message", { message_id: "m2" })).output).body).toBe("One & two\nThree");
+  });
+
+  it("reads attachments: PDFs through LiteParse, text directly, and declines the rest", async () => {
+    const pdf = samplePdf(["Signed lease: rent 2000 dollars"]);
+    const message = { id: "m9", threadId: "t9", payload: { mimeType: "multipart/mixed", parts: [
+      { partId: "0", mimeType: "text/plain", body: { data: b64("See attached") } },
+      { partId: "1", mimeType: "application/octet-stream", filename: "lease.pdf", body: { attachmentId: "att-1", size: pdf.length } },
+      { partId: "2", mimeType: "text/csv", filename: "list.csv", body: { data: b64("name\nSam"), size: 8 } },
+      { partId: "3", mimeType: "application/zip", filename: "files.zip", body: { attachmentId: "att-3", size: 10 } },
+    ] } };
+    const { call, request } = setup((path) => path.includes("/attachments/") ? { data: pdf.toString("base64url"), size: pdf.length } : message);
+    const listed = JSON.parse((await call("gmail_read_message", { message_id: "m9" })).output);
+    expect(listed.attachments.map((attachment: { part_id: string }) => attachment.part_id)).toEqual(["1", "2", "3"]);
+
+    const lease = JSON.parse((await call("gmail_read_attachment", { message_id: "m9", part_id: "1" })).output);
+    expect(lease).toMatchObject({ filename: "lease.pdf", pages: 1 });
+    expect(lease.content).toContain("Signed lease: rent 2000 dollars");
+    expect(request.mock.calls.at(-1)![1]).toBe("/messages/m9/attachments/att-1");
+    expect(JSON.parse((await call("gmail_read_attachment", { message_id: "m9", part_id: "2" })).output)).toMatchObject({ content: "name\nSam", length: 8 });
+    expect(JSON.parse((await call("gmail_read_attachment", { message_id: "m9", part_id: "3" })).output)).toMatchObject({ filename: "files.zip", readable: false });
+    expect((await call("gmail_read_attachment", { message_id: "m9", part_id: "7" })).output).toContain("no attachment with that part_id");
   });
 
   it("sends a UTF-8 plain-text email", async () => {
