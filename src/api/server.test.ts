@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { AddressInfo } from "node:net";
 import { request as httpRequest, type Server } from "node:http";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApiServer } from "./server.ts";
 import { createBot, deleteBot, findBotById, listBots, updateBot, type Bot } from "../bots.ts";
 import { BotMemory } from "../bot-memory.ts";
@@ -175,6 +175,32 @@ describe("HTTP API", () => {
     expect(next.status).toBe(200);
     release();
     await next.text();
+  });
+
+  it("keeps the chief of staff, and keeps a bot busy while the chief delegates to it", async () => {
+    let finish: (() => void) | undefined;
+    await start(createApiServer({ database, execute: async (_task, { bot, reserve }) => {
+      if (!bot?.primary) return result;
+      const scout = (await listBots(LOCAL_USER, database)).find((item) => item.name === "Scout")!;
+      const release = reserve!(scout)!;
+      await new Promise<void>((resolve) => { finish = resolve; });
+      release();
+      return result;
+    } }));
+    const { bots: [chief] } = await (await fetch(`${base}/api/bots`)).json() as { bots: Bot[] };
+    expect(chief).toMatchObject({ name: "Chief of Staff", primary: true });
+    await post("/api/bots", { name: "Scout", role: "Research", job: "Find repos" });
+    const delegating = post("/api/runs", { botName: chief!.name, task: "Ask Scout" });
+    await vi.waitFor(() => expect(finish).toBeDefined());
+    expect((await post("/api/runs", { botName: "Scout", task: "Direct" })).status).toBe(409);
+    expect((await fetch(`${base}/api/bots/Scout`, { method: "DELETE" })).status).toBe(409);
+    finish!();
+    expect((await delegating).status).toBe(200);
+    expect((await post("/api/runs", { botName: "Scout", task: "Direct" })).status).toBe(200);
+    const removal = await fetch(`${base}/api/bots/${encodeURIComponent(chief!.name)}`, { method: "DELETE" });
+    expect(removal.status).toBe(409);
+    expect(await removal.json()).toEqual({ error: expect.stringContaining("can't be deleted") });
+    expect((await listBots(LOCAL_USER, database)).map((bot) => bot.name)).toEqual(["Chief of Staff", "Scout"]);
   });
 
   it("reports missing D1 configuration as unavailable storage", async () => {

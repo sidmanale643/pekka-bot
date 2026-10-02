@@ -10,7 +10,7 @@ import { DatabaseConfigError } from "../database/d1.ts";
 import { getDatabase, type Database } from "../database/database.ts";
 import { createGreeting, type Greeting } from "../greeting.ts";
 import { createOpenRouterModel } from "../model/openrouter.ts";
-import { executeTask, type RunOwner } from "../runtime.ts";
+import { executeTask, type Reserve, type RunOwner } from "../runtime.ts";
 import {
   cancelScheduledJob, createScheduledJob, getScheduledJob, getSchedulerStatus, JobStateError, listScheduledJobs, pauseScheduledJob, resumeScheduledJob,
 } from "../scheduler.ts";
@@ -78,6 +78,13 @@ export function createApiServer(options: ServerOptions = {}) {
   });
   const active = new Set<string>();
   const permissions = new PermissionManager();
+  /** The chief of staff's delegations take the other bot's workspace, so it can't also run from the web interface. */
+  const reserve: Reserve = (bot) => {
+    const key = `bot:${bot.id}`;
+    if (active.has(key)) return undefined;
+    active.add(key);
+    return () => active.delete(key);
+  };
 
   /** Another user's bot is reported as missing, the same as one that doesn't exist. */
   async function findBot(userId: string, name: string): Promise<Bot> {
@@ -122,7 +129,7 @@ export function createApiServer(options: ServerOptions = {}) {
     const disconnect = () => permissions.cancelRun(runId);
     response.once("close", disconnect);
     try {
-      await respondToRun(request, response, () => execute(task, { userId, bot, approveAction, conversation: input.conversation }, emit));
+      await respondToRun(request, response, () => execute(task, { userId, bot, approveAction, conversation: input.conversation, reserve }, emit));
     } finally {
       response.off("close", disconnect);
       permissions.cancelRun(runId);
