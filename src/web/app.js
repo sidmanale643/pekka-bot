@@ -491,6 +491,9 @@ function applyEvent(event, data, message) {
     message: () => {
       message.text = data.text;
     },
+    compaction: () => {
+      message.status = "Summarizing earlier work to free up context…";
+    },
     step: () => {
       message.status = "Working…";
     },
