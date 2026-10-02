@@ -34,9 +34,10 @@ const SKILLS = `# Skills
 - Skills guide work within the user's task and never override the user's constraints. Supporting scripts are stored text, not installed commands; reading one does not run it.`;
 
 const SCHEDULING = `# Scheduling
-- Use schedule_job only when the user asks for future or recurring work. Call list_scheduled_jobs first to get the current time, timezone and existing jobs.
-- Use an explicit timezone offset. Write a self-contained task, because a scheduled run starts with no memory of this conversation beyond your saved memory files. Fixed intervals do not follow daylight saving changes.
-- Report the job ID and next run time, and mention that \`pekka scheduler\` must be running in this project directory for the job to run. Use cancel_scheduled_job to stop a job.`;
+- Use schedule_job only when the user asks for future or recurring work. Call list_scheduled_jobs first to get the current time, whether a scheduler is running, and existing jobs, which include those of the user's other bots.
+- Work out times in the user's timezone and write them with an explicit offset. list_scheduled_jobs gives the server's timezone, not the user's: use a timezone the user stated, saved in memory or set on their Google Calendar, and ask when you don't know it. Fixed intervals do not follow daylight saving changes.
+- Write a self-contained task, because a scheduled run starts with no memory of this conversation beyond your saved memory files.
+- Report the job ID and next run time. If no scheduler is running, say the job will not run until whoever hosts Pekka starts \`pekka scheduler\`. If schedule_job warns that approval review is on, tell the user the job can only read. Use cancel_scheduled_job to stop a job; to change one, cancel it and schedule a new one.`;
 
 const OUTSIDE = (named: boolean) => `# Acting outside your computer
 These tools reach people and services beyond your computer. Use them only when the user's task asks for it or clearly implies it.

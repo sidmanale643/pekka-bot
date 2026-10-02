@@ -39,6 +39,8 @@ it("lets the agent schedule, inspect and cancel a durable job with its bot ident
           const saved = JSON.parse(response.content!);
           id = saved.job.id;
           expect(saved.execution).toContain("does not start");
+          expect(saved.scheduler_running).toBe(false);
+          expect(saved.warning).toContain("can only read");
           name = "list_scheduled_jobs";
           args = {};
         }
@@ -47,6 +49,7 @@ it("lets the agent schedule, inspect and cancel a durable job with its bot ident
           expect(listed.jobs).toHaveLength(1);
           expect(listed.jobs[0]).toMatchObject({ id, bot: { name: bot.name, role: bot.role, job: bot.job }, intervalSeconds: 86_400 });
           expect(Number.isFinite(Date.parse(listed.now))).toBe(true);
+          expect(listed).toMatchObject({ scheduler_running: false, server_time_zone: expect.any(String) });
           name = "cancel_scheduled_job";
           args = { id };
         }
