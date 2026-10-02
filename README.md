@@ -404,6 +404,7 @@ for a copyable template.
 | `PEKKA_MODEL` | OpenRouter model ID; choose one with tool calling | `z-ai/glm-5.3-flash` |
 | `PEKKA_SANDBOX_NAME` | Name used to find or create the persistent sandbox | `pekka-computer` |
 | `PEKKA_MAX_STEPS` | Maximum model replies per task | `30` |
+| `PEKKA_CONTEXT_WINDOW` | Model context window in tokens; a task's older messages are summarized at half of it | the model's window on OpenRouter, or `128000` |
 | `PEKKA_REQUIRE_APPROVAL` | Set to `true` to ask before writes, commands and plugin actions | unset (no approval prompts) |
 | `PEKKA_URL` | Address people open Pekka at; turns on Google sign-in | unset (no sign-in, localhost only) |
 | `PEKKA_ALLOWED_EMAILS` | Comma-separated addresses or `@domain` entries allowed to sign in | — |
@@ -431,6 +432,7 @@ remain in Daytona.
 1. The CLI connects to the named Daytona sandbox and creates an OpenRouter model client.
 2. The [agent loop](src/agent/loop.ts) sends the task and available tool definitions to the model.
 3. Pekka executes requested tools and sends their results back to the model until it gives a reply without a tool call or reaches the step limit.
+4. When the next prompt would fill half the model's context window, the [context manager](src/agent/context.ts) asks the model to summarize the task so far and replaces the older messages with that summary. The system prompt, the user's request and the latest step are kept as they were.
 
 The available tools are `run_command`, `read_file`, `write_file`,
 `edit_file`, `web_search`, `web_scrape`, `read_memory`, `write_memory`,

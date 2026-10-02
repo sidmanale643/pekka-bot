@@ -6,6 +6,8 @@ import type { PermissionRequest } from "../permissions/manager.ts";
 export type AgentEvent =
   | { type: "permission_requested"; request: PermissionRequest }
   | { type: "permission_resolved"; id: string; approved: boolean }
+  // The next prompt would fill half the context window, so older messages are being summarized.
+  | { type: "compaction"; tokens: number; contextWindow: number }
   | { type: "step"; step: number }
   | { type: "message_delta"; text: string }
   | { type: "message"; text: string }

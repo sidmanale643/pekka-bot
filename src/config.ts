@@ -8,6 +8,7 @@ const ConfigSchema = z.object({
   PEKKA_MODEL: z.string().default("stealth/space-bunny-alpha"),
   PEKKA_SANDBOX_NAME: z.string().default("pekka-computer"),
   PEKKA_MAX_STEPS: z.coerce.number().int().positive().default(30),
+  PEKKA_CONTEXT_WINDOW: z.coerce.number().int().positive().optional(),
 });
 
 export interface Config {
@@ -16,6 +17,8 @@ export interface Config {
   model: string;
   sandboxName: string;
   maxSteps: number;
+  /** Overrides the context window OpenRouter reports for the model. */
+  contextWindow?: number;
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
@@ -32,5 +35,6 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     model: values.PEKKA_MODEL,
     sandboxName: values.PEKKA_SANDBOX_NAME,
     maxSteps: values.PEKKA_MAX_STEPS,
+    contextWindow: values.PEKKA_CONTEXT_WINDOW,
   };
 }

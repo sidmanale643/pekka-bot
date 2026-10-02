@@ -198,6 +198,10 @@ let streamingText = false;
 
 function printEvent(event: AgentEvent): void {
   switch (event.type) {
+    case "compaction":
+      endLine();
+      console.log(`\n── context ${Math.round((100 * event.tokens) / event.contextWindow)}% full; summarizing older messages ──`);
+      break;
     case "step":
       streamingText = false;
       console.log(`\n── step ${event.step} ──`);
@@ -212,16 +216,18 @@ function printEvent(event: AgentEvent): void {
       streamingText = false;
       break;
     case "tool_call":
-      if (streamingText) {
-        console.log();
-        streamingText = false;
-      }
+      endLine();
       console.log(`→ ${event.name} ${event.arguments}`);
       break;
     case "tool_result":
       console.log(indent(event.isError ? `✗ ${event.output}` : preview(event.output)));
       break;
   }
+}
+
+function endLine(): void {
+  if (streamingText) console.log();
+  streamingText = false;
 }
 
 /** Shows the first few lines of a tool's output. */
