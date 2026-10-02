@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Pekka — It does the work. You sign off.</title>
-<meta name="description" content="Pekka is an open-source AI agent you can give real work to. Each bot gets its own cloud computer, memory and skills, works across GitHub, Gmail, Google Calendar, Drive, Notion and Telegram, and asks before it changes anything.">
+<meta name="description" content="Pekka is an open-source AI agent you can give real work to. A chief of staff hands tasks to your bots, each with its own cloud computer, memory and skills. They work across GitHub, Gmail, Google Calendar, Drive, Notion and Telegram, and ask before they change anything.">
 <meta name="theme-color" content="#080a11">
 <link rel="icon" href="favicon.png">
 <link rel="icon" type="image/svg+xml" href="head.svg">
@@ -361,6 +361,41 @@ h2 .mute { display: block; }
 .done svg { width: 15px; height: 15px; flex: none; }
 .js .steps:not(.in) .done { transform: scale(0.9); opacity: 0; }
 
+/* Chief of staff: a handoff played out in a copy of the web app's chat. */
+.cos { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 0.8fr); gap: 64px; align-items: start; }
+.hand { background: var(--sheet); border: 1px solid var(--rule); border-radius: 14px; overflow: hidden; box-shadow: 0 40px 80px -60px rgba(21, 21, 21, 0.5); }
+.hand-bar { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--rule); background: var(--paper-2); font-size: 14px; }
+.hand-bar b { font-weight: 600; white-space: nowrap; }
+.pill { font-size: 11.5px; font-weight: 500; padding: 2px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent); white-space: nowrap; }
+.hand-state { margin-left: auto; display: flex; align-items: center; gap: 8px; font-family: var(--mono); font-size: 12px; color: var(--ink-3); white-space: nowrap; }
+.hand-state i { width: 6px; height: 6px; border-radius: 50%; background: var(--rule-strong); }
+.hand-state.live i { background: var(--accent); animation: livePing 1.6s ease-out infinite; }
+@keyframes livePing { 0% { box-shadow: 0 0 0 0 rgba(42, 60, 240, 0.5); } 70%, 100% { box-shadow: 0 0 0 6px rgba(42, 60, 240, 0); } }
+.hand-btn { flex: none; font-size: 12px; padding: 4px 10px; border-radius: 4px; background: var(--sunk); color: var(--ink-2); transition: background 0.2s, color 0.2s; }
+.hand-btn:hover { background: var(--ink); color: var(--sheet); }
+.hand-body { padding: 22px 22px 24px; display: grid; gap: 12px; }
+.av { flex: none; width: 24px; height: 24px; border-radius: 7px; display: grid; place-items: center; background: var(--c, var(--accent)); color: #fff; font-size: 12px; font-weight: 600; }
+.you { justify-self: end; max-width: 80%; background: var(--ink); color: var(--paper); border-radius: 14px 14px 4px 14px; padding: 10px 14px; font-size: 14px; }
+.msg { display: flex; gap: 10px; align-items: flex-start; font-size: 14.5px; color: var(--ink-2); }
+.msg p { padding-top: 2px; }
+.msg b { color: var(--ink); font-weight: 500; }
+.dl { --c: var(--accent); margin-left: 34px; display: grid; gap: 6px; padding: 11px 13px 12px; border: 1px solid var(--rule); border-radius: 10px; background: var(--paper); transition: border-color 0.4s; }
+.dl-top { display: flex; align-items: center; gap: 8px; min-width: 0; font-size: 13.5px; }
+.dl-top .av { width: 20px; height: 20px; border-radius: 6px; font-size: 11px; }
+.dl-top b { font-weight: 600; white-space: nowrap; }
+.dl-top > span { color: var(--ink-3); }
+.dl-status { margin-left: auto; display: flex; align-items: center; gap: 7px; min-width: 0; font-family: var(--mono); font-size: 12px; color: var(--accent); }
+.dl-status::before { content: ""; flex: none; width: 6px; height: 6px; border-radius: 50%; background: currentColor; animation: livePing 1.6s ease-out infinite; }
+.dl-status span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dl.finished { border-color: #b9dcc7; }
+.dl.finished .dl-status { color: var(--ok); }
+.dl.finished .dl-status::before { animation: none; }
+.dl-brief { font-size: 13px; color: var(--ink-2); }
+.dl-brief small { margin-right: 6px; font-family: var(--mono); font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3); }
+.js .hs { opacity: 0; transform: translateY(8px); transition: opacity 0.5s var(--ease), transform 0.7s var(--ease); }
+.js .hs.on { opacity: 1; transform: none; }
+.cos .note { margin-top: 28px; }
+
 /* Feature sheet */
 .sheet { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-top: 1px solid var(--ink); }
 .cell { position: relative; padding: 30px 28px 34px; border-bottom: 1px solid var(--rule); border-left: 1px solid var(--rule); display: flex; flex-direction: column; gap: 10px; transition: background 0.4s; }
@@ -494,8 +529,8 @@ h2 .mute { display: block; }
 .outs .node { padding: 14px 16px; transition: transform 0.4s var(--ease), border-color 0.3s; }
 .outs .node:hover { transform: translateX(6px); border-color: var(--ink-3); }
 .outs .node p { margin-top: 2px; }
-.arch-note { margin-top: 32px; display: flex; gap: 10px; align-items: flex-start; font-size: 14.5px; color: var(--ink-2); max-width: 720px; }
-.arch-note svg { width: 18px; height: 18px; color: var(--accent); flex: none; margin-top: 2px; }
+.note { margin-top: 32px; display: flex; gap: 10px; align-items: flex-start; font-size: 14.5px; color: var(--ink-2); max-width: 720px; }
+.note svg { width: 18px; height: 18px; color: var(--accent); flex: none; margin-top: 2px; }
 
 /* Early access: the waitlist as a permission slip, stamped once you're on it. */
 .start { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); gap: 64px; align-items: start; }
@@ -597,7 +632,7 @@ footer .brand img { width: 30px; height: 30px; border-radius: 8px; }
   .hero-foot .stack { display: none; }
   section { padding: 100px 0; }
   .head { grid-template-columns: 1fr; margin-bottom: 48px; }
-  .run, .start, .faq-grid { grid-template-columns: 1fr; gap: 44px; }
+  .run, .cos, .start, .faq-grid { grid-template-columns: 1fr; gap: 44px; }
   .steps { grid-template-columns: 1fr; }
   .step, .step:first-child, .step:last-child { padding: 30px 0 34px; border-left: 0; border-bottom: 1px solid var(--rule); }
   .step .n { font-size: 120px; }
@@ -631,6 +666,11 @@ footer .brand img { width: 30px; height: 30px; border-radius: 8px; }
   .px-top .ic { width: 44px; height: 44px; }
   .px-top h3 { font-size: 28px; }
   .px-tool em { grid-row: auto; grid-column: 2; grid-row-start: 1; }
+  .hand-bar .pill { display: none; }
+  .hand-body { padding: 18px 14px 20px; }
+  .dl { margin-left: 0; }
+  .dl-top { flex-wrap: wrap; }
+  .dl-status { flex-basis: 100%; }
   .perks li { grid-template-columns: 1fr; gap: 2px; }
   .wl-row { flex-direction: column; }
   .wl input { height: 44px; }
@@ -717,6 +757,7 @@ footer .brand img { width: 30px; height: 30px; border-radius: 8px; }
     <a class="brand" href="#top"><img src="head.svg" alt="" width="34" height="34">Pekka</a>
     <nav class="nav-links" aria-label="Sections">
       <a href="#run">How it works</a>
+      <a href="#chief">Chief of staff</a>
       <a href="#features">Features</a>
       <a href="#plugins">Plugins</a>
       <a href="#architecture">Architecture</a>
@@ -739,7 +780,7 @@ footer .brand img { width: 30px; height: 30px; border-radius: 8px; }
             <span class="big"><span class="ln"><span style="--d:200">It does</span></span><span class="ln"><span style="--d:300">the work.</span></span></span>
             <span class="small"><span class="ln"><span style="--d:520">You</span></span> <span class="seal">sign off.</span></span>
           </h1>
-          <p class="hero-sub fade" style="--d:800">Give Pekka a role and a job. Your bots work in <b>their own cloud computers</b> and <b>ask before making changes.</b></p>
+          <p class="hero-sub fade" style="--d:800">Tell your <b>chief of staff</b> what you need. It hands the work to your bots, each in <b>its own cloud computer</b>, and they <b>ask before making changes.</b></p>
           <form class="wl fade" style="--d:920" action="https://formspree.io/f/YOUR_FORM_ID" method="POST" data-waitlist>
             <input type="hidden" name="source" value="hero">
             <input type="hidden" name="_subject" value="New Pekka waitlist signup">
@@ -788,12 +829,14 @@ footer .brand img { width: 30px; height: 30px; border-radius: 8px; }
     </div>
     <div class="tape" aria-label="Examples of what bots do">
       <div class="tape-track">
+        <span><b>Chief of Staff</b> delegate_task → Inbox Manager, Scout <em>→ both at once</em></span>
         <span><b>Scout</b> web_search “new TypeScript repositories” <em>→ automatic</em></span>
         <span><b>Inbox Manager</b> gmail_create_draft “Re: renewal terms” <em>→ asks first</em></span>
         <span><b>Issue Triage</b> github_add_comment on issue #412 <em>→ approved once</em></span>
         <span><b>Librarian</b> notion_search “onboarding” <em>→ automatic</em></span>
         <span><b>Scout</b> write_file reports/2026-10-01.md <em>→ approved once</em></span>
         <span><b>Librarian</b> telegram_send_message <em>→ asks first</em></span>
+        <span><b>Inbox Manager</b> calendar_find_free_time “before Thursday” <em>→ automatic</em></span>
         <span><b>Scheduler</b> Weekly repo report <em>→ next run Monday 09:00</em></span>
       </div>
     </div>
@@ -865,11 +908,113 @@ footer .brand img { width: 30px; height: 30px; border-radius: 8px; }
     </div>
   </section>
 
+  <!-- Chief of staff -->
+  <section id="chief">
+    <div class="wrap">
+      <div class="head reveal">
+        <p class="kicker"><b>03</b>Chief of staff</p>
+        <h2>Brief one bot. <span class="mute">It runs the rest.</span></h2>
+        <p class="lede">Every account starts with a chief of staff. Tell it what you need. It splits the work between your bots, runs them side by side and brings their answers back to you.</p>
+      </div>
+      <div class="cos">
+        <div class="hand reveal" id="hand" aria-label="A recorded handoff from the chief of staff to two bots">
+          <div class="hand-bar">
+            <span class="av" style="--c:var(--night)">C</span><b>Chief of Staff</b><span class="pill">Primary</span>
+            <span class="hand-state" id="hand-state"><i></i><span>finished</span></span>
+            <button class="hand-btn" type="button" id="hand-replay" hidden>Replay</button>
+          </div>
+          <div class="hand-body">
+            <p class="you hs on">Get me ready for Thursday's renewal call with Acme.</p>
+            <div class="msg hs on"><span class="av" style="--c:var(--night)">C</span><p>On it. <b>Inbox Manager</b> will go through the Acme threads while <b>Scout</b> checks their news.</p></div>
+            <div class="dl hs on finished" style="--c:#d39a33">
+              <div class="dl-top"><span class="av">I</span><b>Inbox Manager</b><span class="dl-status"><span>Finished</span></span></div>
+              <p class="dl-brief"><small>Brief</small>Summarise every Acme renewal thread since July, list the open questions and find 30 free minutes before Thursday's call.</p>
+            </div>
+            <div class="dl hs on finished" style="--c:#2a3cf0">
+              <div class="dl-top"><span class="av">S</span><b>Scout</b><span class="dl-status"><span>Finished</span></span></div>
+              <p class="dl-brief"><small>Brief</small>Find Acme news from the last 90 days, such as funding, leadership changes and launches. Cite sources.</p>
+            </div>
+            <div class="msg hs on"><span class="av" style="--c:var(--night)">C</span><p>Your brief is ready. Acme still wants a three-year price lock and SSO in the base plan, and it raised a Series C in August. You're free 9:30 to 10:00 on Thursday to prepare.</p></div>
+          </div>
+        </div>
+        <div class="reveal">
+          <ol class="points" id="hand-points">
+            <li><span class="pt">a</span><div><strong>Picks who does what</strong><p>It reads your bots' descriptions and writes each one a self-contained brief. If no bot fits, it suggests one and creates it once you agree.</p></div></li>
+            <li><span class="pt">b</span><div><strong>Runs them side by side</strong><p>Several handoffs in one reply run at the same time. Each bot works in its own computer, with its own memory, skills and tools.</p></div></li>
+            <li><span class="pt">c</span><div><strong>Lets you watch, then follow up</strong><p>A handoff window streams each brief, step and reply. The work stays in that bot's chat, so you can carry on with it directly.</p></div></li>
+          </ol>
+          <p class="note"><svg><use href="#i-calendar"/></svg>Ask the chief to make it a weekly job, and it schedules the handoff itself.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Crew -->
+  <section id="crew">
+    <div class="wrap">
+      <div class="head reveal">
+        <p class="kicker"><b>04</b>The crew</p>
+        <h2>A bot for every job. <span class="mute">None of them share a desk.</span></h2>
+        <p class="lede">Each bot keeps its own workspace, memory and skills, so the researcher's notes never end up in the inbox manager's files. The chief of staff decides who gets what.</p>
+      </div>
+      <div class="crew reveal">
+        <article class="badge" style="--c:#2a3cf0; --i:0">
+          <i class="strap"></i><i class="clasp"></i>
+          <div class="card">
+            <div class="card-top"></div><div class="card-av">S</div>
+            <div class="card-body">
+              <h3>Scout</h3><p class="role">Repository researcher</p>
+              <p class="job">Finds new projects, clones the promising ones and writes a sourced weekly report.</p>
+              <dl><dt>Tools</dt><dd>Web search, scraping, shell</dd><dt>Runs</dt><dd>Mondays 09:00</dd></dl>
+              <div class="card-id"><span>PK-001</span><i></i></div>
+            </div>
+          </div>
+        </article>
+        <article class="badge" style="--c:#d39a33; --i:1">
+          <i class="strap"></i><i class="clasp"></i>
+          <div class="card">
+            <div class="card-top"></div><div class="card-av">I</div>
+            <div class="card-body">
+              <h3>Inbox Manager</h3><p class="role">Email assistant</p>
+              <p class="job">Finds threads that need you, summarises them, drafts replies and finds time for the follow-up call.</p>
+              <dl><dt>Tools</dt><dd>Gmail, Calendar, Contacts</dd><dt>Runs</dt><dd>When the chief asks</dd></dl>
+              <div class="card-id"><span>PK-002</span><i></i></div>
+            </div>
+          </div>
+        </article>
+        <article class="badge" style="--c:#1f7a4d; --i:2">
+          <i class="strap"></i><i class="clasp"></i>
+          <div class="card">
+            <div class="card-top"></div><div class="card-av">T</div>
+            <div class="card-body">
+              <h3>Issue Triage</h3><p class="role">Maintainer's helper</p>
+              <p class="job">Reads new issues, tries to reproduce bugs in its sandbox and comments with what it found.</p>
+              <dl><dt>Tools</dt><dd>GitHub, shell</dd><dt>Runs</dt><dd>When you ask</dd></dl>
+              <div class="card-id"><span>PK-003</span><i></i></div>
+            </div>
+          </div>
+        </article>
+        <article class="badge" style="--c:#151515; --i:3">
+          <i class="strap"></i><i class="clasp"></i>
+          <div class="card">
+            <div class="card-top"></div><div class="card-av">L</div>
+            <div class="card-body">
+              <h3>Librarian</h3><p class="role">Knowledge keeper</p>
+              <p class="job">Finds and updates your team's Notion pages, and sends you a summary on Telegram.</p>
+              <dl><dt>Tools</dt><dd>Notion, Telegram</dd><dt>Runs</dt><dd>When the chief asks</dd></dl>
+              <div class="card-id"><span>PK-004</span><i></i></div>
+            </div>
+          </div>
+        </article>
+      </div>
+    </div>
+  </section>
+
   <!-- Features -->
   <section id="features">
     <div class="wrap">
       <div class="head reveal">
-        <p class="kicker"><b>03</b>Features</p>
+        <p class="kicker"><b>05</b>Features</p>
         <h2>Built for real work. <span class="mute">And built to be trusted with it.</span></h2>
         <p class="lede">Bots that remember, keep their own files, run on a schedule and never act behind your back.</p>
       </div>
@@ -922,72 +1067,11 @@ footer .brand img { width: 30px; height: 30px; border-radius: 8px; }
     </div>
   </section>
 
-  <!-- Crew -->
-  <section id="crew">
-    <div class="wrap">
-      <div class="head reveal">
-        <p class="kicker"><b>04</b>The crew</p>
-        <h2>A bot for every job. <span class="mute">None of them share a desk.</span></h2>
-        <p class="lede">Each bot keeps its own workspace, memory and skills, so the researcher's notes never end up in the inbox manager's files.</p>
-      </div>
-      <div class="crew reveal">
-        <article class="badge" style="--c:#2a3cf0; --i:0">
-          <i class="strap"></i><i class="clasp"></i>
-          <div class="card">
-            <div class="card-top"></div><div class="card-av">S</div>
-            <div class="card-body">
-              <h3>Scout</h3><p class="role">Repository researcher</p>
-              <p class="job">Finds new projects, clones the promising ones and writes a sourced weekly report.</p>
-              <dl><dt>Tools</dt><dd>Web search, scraping, shell</dd><dt>Runs</dt><dd>Mondays 09:00</dd></dl>
-              <div class="card-id"><span>PK-001</span><i></i></div>
-            </div>
-          </div>
-        </article>
-        <article class="badge" style="--c:#d39a33; --i:1">
-          <i class="strap"></i><i class="clasp"></i>
-          <div class="card">
-            <div class="card-top"></div><div class="card-av">I</div>
-            <div class="card-body">
-              <h3>Inbox Manager</h3><p class="role">Email assistant</p>
-              <p class="job">Finds threads that need you, summarises them and drafts replies for your approval.</p>
-              <dl><dt>Tools</dt><dd>Gmail</dd><dt>Runs</dt><dd>When you ask</dd></dl>
-              <div class="card-id"><span>PK-002</span><i></i></div>
-            </div>
-          </div>
-        </article>
-        <article class="badge" style="--c:#1f7a4d; --i:2">
-          <i class="strap"></i><i class="clasp"></i>
-          <div class="card">
-            <div class="card-top"></div><div class="card-av">T</div>
-            <div class="card-body">
-              <h3>Issue Triage</h3><p class="role">Maintainer's helper</p>
-              <p class="job">Reads new issues, tries to reproduce bugs in its sandbox and comments with what it found.</p>
-              <dl><dt>Tools</dt><dd>GitHub, shell</dd><dt>Runs</dt><dd>When you ask</dd></dl>
-              <div class="card-id"><span>PK-003</span><i></i></div>
-            </div>
-          </div>
-        </article>
-        <article class="badge" style="--c:#151515; --i:3">
-          <i class="strap"></i><i class="clasp"></i>
-          <div class="card">
-            <div class="card-top"></div><div class="card-av">L</div>
-            <div class="card-body">
-              <h3>Librarian</h3><p class="role">Knowledge keeper</p>
-              <p class="job">Finds and updates your team's Notion pages, and sends you a summary on Telegram.</p>
-              <dl><dt>Tools</dt><dd>Notion, Telegram</dd><dt>Runs</dt><dd>When you ask</dd></dl>
-              <div class="card-id"><span>PK-004</span><i></i></div>
-            </div>
-          </div>
-        </article>
-      </div>
-    </div>
-  </section>
-
   <!-- Plugins -->
   <section id="plugins">
     <div class="wrap">
       <div class="head reveal">
-        <p class="kicker"><b>05</b>Plugins</p>
+        <p class="kicker"><b>06</b>Plugins</p>
         <h2>Works with your tools. <span class="mute">Asks before it changes them.</span></h2>
         <p class="lede">Connect a tool once and all your bots can use it. Pick one to see exactly what bots can do with it.</p>
       </div>
@@ -1007,7 +1091,7 @@ footer .brand img { width: 30px; height: 30px; border-radius: 8px; }
   <section id="architecture">
     <div class="wrap">
       <div class="head reveal">
-        <p class="kicker"><b>06</b>Architecture</p>
+        <p class="kicker"><b>07</b>Architecture</p>
         <h2>Runs on your server. <span class="mute">Under your control.</span></h2>
         <p class="lede">Pekka is a Node.js app you run yourself. It calls the services you choose and keeps every credential on the server.</p>
       </div>
@@ -1021,7 +1105,7 @@ footer .brand img { width: 30px; height: 30px; border-radius: 8px; }
         <div class="node core">
           <h3><svg><use href="#i-cpu"/></svg>Pekka</h3>
           <p>The API and scheduler you run. They hold the keys.</p>
-          <div class="rows"><span>Agent loop</span><span>Permission gate</span><span>Scheduler</span><span>Encrypted plugin tokens</span></div>
+          <div class="rows"><span>Agent loop and delegation</span><span>Permission gate</span><span>Scheduler</span><span>Encrypted plugin tokens</span></div>
         </div>
         <div class="wire"><i></i><i></i></div>
         <div class="outs">
@@ -1031,7 +1115,7 @@ footer .brand img { width: 30px; height: 30px; border-radius: 8px; }
           <div class="node"><h3>Plugins</h3><p>GitHub, Google, Notion, Telegram, AgentMail</p></div>
         </div>
       </div>
-      <p class="arch-note reveal"><svg><use href="#i-lock"/></svg>Turn on Google sign-in to share one server with your team. Everyone gets their own bots, memory, schedules and plugin connections, and nobody can see anyone else's.</p>
+      <p class="note reveal"><svg><use href="#i-lock"/></svg>Turn on Google sign-in to share one server with your team. Everyone gets their own bots, memory, schedules and plugin connections, and nobody can see anyone else's.</p>
     </div>
   </section>
 
@@ -1039,7 +1123,7 @@ footer .brand img { width: 30px; height: 30px; border-radius: 8px; }
   <section id="waitlist">
     <div class="wrap start">
       <div class="reveal">
-        <p class="kicker"><b>07</b>Early access</p>
+        <p class="kicker"><b>08</b>Early access</p>
         <h2>Get early access. <span class="mute">Be first to sign off.</span></h2>
         <p class="free-sub">Pekka isn't open to everyone yet. Join the waitlist and we'll email you when your spot opens.</p>
         <ul class="perks">
@@ -1075,7 +1159,7 @@ footer .brand img { width: 30px; height: 30px; border-radius: 8px; }
   <section id="faq">
     <div class="wrap faq-grid">
       <aside class="reveal">
-        <p class="kicker"><b>08</b>FAQ</p>
+        <p class="kicker"><b>09</b>FAQ</p>
         <h2>Common questions</h2>
         <p>Something else? Ask in your <a href="#waitlist">waitlist note</a> and we'll answer when we write.</p>
       </aside>
@@ -1089,24 +1173,28 @@ footer .brand img { width: 30px; height: 30px; border-radius: 8px; }
           <p>Yes. Each named bot has its own persistent Daytona sandbox, plus its own memory and skills. Sandboxes stop after 15 idle minutes and start again on the next task with their files intact.</p>
         </details>
         <details>
-          <summary><span>03</span>What can a bot do without asking?</summary>
+          <summary><span>03</span>Can bots work together?</summary>
+          <p>Yes, through your chief of staff. It sends self-contained briefs to your other bots, runs several at once and brings their answers together. Each bot does the work in its own computer and keeps the brief and its answer in its chat, so you can follow up with it. Bots that receive a handoff can't pass it on.</p>
+        </details>
+        <details>
+          <summary><span>04</span>What can a bot do without asking?</summary>
           <p>Read: files, memory, skills, web searches, read-only plugin calls, and a short allowlist of shell commands such as <code>ls</code> and <code>cat</code>. Everything else, including other commands, file and memory writes, schedule changes and anything that sends or publishes, needs one-time approval of the exact arguments.</p>
         </details>
         <details>
-          <summary><span>04</span>Which models can I use?</summary>
+          <summary><span>05</span>Which models can I use?</summary>
           <p>Any OpenRouter model that supports tool calling. Set <code>PEKKA_MODEL</code> to pick one.</p>
         </details>
         <details>
-          <summary><span>05</span>Can my team share one server?</summary>
+          <summary><span>06</span>Can my team share one server?</summary>
           <p>Yes. Turn on Google sign-in and list the addresses or domains allowed in. Each person gets their own bots, memory, schedules and plugin connections.</p>
         </details>
         <details>
-          <summary><span>06</span>What does it cost?</summary>
+          <summary><span>07</span>What does it cost?</summary>
           <p>Pekka is free and open source. You pay OpenRouter for model usage, Daytona for sandboxes, and any optional providers you turn on.</p>
         </details>
         <details>
-          <summary><span>07</span>What can't it do yet?</summary>
-          <p>Bots can't drive a web browser or hand work to each other yet, and email is send-only for now. Scheduled tasks run while the <code>pekka scheduler</code> process is running.</p>
+          <summary><span>08</span>What can't it do yet?</summary>
+          <p>Bots can't drive a web browser yet, and email is send-only for now. Scheduled tasks run while the <code>pekka scheduler</code> process is running.</p>
         </details>
       </div>
     </div>
@@ -1460,6 +1548,86 @@ const runWatcher = new IntersectionObserver(([entry]) => {
   playRun();
 }, { threshold: 0.35 });
 runWatcher.observe(term);
+
+// The chief of staff hands one request to two bots, they work at the same time, and it reports back.
+// Without motion, the page shows the finished handoff instead.
+const hand = document.getElementById("hand");
+const handParts = [...hand.querySelectorAll(".hs")];
+const handState = document.getElementById("hand-state");
+const handPoints = document.getElementById("hand-points");
+const handReplay = document.getElementById("hand-replay");
+const lanes = [
+  { lane: handParts[2], pace: 1100, steps: ["gmail_search", "gmail_read_thread", "gmail_read_attachment", "calendar_find_free_time"] },
+  { lane: handParts[3], pace: 1500, steps: ["web_search", "web_scrape", "web_scrape"] },
+];
+
+function handPoint(index) {
+  [...handPoints.children].forEach((item, i) => item.classList.toggle("on", i === index));
+}
+
+function setHandState(text, live) {
+  handState.lastElementChild.textContent = text;
+  handState.classList.toggle("live", live);
+}
+
+async function work({ lane, pace, steps }) {
+  const status = lane.querySelector(".dl-status span");
+  for (const step of steps) {
+    await wait(pace);
+    status.textContent = `Using ${step}…`;
+  }
+  await wait(pace);
+  status.textContent = "Finished";
+  lane.classList.add("finished");
+}
+
+function resetHandoff() {
+  handReplay.hidden = true;
+  handParts.forEach((part) => part.classList.remove("on"));
+  for (const { lane } of lanes) {
+    lane.classList.remove("finished");
+    lane.querySelector(".dl-status span").textContent = "Starting…";
+  }
+  setHandState("waiting", false);
+}
+
+async function playHandoff() {
+  resetHandoff();
+  handPoints.classList.add("playing");
+  setHandState("thinking", true);
+  await wait(400);
+  handParts[0].classList.add("on");
+  await wait(900);
+  handPoint(0);
+  handParts[1].classList.add("on");
+  await wait(1000);
+  handPoint(1);
+  setHandState("2 bots working", true);
+  handParts[2].classList.add("on");
+  await wait(250);
+  handParts[3].classList.add("on");
+  await Promise.all(lanes.map(work));
+  setHandState("writing", true);
+  await wait(700);
+  handPoint(2);
+  handParts[4].classList.add("on");
+  setHandState("finished", false);
+  handReplay.hidden = false;
+  await wait(2400);
+  handPoints.classList.remove("playing");
+  handPoint(-1);
+}
+
+handReplay.addEventListener("click", playHandoff);
+if (!reduceMotion) {
+  resetHandoff();
+  const handWatcher = new IntersectionObserver(([entry]) => {
+    if (!entry.isIntersecting) return;
+    handWatcher.disconnect();
+    playHandoff();
+  }, { threshold: 0.4 });
+  handWatcher.observe(hand);
+}
 
 // Plugins: pick one to see its tools and what needs approval.
 const plugins = [
