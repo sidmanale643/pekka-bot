@@ -69,7 +69,7 @@ export function createEmailTools(
   const getEmailAddress = defineTool({
     name: "get_email_address",
     permission: { effect: "write", plugin: "agentmail" },
-    description: "Get this named bot's permanent email address. Creates one AgentMail inbox on first use, consuming an inbox slot. Reuses it across runs. Requires AGENTMAIL_API_KEY.",
+    description: "Get this named bot's own email address. The first call creates a permanent AgentMail inbox for the bot, using one inbox slot; later calls return the same address. This is the bot's mailbox, not the user's: use the gmail_* tools to act as the user. Mail sent to this address cannot be read. Needs a named bot and AGENTMAIL_API_KEY on the server.",
     input: z.object({}),
     async run(_input, { bot }) {
       return JSON.stringify(await inboxFor(bot));
@@ -79,11 +79,11 @@ export function createEmailTools(
   const sendEmail = defineTool({
     name: "send_email",
     permission: { effect: "write", plugin: "agentmail" },
-    description: "Send a plain-text email from this named bot's own mailbox. Use only when sending to these recipients is authorized by the user's task. Creates the mailbox on first use. A successful receipt means accepted for sending, not confirmed delivery. Never automatically retry an unknown submission outcome.",
+    description: "Send a plain-text email from this named bot's own mailbox, not the user's Gmail. Creates the mailbox on first use. Send only to recipients the user's task covers. Returns the sending address and message id; that means AgentMail accepted it, not that it was delivered. If the outcome is unknown, do not resend: check the AgentMail console first. Needs a named bot and AGENTMAIL_API_KEY on the server.",
     input: z.object({
-      to: z.array(z.email()).min(1).max(50).describe("Recipient email addresses."),
-      subject: z.string().trim().min(1).max(998).regex(/^[^\r\n]+$/),
-      body: z.string().min(1).max(100_000).describe("Plain-text email body."),
+      to: z.array(z.email()).min(1).max(50).describe("Recipient email addresses, up to 50."),
+      subject: z.string().trim().min(1).max(998).regex(/^[^\r\n]+$/).describe("Single-line subject."),
+      body: z.string().min(1).max(100_000).describe("Plain-text body, up to 100,000 characters."),
     }),
     async run({ to, subject, body }, { bot }) {
       const inbox = await inboxFor(bot);
