@@ -1,16 +1,19 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" class="no-js">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Pekka — Hand off the work, keep the final say</title>
-<meta name="description" content="Pekka is an open-source AI agent you can give real work to. Each bot gets its own cloud computer, memory and skills, works across GitHub, Gmail, Notion and Telegram, and asks before it changes anything.">
+<title>Pekka — It does the work. You sign off.</title>
+<meta name="description" content="Pekka is an open-source AI agent you can give real work to. Each bot gets its own cloud computer, memory and skills, works across GitHub, Gmail, Google Calendar, Drive, Notion and Telegram, and asks before it changes anything.">
+<meta name="theme-color" content="#080a11">
 <link rel="icon" href="favicon.png">
+<link rel="icon" type="image/svg+xml" href="head.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,500..900&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script>document.documentElement.className = "js";</script>
 <style>
-/* Same paper-and-cobalt palette as the Pekka web app. */
+/* Paper and cobalt from the Pekka web app, plus the night and eye-glow of the mascot. */
 :root {
   --paper: #efeee9;
   --paper-2: #e7e6e0;
@@ -27,153 +30,319 @@
   --ok-soft: #dcefe4;
   --warn: #8a5300;
   --warn-soft: #f6e8cf;
-  --term: #131313;
+  --night: #080a11;
+  --night-2: #11141e;
+  --night-rule: rgba(236, 235, 230, 0.12);
+  --moon: #ecebe6;
+  --moon-2: #a7abba;
+  --moon-3: #6e7591;
+  --glow: #3fd0ff;
+  --term: #0d0f15;
   --term-2: #8d8d86;
   --term-ink: #ecebe6;
 
+  --display: "Archivo", "Arial Narrow", ui-sans-serif, sans-serif;
   --sans: "Geist", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
   --mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
   --radius: 6px;
-  --wrap: 1160px;
+  --wrap: 1200px;
   --gutter: 32px;
+
+  /* Film grain: dark specks for paper, light specks for night. */
+  --noise-ink: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .5 -.2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  --noise-moon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .42 -.17'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  --noise-stamp: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1.25 1.5'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 
   color-scheme: light;
   font-family: var(--sans);
   font-size: 16px;
   line-height: 1.55;
   color: var(--ink);
-  background: var(--paper);
   -webkit-font-smoothing: antialiased;
   font-synthesis: none;
+  interpolate-size: allow-keywords;
+}
+@supports (transition-timing-function: linear(0, 1)) {
+  :root { --spring: linear(0, 0.009, 0.035 2.1%, 0.141, 0.281 6.7%, 0.723 12.9%, 0.938 16.7%, 1.017, 1.077, 1.121, 1.149 24.3%, 1.159, 1.163, 1.161, 1.154 29.9%, 1.129 32.8%, 1.051 39.6%, 1.017 43.1%, 0.991, 0.977 51%, 0.974 53.8%, 0.975 57.1%, 0.997 69.8%, 1.003 76.9%, 1); }
 }
 * { box-sizing: border-box; }
-body { margin: 0; background: var(--paper); overflow-x: hidden; }
+html { scroll-behavior: smooth; scroll-padding-top: 72px; }
+body { margin: 0; background: var(--noise-ink), var(--paper); overflow-x: clip; }
+main { overflow-x: clip; }
 h1, h2, h3, p { margin: 0; }
 a { color: inherit; text-decoration: none; }
 button { font: inherit; color: inherit; border: 0; background: none; padding: 0; cursor: pointer; }
-img { display: block; max-width: 100%; }
+img, svg { display: block; max-width: 100%; }
 code { font-family: var(--mono); font-size: 0.88em; }
-::selection { background: var(--accent-soft); }
+::selection { background: var(--accent); color: var(--sheet); }
 :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
+.dark :focus-visible { outline-color: var(--glow); }
 
 .wrap { width: 100%; max-width: calc(var(--wrap) + var(--gutter) * 2); margin: 0 auto; padding: 0 var(--gutter); }
-.label { font-family: var(--mono); font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--ink-3); }
-.label b { color: var(--accent); font-weight: 500; }
 .mute { color: var(--ink-3); }
+.dark { background: var(--noise-moon), var(--night); color: var(--moon); }
 
-/* Buttons */
+/* Buttons. A fill wipes in from the left on hover. */
 .btn {
-  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
-  height: 44px; padding: 0 18px; border-radius: var(--radius);
-  font-size: 15px; font-weight: 500; white-space: nowrap; border: 1px solid transparent;
-  transition: background 0.15s, border-color 0.15s, transform 0.15s;
+  position: relative; isolation: isolate; overflow: hidden;
+  display: inline-flex; align-items: center; justify-content: center; gap: 9px;
+  height: 48px; padding: 0 22px; border-radius: var(--radius); border: 1px solid transparent;
+  font-size: 15px; font-weight: 500; white-space: nowrap;
+  transition: color 0.35s var(--ease), border-color 0.35s, box-shadow 0.5s var(--ease), transform 0.2s;
 }
+.btn::before {
+  content: ""; position: absolute; inset: 0; z-index: -1; background: var(--wipe);
+  transform: scaleX(0); transform-origin: 100% 50%; transition: transform 0.55s var(--ease);
+}
+.btn:hover::before { transform: scaleX(1); transform-origin: 0 50%; }
 .btn:active { transform: translateY(1px); }
-.btn-sm { height: 36px; padding: 0 14px; font-size: 14px; }
-.btn-ink { background: var(--ink); color: var(--sheet); }
-.btn-ink:hover { background: #2b2b2b; }
-.btn-line { border-color: var(--rule-strong); background: var(--sheet); }
-.btn-line:hover { border-color: var(--ink-3); }
 .btn svg { width: 17px; height: 17px; }
-.btn .arrow { transition: transform 0.15s; }
-.btn:hover .arrow { transform: translateX(3px); }
+.btn .arrow { transition: transform 0.35s var(--ease); }
+.btn:hover .arrow { transform: translateX(4px); }
+.btn-sm { height: 38px; padding: 0 15px; font-size: 14px; }
+.btn-ink { background: var(--ink); color: var(--paper); --wipe: var(--accent); }
+.btn-line { border-color: var(--rule-strong); --wipe: var(--ink); }
+.btn-line:hover { color: var(--paper); border-color: var(--ink); }
+.btn-moon { background: var(--moon); color: var(--ink); --wipe: #fff; }
+.btn-moon:hover { box-shadow: 0 0 0 4px rgba(63, 208, 255, 0.16), 0 14px 44px -10px rgba(63, 208, 255, 0.55); }
+.btn-ghost { border-color: rgba(236, 235, 230, 0.24); color: var(--moon); --wipe: var(--moon); }
+.btn-ghost:hover { color: var(--ink); border-color: var(--moon); }
 
-/* Nav */
-.nav { position: sticky; top: 0; z-index: 20; background: rgba(239, 238, 233, 0.86); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border-bottom: 1px solid var(--rule); }
-.nav .wrap { display: flex; align-items: center; height: 60px; gap: 36px; }
-.brand { display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 17px; letter-spacing: -0.01em; }
-.brand img { width: 28px; height: 28px; border-radius: 7px; }
-.nav-links { display: flex; gap: 26px; font-size: 14px; color: var(--ink-2); }
-.nav-links a:hover { color: var(--ink); }
+/* Nav: light text over the night sections, ink over paper. */
+.nav { position: fixed; inset: 0 0 auto; z-index: 50; color: var(--ink); border-bottom: 1px solid transparent; transition: background 0.4s, color 0.4s, border-color 0.4s; }
+.nav.scrolled { background: rgba(239, 238, 233, 0.8); -webkit-backdrop-filter: blur(14px) saturate(1.3); backdrop-filter: blur(14px) saturate(1.3); border-color: var(--rule); }
+.nav.on-dark { color: var(--moon); }
+.nav.on-dark.scrolled { background: rgba(8, 10, 17, 0.7); border-color: var(--night-rule); }
+.nav .wrap { display: flex; align-items: center; height: 72px; gap: 40px; }
+.brand { display: flex; align-items: center; gap: 11px; font-family: var(--display); font-weight: 800; font-stretch: 80%; font-size: 23px; text-transform: uppercase; letter-spacing: 0.01em; }
+.brand img { width: 34px; height: 34px; border-radius: 9px; transition: transform 0.5s var(--spring); }
+.brand:hover img { transform: rotate(-8deg) scale(1.06); }
+.nav-links { display: flex; gap: 28px; font-size: 14px; }
+.nav-links a { position: relative; opacity: 0.68; transition: opacity 0.2s; }
+.nav-links a::after { content: ""; position: absolute; left: 0; right: 0; bottom: -4px; height: 1px; background: currentColor; transform: scaleX(0); transform-origin: 100% 50%; transition: transform 0.4s var(--ease); }
+.nav-links a:hover { opacity: 1; }
+.nav-links a:hover::after { transform: scaleX(1); transform-origin: 0 50%; }
 .nav-cta { margin-left: auto; display: flex; gap: 8px; }
+.nav .btn-line { --wipe: var(--ink); }
+.nav.on-dark .btn-line { border-color: rgba(236, 235, 230, 0.24); --wipe: var(--moon); }
+.nav.on-dark .btn-line:hover { color: var(--ink); border-color: var(--moon); }
+.nav.on-dark .btn-ink { background: var(--moon); color: var(--ink); --wipe: #fff; }
+.progress { position: absolute; left: 0; right: 0; bottom: -1px; height: 1px; background: var(--accent); transform: scaleX(0); transform-origin: 0 50%; }
+.nav.on-dark .progress { background: var(--glow); }
+@supports (animation-timeline: scroll()) {
+  .progress { animation: grow linear both; animation-timeline: scroll(root); }
+  @keyframes grow { to { transform: scaleX(1); } }
+}
 
 /* Hero */
-.hero { padding: 72px 0 96px; border-bottom: 1px solid var(--rule); }
-.hero .wrap { display: grid; grid-template-columns: 1.05fr 0.95fr; gap: 56px; align-items: center; }
-.hero .wrap > *, .run > *, .start > *, .faq-grid > *, .head > * { min-width: 0; }
-.hero h1 { margin-top: 24px; font-size: clamp(42px, 5.6vw, 72px); font-weight: 600; line-height: 1.02; letter-spacing: -0.045em; text-wrap: balance; }
-.eyebrow { display: inline-flex; align-items: center; gap: 8px; font-size: 13.5px; color: var(--ink-2); background: var(--sheet); border: 1px solid var(--rule); border-radius: 999px; padding: 5px 12px 5px 6px; }
-.eyebrow b { font-weight: 500; font-size: 12px; color: var(--sheet); background: var(--accent); border-radius: 999px; padding: 2px 8px; }
-.hero-sub { margin-top: 26px; max-width: 540px; font-size: 19px; color: var(--ink-2); }
-.hero-ctas { display: flex; gap: 10px; margin-top: 34px; flex-wrap: wrap; }
+.hero { position: relative; min-height: max(100svh, 760px); display: flex; flex-direction: column; padding-top: 72px; overflow: clip; }
+.hero::after { content: ""; position: absolute; inset: 0; pointer-events: none; background: radial-gradient(120% 80% at 70% 40%, transparent 40%, rgba(0, 0, 0, 0.55)); }
+.hero-main { flex: 1; display: flex; align-items: center; padding: 28px 0 26px; position: relative; z-index: 1; }
+.hero-grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: 24px; align-items: center; }
+.hero-copy { grid-column: 1 / 9; grid-row: 1; position: relative; z-index: 1; }
+.hl { font-family: var(--display); font-weight: 800; font-stretch: 62%; text-transform: uppercase; line-height: 0.84; letter-spacing: -0.005em; }
+.hl .big { display: block; font-size: clamp(64px, 11.4vw, 170px); }
+.hl .small { display: flex; align-items: center; gap: 0.26em; margin-top: 0.2em; font-size: clamp(34px, 5.6vw, 84px); font-weight: 700; color: var(--moon-3); }
+/* "Sign off." is stamped onto the headline in the knight's eye-glow. */
+.seal {
+  display: inline-block; padding: 0.1em 0.2em 0.02em; margin: 0.06em 0;
+  color: var(--glow); border: 0.065em solid currentColor; border-radius: 0.12em;
+  text-shadow: 0 0 0.4em rgba(63, 208, 255, 0.45); box-shadow: inset 0 0 0.45em rgba(63, 208, 255, 0.22);
+  -webkit-mask-image: var(--noise-stamp); mask-image: var(--noise-stamp); -webkit-mask-size: 140px; mask-size: 140px;
+  transform: rotate(-4deg);
+}
+.ln { display: block; overflow: hidden; padding: 0.07em 0 0.03em; margin: -0.07em 0 -0.03em; }
+.ln > span { display: inline-block; }
+.hero-sub { margin-top: 26px; max-width: 450px; font-size: 18px; color: var(--moon-2); }
+.hero-sub b { font-weight: 500; color: var(--moon); }
+.ctas { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 26px; }
 .cmd {
-  margin-top: 26px; display: inline-flex; align-items: center; gap: 12px; max-width: 100%;
-  font-family: var(--mono); font-size: 13.5px; color: var(--ink-2);
-  border: 1px dashed var(--rule-strong); border-radius: var(--radius); padding: 9px 10px 9px 14px;
+  margin-top: 18px; display: inline-flex; align-items: center; gap: 12px; max-width: 100%;
+  font-family: var(--mono); font-size: 13px; color: var(--moon-2);
+  border: 1px dashed rgba(236, 235, 230, 0.2); border-radius: var(--radius); padding: 8px 8px 8px 14px;
 }
 .cmd span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.cmd span::before { content: "$ "; color: var(--ink-3); }
-.cmd button { flex: none; font-family: var(--sans); font-size: 12px; padding: 4px 10px; border-radius: 4px; background: var(--paper-2); color: var(--ink-2); }
-.cmd button:hover { background: var(--sunk); color: var(--ink); }
+.cmd span::before { content: "$ "; color: var(--moon-3); }
+.cmd button { flex: none; font-family: var(--sans); font-size: 12px; padding: 4px 10px; border-radius: 4px; background: rgba(236, 235, 230, 0.08); color: var(--moon-2); transition: background 0.2s, color 0.2s; }
+.cmd button:hover { background: rgba(236, 235, 230, 0.16); color: var(--moon); }
 
-.stage { position: relative; aspect-ratio: 1 / 1; max-width: 520px; width: 100%; justify-self: end; }
-.stage-art {
-  position: absolute; inset: 6%; border-radius: 22%; overflow: hidden;
-  box-shadow: 0 30px 60px -20px rgba(42, 60, 240, 0.35), 0 0 0 1px rgba(0, 0, 0, 0.06);
-}
-.stage-art img { width: 100%; height: 100%; object-fit: cover; }
-.float {
-  position: absolute; background: var(--sheet); border: 1px solid var(--rule); border-radius: 10px;
-  box-shadow: 0 18px 40px -16px rgba(21, 21, 21, 0.28); font-size: 13.5px; padding: 12px 14px;
-  animation: bob 6s ease-in-out infinite;
-}
-.float-a { left: -6%; top: 10%; width: 250px; }
-.float-b { right: -4%; top: 46%; width: 230px; animation-delay: -2s; }
-.float-c { left: 2%; bottom: 4%; animation-delay: -4s; }
-@keyframes bob { 50% { transform: translateY(-8px); } }
-.float .top { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 500; color: var(--warn); }
-.float .top svg { width: 13px; height: 13px; }
-.float p { margin-top: 4px; }
-.float code { display: block; margin-top: 2px; color: var(--ink-3); font-size: 12px; }
-.float .acts { display: flex; gap: 6px; margin-top: 10px; }
-.float .acts span { font-size: 12px; padding: 4px 10px; border-radius: 4px; border: 1px solid var(--rule); color: var(--ink-2); }
-.float .acts span.yes { background: var(--ink); color: var(--sheet); border-color: var(--ink); }
-.float.ok .top { color: var(--ok); }
-.chip-row { display: flex; align-items: center; gap: 10px; }
-.chip-row .ic { width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent); }
-.chip-row .ic svg { width: 16px; height: 16px; }
-.chip-row strong { display: block; font-weight: 500; font-size: 13.5px; }
-.chip-row small { display: block; font-size: 12px; color: var(--ink-3); }
+/* The knight */
+.stage { grid-column: 7 / 13; grid-row: 1; position: relative; z-index: 2; padding-bottom: 22%; }
+.halo { position: absolute; left: 50%; top: 40%; width: 125%; aspect-ratio: 1; translate: -50% -50%; pointer-events: none;
+  background: radial-gradient(closest-side, rgba(63, 208, 255, 0.24), rgba(42, 60, 240, 0.13) 46%, transparent 74%); }
+.floor { position: absolute; left: 50%; top: 74%; width: 62%; height: 7%; translate: -50% 0; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(closest-side, rgba(63, 208, 255, 0.32), rgba(42, 60, 240, 0.1) 60%, transparent); animation: floor 6s ease-in-out infinite; }
+@keyframes floor { 50% { transform: scaleX(0.84); opacity: 0.7; } }
+.helm-tilt { position: relative; will-change: transform; }
+.helm { width: 100%; height: auto; overflow: visible; animation: bob 6s ease-in-out infinite; }
+@keyframes bob { 0%, 100% { transform: translateY(0) rotate(0); } 30% { transform: translateY(-14px) rotate(-1.2deg); } 70% { transform: translateY(-5px) rotate(0.8deg); } }
+.eye-core, .eye-bloom { transform-box: fill-box; transform-origin: 50% 50%; transition: transform 0.1s ease-in; }
+.eye-bloom { animation: breathe 3.6s ease-in-out infinite; }
+@keyframes breathe { 50% { opacity: 0.6; } }
+.blink .eye-core, .blink .eye-bloom { transform: scaleY(0.08); }
+.happy .eye-core, .happy .eye-bloom { transform: scaleY(0.42) translateY(-30%); transition-duration: 0.18s; }
+.spark { position: absolute; width: 22px; height: 22px; color: #fff; animation: twinkle 4.8s ease-in-out infinite; }
+.spark.s1 { left: 4%; top: 46%; animation-delay: -1.6s; }
+.spark.s2 { right: 3%; top: 54%; animation-delay: -3.4s; width: 16px; }
+.spark.s3 { right: 16%; top: 2%; animation-delay: -0.4s; width: 18px; }
+@keyframes twinkle { 0%, 72%, 100% { transform: scale(0) rotate(0); opacity: 0; } 82% { transform: scale(1.15) rotate(45deg); opacity: 1; } 92% { transform: scale(0) rotate(90deg); opacity: 0; } }
 
-/* Section scaffolding */
-section { padding: 120px 0; border-bottom: 1px solid var(--rule); }
-h2 { font-size: clamp(32px, 4vw, 48px); font-weight: 600; letter-spacing: -0.035em; line-height: 1.08; text-wrap: balance; }
-.head { max-width: 780px; margin-bottom: 56px; }
-.head .lede { margin-top: 18px; max-width: 620px; font-size: 18px; color: var(--ink-2); }
+/* The permission slip in front of the knight */
+.ask {
+  --c: var(--accent);
+  position: absolute; left: -3%; bottom: 3%; z-index: 3; width: 300px;
+  background: var(--sheet); color: var(--ink); border-radius: 10px; padding: 14px 16px 15px;
+  box-shadow: 0 40px 70px -28px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(255, 255, 255, 0.08);
+  transform: rotate(-1.5deg);
+}
+.ask-top { display: flex; align-items: center; gap: 8px; font-size: 13.5px; }
+.ask-av { width: 22px; height: 22px; border-radius: 6px; display: grid; place-items: center; background: var(--c); color: #fff; font-size: 12px; font-weight: 600; transition: background 0.3s; }
+.ask-top b { font-weight: 600; }
+.ask-top em { margin-left: auto; white-space: nowrap; font-style: normal; font-size: 11.5px; font-weight: 500; color: var(--warn); background: var(--warn-soft); border-radius: 999px; padding: 2px 8px; }
+.ask-what { margin-top: 10px; font-size: 13.5px; color: var(--ink-2); }
+.ask-what code { color: var(--ink); font-weight: 500; }
+.ask-arg { margin-top: 2px; font-family: var(--mono); font-size: 12px; color: var(--ink-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ask-acts { display: flex; gap: 6px; margin-top: 12px; }
+.ask-acts span { font-size: 12.5px; padding: 5px 11px; border-radius: 5px; border: 1px solid var(--rule); color: var(--ink-2); }
+.ask-acts .yes { position: relative; background: var(--ink); color: var(--sheet); border-color: var(--ink); transition: background 0.15s, transform 0.15s; }
+.ptr { position: absolute; left: 62%; top: 52%; width: 20px; height: 20px; opacity: 0; pointer-events: none; transform: translate(70px, 56px); filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.4)); transition: transform 0.75s var(--ease), opacity 0.3s; }
+.stamp {
+  position: absolute; right: 14px; top: 38px; pointer-events: none;
+  font-family: var(--display); font-weight: 800; font-stretch: 78%; font-size: 21px; line-height: 1; letter-spacing: 0.05em; text-transform: uppercase;
+  color: var(--accent); border: 2.5px solid currentColor; border-radius: 6px; padding: 5px 9px 3px;
+  -webkit-mask-image: var(--noise-stamp); mask-image: var(--noise-stamp);
+  opacity: 0; transform: rotate(-11deg);
+}
+.js .ask { opacity: 0; transform: translateY(22px) rotate(-1.5deg) scale(0.97); transition: opacity 0.5s var(--ease), transform 0.8s var(--ease); }
+.js .ask.enter { opacity: 1; transform: rotate(-1.5deg); }
+.js .ask.leave { opacity: 0; transform: translate(-36px, 6px) rotate(-5deg); transition-duration: 0.45s; }
+.ask.aim .ptr { opacity: 1; transform: none; }
+.ask.press .ptr { transform: scale(0.85); transition-duration: 0.12s; }
+.ask.press .yes { background: var(--accent); border-color: var(--accent); transform: scale(0.96); }
+.ask.stamped .stamp { animation: slam 0.38s cubic-bezier(0.5, 0, 0.75, 0) forwards; }
+.ask.stamped { animation: thud 0.32s 0.3s; }
+.ask.stamped .ptr { opacity: 0; transition-delay: 0.3s; }
+@keyframes slam { 0% { opacity: 0; transform: rotate(-17deg) scale(2); } 75% { opacity: 1; transform: rotate(-10deg) scale(0.95); } 100% { opacity: 0.94; transform: rotate(-11deg) scale(1); } }
+@keyframes thud { 40% { translate: 0 3px; } }
+.ask-log { position: absolute; left: -3%; bottom: -15%; width: 300px; list-style: none; margin: 0; padding: 0; font-family: var(--mono); font-size: 11.5px; color: var(--moon-3); }
+.ask-log li { display: flex; align-items: center; gap: 8px; padding: 3px 0; animation: logIn 0.6s var(--ease); white-space: nowrap; }
+.ask-log li:nth-child(2) { opacity: 0.6; }
+.ask-log li:nth-child(3) { opacity: 0.3; }
+.ask-log b { color: var(--glow); font-weight: 400; }
+.ask-log code { color: var(--moon-2); font-size: 11.5px; }
+.ask-log em { margin-left: auto; font-style: normal; }
+@keyframes logIn { from { opacity: 0; transform: translateY(-8px); } }
+
+/* Hero footer: stack line and a ticker of what bots are doing. */
+.hero-foot { position: relative; z-index: 1; display: flex; justify-content: space-between; align-items: center; gap: 20px; padding-bottom: 20px; font-family: var(--mono); font-size: 11.5px; letter-spacing: 0.06em; text-transform: uppercase; color: var(--moon-3); }
+.scroll-cue { display: flex; align-items: center; gap: 10px; }
+.scroll-cue i { position: relative; width: 1px; height: 28px; background: rgba(236, 235, 230, 0.15); overflow: hidden; }
+.scroll-cue i::after { content: ""; position: absolute; inset: 0; background: var(--glow); animation: drip 2s var(--ease) infinite; }
+@keyframes drip { 0% { transform: translateY(-100%); } 60%, 100% { transform: translateY(100%); } }
+.tape { position: relative; z-index: 1; background: var(--accent); color: #eef0ff; overflow: hidden; }
+.tape-track { display: flex; width: max-content; }
+.js .tape-track { animation: tape 70s linear infinite; }
+.tape:hover .tape-track { animation-play-state: paused; }
+.tape-track > span { display: flex; align-items: center; gap: 10px; padding: 14px 0; font-family: var(--mono); font-size: 12.5px; white-space: nowrap; }
+.tape-track > span::after { content: ""; width: 5px; height: 5px; margin: 0 30px 0 22px; background: currentColor; opacity: 0.45; transform: rotate(45deg); }
+.tape-track b { font-weight: 500; }
+.tape-track em { font-style: normal; opacity: 0.62; }
+@keyframes tape { to { transform: translateX(-50%); } }
+
+/* Hero entrance, started once the display face has loaded. */
+.js .hero .ln > span { transform: translateY(110%); }
+.go .hero .ln > span { animation: rise 1.15s var(--ease) both; animation-delay: calc(var(--d) * 1ms); }
+@keyframes rise { from { transform: translateY(110%); font-stretch: 92%; } to { transform: none; font-stretch: 62%; } }
+.js .hero .fade { opacity: 0; }
+.go .hero .fade { animation: fadeUp 1s var(--ease) both; animation-delay: calc(var(--d) * 1ms); }
+@keyframes fadeUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+.js .hero .helm-wake, .js .hero .eyes { opacity: 0; }
+.go .hero .helm-wake { animation: wake 1.6s var(--ease) 0.25s both; }
+@keyframes wake { from { opacity: 0; transform: translateY(40px) scale(0.94); filter: blur(8px); } to { opacity: 1; transform: none; filter: none; } }
+.go .hero .eyes { animation: boot 1.1s linear 1.05s both; }
+@keyframes boot { 0% { opacity: 0; } 8% { opacity: 0.9; } 12% { opacity: 0.05; } 24% { opacity: 1; } 28% { opacity: 0.2; } 42%, 100% { opacity: 1; } }
+.js .hero .seal { opacity: 0; }
+.go .hero .seal { animation: seal 0.42s cubic-bezier(0.5, 0, 0.75, 0) 1.2s both; }
+.go .hero .hl { animation: thud 0.34s 1.58s; }
+@keyframes seal { 0% { opacity: 0; transform: rotate(-14deg) scale(2.4); } 72% { opacity: 1; transform: rotate(-3deg) scale(0.94); } 100% { opacity: 1; transform: rotate(-4deg); } }
+.js .hero .halo { opacity: 0; }
+.go .hero .halo { animation: lightUp 2s var(--ease) 1.3s both; }
+@keyframes lightUp { from { opacity: 0; transform: scale(0.7); } to { opacity: 1; transform: none; } }
+
+/* Sections */
+section { position: relative; padding: 150px 0; }
+section + section { border-top: 1px solid var(--rule); }
+.head { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(0, 1fr); gap: 24px 64px; align-items: end; margin-bottom: 72px; }
+.kicker { grid-column: 1 / -1; display: flex; align-items: center; gap: 12px; font-family: var(--mono); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); margin-bottom: 14px; }
+.kicker b { font-weight: 500; color: var(--accent); }
+.kicker::after { content: ""; flex: 1; height: 1px; background: var(--rule-strong); transform-origin: 0 50%; transition: transform 1.6s var(--ease) 0.15s; }
+.js .reveal:not(.in) .kicker::after { transform: scaleX(0); }
+h2 { font-family: var(--display); font-weight: 750; font-stretch: 68%; font-size: clamp(44px, 6.2vw, 92px); line-height: 0.92; letter-spacing: -0.008em; text-wrap: balance; }
+h2 .mute { display: block; }
+.lede { font-size: 18px; color: var(--ink-2); max-width: 460px; }
+.w { display: inline-block; overflow: hidden; vertical-align: top; padding: 0.06em 0 0.08em; margin: -0.06em 0 -0.08em; }
+.w > span { display: inline-block; transition: transform 1s var(--ease); transition-delay: calc(var(--i) * 45ms + 60ms); }
+.js .reveal:not(.in) .w > span { transform: translateY(105%); }
+.js .reveal { opacity: 0; transform: translateY(28px); transition: opacity 0.9s var(--ease), transform 1.1s var(--ease); }
+.js .reveal.in { opacity: 1; transform: none; }
+.js .head.reveal { transform: none; }
 
 /* Run replay */
-.run { display: grid; grid-template-columns: 0.8fr 1.2fr; gap: 56px; align-items: start; }
-.points { list-style: none; padding: 0; margin: 0; border-top: 1px solid var(--rule); }
-.points li { padding: 20px 0; border-bottom: 1px solid var(--rule); display: grid; grid-template-columns: 36px 1fr; }
-.points li span { font-family: var(--mono); font-size: 12px; color: var(--accent); padding-top: 3px; }
-.points strong { display: block; font-weight: 500; font-size: 17px; }
+.run { display: grid; grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr); gap: 64px; align-items: start; }
+.points { list-style: none; padding: 0; margin: 0; }
+.points li { position: relative; display: grid; grid-template-columns: 44px 1fr; padding: 24px 0; border-top: 1px solid var(--rule); transition: opacity 0.5s; }
+.points li:last-child { border-bottom: 1px solid var(--rule); }
+.points li::before { content: ""; position: absolute; left: 0; right: 0; top: -1px; height: 2px; background: var(--accent); transform: scaleX(0); transform-origin: 0 50%; transition: transform 1s var(--ease); }
+.points li.on::before { transform: scaleX(1); }
+.points.playing li:not(.on) { opacity: 0.38; }
+.points .pt { font-family: var(--mono); font-size: 12px; color: var(--accent); padding-top: 4px; }
+.points strong { display: block; font-weight: 600; font-size: 18px; letter-spacing: -0.01em; }
 .points p { color: var(--ink-2); font-size: 15px; margin-top: 4px; }
-.term-win { background: var(--term); border-radius: 10px; overflow: hidden; box-shadow: 0 30px 60px -30px rgba(0, 0, 0, 0.5); }
-.term-bar { display: flex; align-items: center; gap: 7px; padding: 12px 14px; border-bottom: 1px solid #262626; }
-.term-bar i { width: 10px; height: 10px; border-radius: 50%; background: #3a3a3a; }
-.term-bar small { margin-left: 10px; font-family: var(--mono); font-size: 12px; color: var(--term-2); }
-.term-body { font-family: var(--mono); font-size: 13px; line-height: 1.7; color: var(--term-ink); padding: 18px 20px; height: 470px; overflow: hidden; white-space: pre-wrap; word-break: break-word; display: flex; flex-direction: column; justify-content: flex-end; }
+.term-win { position: relative; background: var(--term); border-radius: 12px; overflow: hidden; box-shadow: 0 60px 100px -50px rgba(8, 10, 17, 0.7), 0 0 0 1px rgba(0, 0, 0, 0.5); }
+.term-win::before { content: ""; position: absolute; left: 10%; right: 10%; top: 0; height: 1px; background: linear-gradient(90deg, transparent, rgba(63, 208, 255, 0.55), transparent); }
+.term-bar { display: flex; align-items: center; gap: 7px; padding: 12px 16px; border-bottom: 1px solid #1c1f28; font-family: var(--mono); font-size: 12px; color: var(--term-2); }
+.term-bar > i { width: 9px; height: 9px; border-radius: 50%; background: #2a2d36; }
+.term-bar small { margin-left: 8px; font-size: 12px; }
+.term-state { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+.term-state i { width: 6px; height: 6px; border-radius: 50%; background: #3a3d46; }
+.term-state.live i { background: var(--glow); box-shadow: 0 0 10px var(--glow); animation: breathe 1s ease-in-out infinite; }
+.term-btn { font-family: var(--sans); font-size: 12px; color: var(--term-2); padding: 4px 10px; border-radius: 4px; background: #1d2029; transition: color 0.2s, background 0.2s; }
+.term-btn:hover { color: var(--term-ink); background: #262a35; }
+.term-body { font-family: var(--mono); font-size: 13px; line-height: 1.7; color: var(--term-ink); padding: 18px 20px; height: 480px; overflow: hidden; white-space: pre-wrap; word-break: break-word; display: flex; flex-direction: column; justify-content: flex-end; }
+.term-body > div { animation: lineIn 0.35s var(--ease); }
+@keyframes lineIn { from { opacity: 0; transform: translateY(6px); } }
 .term-body .d { color: var(--term-2); }
 .term-body .p { color: #8fa0ff; }
 .term-body .t { color: #7cc4ff; }
 .term-body .w { color: #f2c46d; }
 .term-body .g { color: #7fd6a4; }
-.term-body .cur::after { content: ""; display: inline-block; width: 8px; height: 15px; vertical-align: -2px; background: var(--term-ink); animation: blink 1s steps(2) infinite; }
+.cur::after { content: ""; display: inline-block; width: 8px; height: 15px; vertical-align: -2px; background: var(--term-ink); animation: blink 1s steps(2) infinite; }
 @keyframes blink { 50% { opacity: 0; } }
 
 /* How it works */
-.steps { display: grid; grid-template-columns: repeat(3, 1fr); border: 1px solid var(--rule); border-radius: 10px; background: var(--sheet); overflow: hidden; }
-.step { padding: 32px 30px 30px; border-right: 1px solid var(--rule); display: flex; flex-direction: column; min-height: 400px; }
-.step:last-child { border-right: 0; }
-.step .n { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; background: var(--accent); color: var(--sheet); font-size: 14px; font-weight: 600; }
-.step h3 { margin-top: 18px; font-size: 21px; font-weight: 600; letter-spacing: -0.02em; }
-.step p { margin-top: 8px; color: var(--ink-2); font-size: 15px; }
-.step .vis { margin-top: auto; padding-top: 28px; }
-.field { border: 1px solid var(--rule); border-radius: var(--radius); background: var(--paper); padding: 8px 12px; margin-top: 8px; font-size: 13.5px; }
-.field small { display: block; font-size: 11px; color: var(--ink-3); font-family: var(--mono); text-transform: uppercase; letter-spacing: 0.05em; }
-.bubble { background: var(--paper-2); border-radius: 12px 12px 4px 12px; padding: 10px 14px; font-size: 13.5px; margin-left: 18%; }
+.steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-top: 1px solid var(--ink); }
+.step { display: flex; flex-direction: column; padding: 34px 34px 6px; border-left: 1px solid var(--rule); }
+.step:first-child { padding-left: 0; border-left: 0; }
+.step:last-child { padding-right: 0; }
+.step .n {
+  font-family: var(--display); font-weight: 800; font-stretch: 62%; font-size: 156px; line-height: 0.78; letter-spacing: -0.01em;
+  color: transparent; -webkit-text-stroke: 1.5px var(--accent);
+  background: linear-gradient(var(--accent), var(--accent)) 0 100% / 100% 100% no-repeat; -webkit-background-clip: text; background-clip: text;
+  transition: background-size 1.4s var(--ease); transition-delay: calc(var(--i) * 220ms + 300ms);
+}
+.js .steps:not(.in) .n { background-size: 100% 0; }
+.step h3 { margin-top: 28px; font-size: 22px; font-weight: 600; letter-spacing: -0.02em; }
+.step p { margin-top: 8px; color: var(--ink-2); font-size: 15px; max-width: 320px; }
+.step .vis { margin-top: auto; padding-top: 32px; }
+.field { border: 1px solid var(--rule); border-radius: var(--radius); background: var(--sheet); padding: 8px 12px; margin-top: 8px; font-size: 13.5px; transition: clip-path 0.9s var(--ease), opacity 0.4s; transition-delay: calc(var(--t) * 1ms); }
+.field small { display: block; font-size: 10.5px; color: var(--ink-3); font-family: var(--mono); text-transform: uppercase; letter-spacing: 0.06em; }
+.js .steps:not(.in) .field { clip-path: inset(0 100% 0 0); opacity: 0; }
+.bubble { background: var(--ink); color: var(--paper); border-radius: 14px 14px 4px 14px; padding: 10px 14px; font-size: 13.5px; margin-left: 16%; transform-origin: 100% 100%; transition: transform 0.9s var(--spring) 0.9s, opacity 0.3s 0.9s; }
+.js .steps:not(.in) .bubble { transform: scale(0.6); opacity: 0; }
 .input { margin-top: 10px; display: flex; justify-content: space-between; align-items: center; border: 1px solid var(--rule-strong); border-radius: var(--radius); padding: 8px 8px 8px 12px; font-size: 13.5px; color: var(--ink-3); background: var(--sheet); }
-.input i { width: 26px; height: 26px; border-radius: 4px; background: var(--ink); display: grid; place-items: center; color: var(--sheet); }
+.input i { width: 26px; height: 26px; border-radius: 4px; background: var(--accent); display: grid; place-items: center; color: var(--sheet); }
 .input i svg { width: 13px; height: 13px; }
 .approval { border: 1px solid #e3c99a; background: var(--warn-soft); border-radius: 8px; padding: 12px 14px; font-size: 13.5px; }
 .approval .top { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 500; color: var(--warn); }
@@ -182,88 +351,110 @@ h2 { font-size: clamp(32px, 4vw, 48px); font-weight: 600; letter-spacing: -0.035
 .approval .acts { display: flex; gap: 6px; margin-top: 10px; }
 .approval .acts span { font-size: 12px; padding: 4px 10px; border-radius: 4px; border: 1px solid #d9c49c; color: var(--ink-2); background: var(--sheet); }
 .approval .acts span.yes { background: var(--ink); color: var(--sheet); border-color: var(--ink); }
-.done { margin-top: 8px; display: flex; gap: 8px; align-items: center; font-size: 13.5px; color: var(--ok); background: var(--ok-soft); border-radius: 8px; padding: 10px 12px; }
+.step .approval { transition: transform 0.9s var(--ease) 1s, opacity 0.5s 1s; }
+.js .steps:not(.in) .step .approval { transform: translateY(14px); opacity: 0; }
+.done { margin-top: 8px; display: flex; gap: 8px; align-items: center; font-size: 13.5px; color: var(--ok); background: var(--ok-soft); border-radius: 8px; padding: 10px 12px; transition: transform 0.9s var(--spring) 1.7s, opacity 0.4s 1.7s; }
 .done svg { width: 15px; height: 15px; flex: none; }
+.js .steps:not(.in) .done { transform: scale(0.9); opacity: 0; }
 
 /* Feature sheet */
-.sheet { display: grid; grid-template-columns: repeat(3, 1fr); border-top: 1px solid var(--ink); }
-.cell { padding: 30px 28px 34px; border-bottom: 1px solid var(--rule); border-left: 1px solid var(--rule); display: flex; flex-direction: column; gap: 10px; }
-.cell:nth-child(3n + 1) { padding-left: 0; border-left: 0; }
-.cell:nth-child(3n) { padding-right: 0; }
+.sheet { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-top: 1px solid var(--ink); }
+.cell { position: relative; padding: 30px 28px 34px; border-bottom: 1px solid var(--rule); border-left: 1px solid var(--rule); display: flex; flex-direction: column; gap: 10px; transition: background 0.4s; }
+.cell:nth-child(3n + 1) { border-left: 0; }
+.cell::before { content: attr(data-n); font-family: var(--mono); font-size: 11.5px; color: var(--ink-3); }
+.cell:hover { background: rgba(248, 248, 245, 0.7); }
 .cell h3 { font-size: 20px; font-weight: 600; letter-spacing: -0.02em; }
 .cell p { color: var(--ink-2); font-size: 15px; }
-.cell .vis { margin-top: 14px; }
-.mini-term { font-family: var(--mono); font-size: 12px; line-height: 1.7; background: var(--term); color: var(--term-ink); border-radius: 8px; padding: 12px 14px; }
-.mini-term .d { color: var(--term-2); }
+.cell .vis { margin-top: auto; padding-top: 16px; transition: transform 0.5s var(--ease); }
+.cell:hover .vis { transform: translateY(-4px); }
+.mini-term { font-family: var(--mono); font-size: 12px; line-height: 1.75; background: var(--term); color: var(--term-ink); border-radius: 8px; padding: 12px 14px; }
+.cell .mini-term { padding-top: 12px; }
+.mini-term span { display: block; transition: opacity 0.3s; transition-delay: calc(var(--k) * 350ms + 400ms); }
+.js .sheet:not(.in) .mini-term span { opacity: 0; }
+.mini-term b { font-weight: 400; color: var(--term-2); }
 .mini-term .g { color: #7fd6a4; }
+.cell .approval .yes { animation: nudge 2.6s ease-out infinite; }
+@keyframes nudge { 0% { box-shadow: 0 0 0 0 rgba(42, 60, 240, 0.5); } 55%, 100% { box-shadow: 0 0 0 8px rgba(42, 60, 240, 0); } }
 .doc { border: 1px solid var(--rule); border-radius: 8px; background: var(--sheet); overflow: hidden; font-size: 13px; }
 .doc-tabs { display: flex; border-bottom: 1px solid var(--rule); font-family: var(--mono); font-size: 11.5px; }
 .doc-tabs span { padding: 7px 12px; color: var(--ink-3); }
 .doc-tabs span.on { color: var(--ink); box-shadow: inset 0 -2px 0 var(--accent); }
 .doc ul { margin: 0; padding: 10px 14px 12px 28px; color: var(--ink-2); }
 .doc li + li { margin-top: 3px; }
-.doc li.new { color: var(--ink); background: var(--accent-soft); margin-left: -6px; padding-left: 6px; border-radius: 3px; }
+.doc li.new { color: var(--ink); margin-left: -6px; padding-left: 6px; border-radius: 3px; background: linear-gradient(var(--accent-soft), var(--accent-soft)) 0 0 / 100% 100% no-repeat; transition: background-size 1s var(--ease) 0.9s; }
+.js .sheet:not(.in) .doc li.new { background-size: 0 100%; }
 .tl { display: grid; gap: 6px; }
 .tl div { display: grid; grid-template-columns: 52px 1fr auto; gap: 10px; align-items: center; font-size: 13px; padding: 8px 10px; border: 1px solid var(--rule); border-radius: 6px; background: var(--sheet); }
 .tl b { font-family: var(--mono); font-weight: 500; font-size: 12px; color: var(--ink-3); }
-.tl em { font-style: normal; font-size: 11.5px; color: var(--ok); }
+.tl em { display: flex; align-items: center; gap: 6px; font-style: normal; font-size: 11.5px; color: var(--ok); }
+.tl em::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.tl em:not(.off)::before { animation: okPing 2s ease-out infinite; }
+@keyframes okPing { 0% { box-shadow: 0 0 0 0 rgba(31, 122, 77, 0.5); } 70%, 100% { box-shadow: 0 0 0 6px rgba(31, 122, 77, 0); } }
 .tl em.off { color: var(--ink-3); }
 .tags { display: flex; flex-wrap: wrap; gap: 6px; }
-.tags span { font-family: var(--mono); font-size: 12px; padding: 4px 9px; border-radius: 4px; border: 1px solid var(--rule); background: var(--sheet); color: var(--ink-2); }
-.tags span.on { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+.tags span { font-family: var(--mono); font-size: 12px; padding: 4px 9px; border-radius: 4px; border: 1px solid var(--rule); background: var(--sheet); color: var(--ink-2); animation: load 7.2s infinite; animation-delay: calc(var(--i) * 1.2s); }
+@keyframes load { 0%, 34%, 100% { border-color: var(--rule); color: var(--ink-2); background: var(--sheet); } 4%, 28% { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); } }
 .voices { display: grid; gap: 6px; }
-.voices div { display: flex; align-items: center; gap: 10px; font-size: 13px; padding: 8px 10px; border: 1px solid var(--rule); border-radius: 6px; background: var(--sheet); }
-.voices div.on { border-color: var(--ink); }
-.voices i { width: 12px; height: 12px; border-radius: 50%; border: 1.5px solid var(--rule-strong); flex: none; }
-.voices div.on i { border: 4px solid var(--ink); }
+.voices div { display: flex; align-items: center; gap: 10px; font-size: 13px; padding: 8px 10px; border: 1px solid var(--rule); border-radius: 6px; background: var(--sheet); animation: pick 9s infinite; animation-delay: calc(var(--i) * 3s - 1s); }
+.voices i { width: 12px; height: 12px; border-radius: 50%; border: 1.5px solid var(--rule-strong); flex: none; animation: radio 9s infinite; animation-delay: inherit; }
 .voices span { color: var(--ink-3); }
+@keyframes pick { 0%, 36%, 100% { border-color: var(--rule); } 3%, 33% { border-color: var(--ink); } }
+@keyframes radio { 0%, 36%, 100% { border: 1.5px solid var(--rule-strong); } 3%, 33% { border: 4px solid var(--ink); } }
 
-/* Crew */
-.crew { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; }
-.badge {
-  background: var(--sheet); border: 1px solid var(--rule); border-radius: 12px; overflow: hidden;
-  display: flex; flex-direction: column; transition: transform 0.2s, box-shadow 0.2s;
-}
-.badge:hover { transform: translateY(-4px) rotate(-0.4deg); box-shadow: 0 24px 40px -24px rgba(21, 21, 21, 0.35); }
-.badge-top { height: 64px; position: relative; background: var(--c); }
-.badge-top::after { content: ""; position: absolute; left: 50%; top: 12px; width: 44px; height: 7px; margin-left: -22px; border-radius: 4px; background: rgba(255, 255, 255, 0.55); }
-.badge-av { width: 56px; height: 56px; border-radius: 14px; margin: -28px 0 0 20px; position: relative; background: var(--sheet); border: 1px solid var(--rule); display: grid; place-items: center; font-size: 24px; font-weight: 600; color: var(--ink); }
-.badge-body { padding: 14px 20px 20px; display: flex; flex-direction: column; gap: 4px; flex: 1; }
-.badge h3 { font-size: 19px; font-weight: 600; letter-spacing: -0.02em; }
-.badge .role { font-size: 13.5px; color: var(--ink-3); }
-.badge .job { margin-top: 10px; font-size: 14px; color: var(--ink-2); }
-.badge dl { margin: auto 0 0; padding-top: 16px; display: grid; grid-template-columns: auto 1fr; gap: 7px 12px; font-size: 12.5px; }
-.badge dt { font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-3); padding-top: 1px; }
-.badge dd { margin: 0; color: var(--ink); }
+/* Crew: ID badges hanging from lanyards. */
+.crew { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 22px; }
+.badge { --c: var(--accent); position: relative; padding-top: 74px; transform-origin: 50% 0; display: flex; transition: transform 1.3s var(--spring), opacity 0.5s; transition-delay: calc(var(--i) * 120ms); }
+.js .crew:not(.in) .badge { transform: translateY(-70px) rotate(-5deg); opacity: 0; }
+.badge:hover { animation: swing 1.8s ease-in-out; }
+@keyframes swing { 15% { transform: rotate(4deg); } 35% { transform: rotate(-3deg); } 55% { transform: rotate(1.6deg); } 75% { transform: rotate(-0.7deg); } }
+.strap { position: absolute; top: 0; left: 50%; width: 18px; height: 82px; margin-left: -9px; border-radius: 2px;
+  background: repeating-linear-gradient(180deg, var(--c) 0 7px, color-mix(in srgb, var(--c) 78%, #000) 7px 8px);
+  -webkit-mask-image: linear-gradient(transparent, #000 55%); mask-image: linear-gradient(transparent, #000 55%); }
+.clasp { position: absolute; top: 62px; left: 50%; width: 30px; height: 20px; margin-left: -15px; border-radius: 5px; z-index: 1;
+  background: linear-gradient(#e6e8ee, #9ea3b5); box-shadow: inset 0 1px 0 #fff, 0 3px 6px rgba(0, 0, 0, 0.22); }
+.card { flex: 1; display: flex; flex-direction: column; background: var(--sheet); border: 1px solid var(--rule); border-radius: 14px; overflow: hidden; box-shadow: 0 30px 50px -36px rgba(21, 21, 21, 0.5); }
+.card-top { height: 70px; position: relative; background: var(--c); }
+.card-top::after { content: ""; position: absolute; left: 50%; top: 14px; width: 46px; height: 8px; margin-left: -23px; border-radius: 4px; background: rgba(0, 0, 0, 0.28); box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.3); }
+.card-av { width: 60px; height: 60px; border-radius: 14px; margin: -30px 0 0 20px; position: relative; background: var(--sheet); border: 1px solid var(--rule); display: grid; place-items: center; font-family: var(--display); font-size: 34px; font-weight: 800; font-stretch: 70%; color: var(--c); }
+.card-body { padding: 14px 20px 18px; display: flex; flex-direction: column; gap: 4px; flex: 1; }
+.card h3 { font-size: 19px; font-weight: 600; letter-spacing: -0.02em; }
+.card .role { font-size: 13.5px; color: var(--ink-3); }
+.card .job { margin-top: 10px; font-size: 14px; color: var(--ink-2); }
+.card dl { margin: auto 0 0; padding-top: 16px; display: grid; grid-template-columns: auto 1fr; gap: 7px 12px; font-size: 12.5px; }
+.card dt { font-family: var(--mono); font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--ink-3); padding-top: 1px; }
+.card dd { margin: 0; color: var(--ink); }
+.card-id { display: flex; justify-content: space-between; align-items: center; margin-top: 16px; padding-top: 12px; border-top: 1px dashed var(--rule); font-family: var(--mono); font-size: 11px; color: var(--ink-3); }
+.card-id i { width: 70px; height: 16px; background: repeating-linear-gradient(90deg, var(--ink) 0 1px, transparent 1px 3px, var(--ink) 3px 5px, transparent 5px 6px, var(--ink) 6px 7px, transparent 7px 10px); opacity: 0.7; }
 
 /* Plugins explorer */
-.px { display: grid; grid-template-columns: 280px 1fr; border: 1px solid var(--rule); border-radius: 12px; background: var(--sheet); overflow: hidden; }
+.px { display: grid; grid-template-columns: 290px minmax(0, 1fr); border: 1px solid var(--rule); border-radius: 14px; background: var(--sheet); overflow: hidden; box-shadow: 0 40px 80px -60px rgba(21, 21, 21, 0.5); }
 .px-list { border-right: 1px solid var(--rule); padding: 10px; display: flex; flex-direction: column; gap: 2px; background: var(--paper-2); }
-.px-tab { display: grid; grid-template-columns: 36px 1fr auto; gap: 12px; align-items: center; text-align: left; padding: 10px 12px; border-radius: 8px; transition: background 0.15s; }
-.px-tab:hover { background: rgba(255, 255, 255, 0.6); }
+.px-tab { display: grid; grid-template-columns: 36px 1fr auto; gap: 12px; align-items: center; text-align: left; padding: 10px 12px; border-radius: 9px; transition: background 0.2s, box-shadow 0.2s; }
+.px-tab:hover { background: rgba(255, 255, 255, 0.55); }
 .px-tab[aria-selected="true"] { background: var(--sheet); box-shadow: 0 1px 2px rgba(21, 21, 21, 0.08), 0 0 0 1px var(--rule); }
-.px-tab .ic { width: 36px; height: 36px; border-radius: 9px; display: grid; place-items: center; background: var(--sheet); border: 1px solid var(--rule); }
-.px-tab[aria-selected="true"] .ic { background: var(--ink); color: var(--sheet); border-color: var(--ink); }
+.px-tab .ic { width: 36px; height: 36px; border-radius: 9px; display: grid; place-items: center; background: var(--sheet); border: 1px solid var(--rule); transition: background 0.3s, color 0.3s, transform 0.4s var(--spring); }
+.px-tab[aria-selected="true"] .ic { background: var(--ink); color: var(--sheet); border-color: var(--ink); transform: rotate(-6deg); }
 .px-tab .ic svg { width: 17px; height: 17px; }
 .px-tab strong { display: block; font-size: 14.5px; font-weight: 500; }
 .px-tab small { display: block; font-size: 12px; color: var(--ink-3); }
 .px-tab .count { font-family: var(--mono); font-size: 11.5px; color: var(--ink-3); }
-.px-panel { padding: 30px 32px 28px; min-width: 0; display: flex; flex-direction: column; }
+.px-panel { padding: 30px 34px 28px; min-width: 0; display: flex; flex-direction: column; }
+.px-panel > * { animation: fadeUp 0.6s var(--ease) both; }
 .px-top { display: flex; align-items: flex-start; gap: 18px; }
 .px-top .ic { flex: none; width: 52px; height: 52px; border-radius: 13px; display: grid; place-items: center; background: var(--ink); color: var(--sheet); }
 .px-top .ic svg { width: 24px; height: 24px; }
-.px-top h3 { font-size: 22px; font-weight: 600; letter-spacing: -0.02em; }
-.px-top p { margin-top: 2px; color: var(--ink-2); font-size: 15px; }
+.px-top h3 { font-family: var(--display); font-size: 34px; line-height: 1; font-weight: 750; font-stretch: 70%; }
+.px-top p { margin-top: 6px; color: var(--ink-2); font-size: 15px; }
 .px-access { margin-top: 22px; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 14px; border: 1px solid var(--rule); border-radius: 10px; background: var(--paper); font-size: 14px; }
 .px-access small { display: block; font-size: 12.5px; color: var(--ink-3); }
-.switch { flex: none; width: 42px; height: 24px; border-radius: 999px; background: var(--rule-strong); position: relative; transition: background 0.2s; }
-.switch::after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2); transition: transform 0.2s; }
+.switch { flex: none; width: 42px; height: 24px; border-radius: 999px; background: var(--rule-strong); position: relative; transition: background 0.25s; }
+.switch::after { content: ""; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2); transition: transform 0.35s var(--spring); }
 .switch[aria-checked="true"] { background: var(--accent); }
 .switch[aria-checked="true"]::after { transform: translateX(18px); }
 .keypill { flex: none; font-family: var(--mono); font-size: 12px; color: var(--ink-2); background: var(--sheet); border: 1px solid var(--rule); border-radius: 6px; padding: 4px 8px; }
-.px-tools { margin-top: 20px; display: grid; transition: opacity 0.2s; }
+.px-tools { margin-top: 20px; display: grid; transition: opacity 0.3s; }
 .px-tools.off { opacity: 0.4; }
-.px-tool { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 16px; align-items: center; padding: 11px 0; border-bottom: 1px solid var(--rule); }
+.px-tool { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 16px; align-items: center; padding: 11px 0; border-bottom: 1px solid var(--rule); animation: fadeUp 0.5s var(--ease) both; animation-delay: calc(var(--i) * 35ms + 80ms); }
 .px-tool:first-child { border-top: 1px solid var(--rule); }
 .px-tool code { font-size: 13px; color: var(--ink); min-width: 0; overflow-wrap: anywhere; }
 .px-tool span { grid-column: 1; font-size: 13.5px; color: var(--ink-2); }
@@ -273,100 +464,120 @@ h2 { font-size: clamp(32px, 4vw, 48px); font-weight: 600; letter-spacing: -0.035
 .px-note { margin-top: auto; padding-top: 18px; display: flex; gap: 8px; align-items: flex-start; font-size: 13.5px; color: var(--ink-3); }
 .px-note svg { width: 15px; height: 15px; flex: none; margin-top: 2px; }
 .px-off { font-size: 13.5px; color: var(--ink-2); margin-top: 12px; }
-.trust { display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; margin-top: 40px; }
+.trust { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 32px; margin-top: 44px; }
 .trust div { display: grid; grid-template-columns: 22px 1fr; gap: 12px; font-size: 14.5px; color: var(--ink-2); }
 .trust svg { width: 18px; height: 18px; color: var(--accent); margin-top: 2px; }
 .trust strong { display: block; color: var(--ink); font-weight: 500; font-size: 15.5px; }
 
 /* Architecture */
-.arch { display: grid; grid-template-columns: 1fr 64px 1.25fr 64px 1.3fr; align-items: center; }
+.arch { display: grid; grid-template-columns: 1fr 72px 1.25fr 72px 1.3fr; align-items: center; }
 .node { background: var(--sheet); border: 1px solid var(--rule); border-radius: 10px; padding: 20px; }
 .node h3 { font-size: 16px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
 .node h3 svg { width: 17px; height: 17px; color: var(--accent); }
 .node p { margin-top: 6px; font-size: 13.5px; color: var(--ink-2); }
 .node .rows { display: grid; gap: 6px; margin-top: 14px; }
 .node .rows span { font-family: var(--mono); font-size: 12px; padding: 7px 10px; border-radius: 6px; background: var(--paper); border: 1px solid var(--rule); }
-.node.core { border-color: var(--ink); box-shadow: 6px 6px 0 var(--ink); }
+.node.core { border-color: var(--ink); box-shadow: 8px 8px 0 var(--ink); transition: box-shadow 0.5s var(--ease), transform 0.5s var(--ease); }
+.node.core:hover { box-shadow: 12px 12px 0 var(--accent); transform: translate(-4px, -4px); }
 .node.core .rows span { background: var(--accent-soft); border-color: transparent; color: var(--accent); }
-.wire { height: 2px; background: repeating-linear-gradient(90deg, var(--ink-3) 0 6px, transparent 6px 11px); background-size: 22px 2px; position: relative; animation: flow 1.2s linear infinite; }
+.wire { height: 2px; position: relative; background: repeating-linear-gradient(90deg, var(--rule-strong) 0 6px, transparent 6px 11px); background-size: 22px 2px; animation: flow 1.2s linear infinite; }
 .wire::after { content: ""; position: absolute; right: -2px; top: -4px; border: 5px solid transparent; border-left: 7px solid var(--ink-3); border-right: 0; }
+.wire i { position: absolute; top: -3px; left: 0; width: 8px; height: 8px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); animation: packet 2.4s var(--ease) infinite; }
+.wire i + i { animation-delay: -1.2s; }
 @keyframes flow { to { background-position: 22px 0; } }
+@keyframes packet { 0% { left: 0; opacity: 0; } 15%, 80% { opacity: 1; } 100% { left: calc(100% - 8px); opacity: 0; } }
 .outs { display: grid; gap: 10px; }
-.outs .node { padding: 14px 16px; }
+.outs .node { padding: 14px 16px; transition: transform 0.4s var(--ease), border-color 0.3s; }
+.outs .node:hover { transform: translateX(6px); border-color: var(--ink-3); }
 .outs .node p { margin-top: 2px; }
-.arch-note { margin-top: 28px; display: flex; gap: 10px; align-items: flex-start; font-size: 14.5px; color: var(--ink-2); max-width: 720px; }
+.arch-note { margin-top: 32px; display: flex; gap: 10px; align-items: flex-start; font-size: 14.5px; color: var(--ink-2); max-width: 720px; }
 .arch-note svg { width: 18px; height: 18px; color: var(--accent); flex: none; margin-top: 2px; }
 
 /* Get started */
-.start { display: grid; grid-template-columns: 0.9fr 1.1fr; gap: 56px; align-items: start; }
-.free-sub { margin-top: 18px; color: var(--ink-2); font-size: 17px; max-width: 440px; }
+.start { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); gap: 64px; align-items: start; }
+.start .kicker { margin-bottom: 26px; }
+.start h2, .faq-grid h2 { font-size: clamp(42px, 4.8vw, 70px); }
+.free-sub { margin-top: 20px; color: var(--ink-2); font-size: 17px; max-width: 460px; }
 .needs { list-style: none; padding: 0; margin: 32px 0 0; border-top: 1px solid var(--rule); }
 .needs li { display: grid; grid-template-columns: 140px 1fr; gap: 16px; padding: 13px 0; border-bottom: 1px solid var(--rule); font-size: 15px; }
 .needs li strong { font-weight: 500; }
 .needs li span { color: var(--ink-2); }
 .needs li.opt strong { color: var(--ink-3); }
 .qs .term-body { display: block; height: auto; padding-top: 20px; }
-.qs .term-bar button { margin-left: auto; font-family: var(--sans); font-size: 12px; color: var(--term-2); padding: 4px 10px; border-radius: 4px; background: #222; }
-.qs .term-bar button:hover { color: var(--term-ink); }
 .qs-foot { margin-top: 18px; display: flex; gap: 14px; flex-wrap: wrap; align-items: center; font-size: 14px; color: var(--ink-3); }
 
 /* FAQ */
-.faq-grid { display: grid; grid-template-columns: 0.8fr 1.2fr; gap: 56px; }
-.faq-grid aside p { margin-top: 16px; color: var(--ink-2); max-width: 340px; }
+.faq-grid { display: grid; grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr); gap: 64px; }
+.faq-grid aside .kicker { margin-bottom: 26px; }
+.faq-grid aside p { margin-top: 20px; color: var(--ink-2); max-width: 340px; }
 .faq-grid aside a { color: var(--accent); text-decoration: underline; text-underline-offset: 3px; text-decoration-thickness: 1px; }
 .faq { border-top: 1px solid var(--ink); }
 .faq details { border-bottom: 1px solid var(--rule); }
-.faq summary { list-style: none; cursor: pointer; display: grid; grid-template-columns: 36px 1fr 20px; align-items: baseline; padding: 20px 0; font-size: 17.5px; font-weight: 500; }
+.faq summary { list-style: none; cursor: pointer; display: grid; grid-template-columns: 40px 1fr 24px; align-items: baseline; padding: 22px 0; font-size: 18px; font-weight: 500; letter-spacing: -0.01em; transition: color 0.2s; }
+.faq summary:hover { color: var(--accent); }
 .faq summary::-webkit-details-marker { display: none; }
 .faq summary span { font-family: var(--mono); font-size: 12px; color: var(--ink-3); }
-.faq summary::after { content: "+"; font-size: 22px; line-height: 1; color: var(--ink-3); justify-self: end; transition: transform 0.2s; }
-.faq details[open] summary::after { transform: rotate(45deg); color: var(--accent); }
-.faq details p { padding: 0 20px 22px 36px; color: var(--ink-2); font-size: 15.5px; }
+.faq summary::after { content: "+"; font-size: 24px; font-weight: 300; line-height: 1; color: var(--ink-3); justify-self: end; transition: transform 0.4s var(--ease), color 0.3s; }
+.faq details[open] summary::after { transform: rotate(135deg); color: var(--accent); }
+.faq details p { padding: 0 24px 24px 40px; color: var(--ink-2); font-size: 15.5px; }
+.faq details::details-content { block-size: 0; overflow-y: clip; transition: block-size 0.5s var(--ease), content-visibility 0.5s allow-discrete; }
+.faq details[open]::details-content { block-size: auto; }
 
-/* Final */
-.final { padding: 120px 0 128px; }
-.final .wrap { display: grid; grid-template-columns: auto 1fr; gap: 48px; align-items: center; }
-.final img { width: 168px; height: 168px; border-radius: 38px; transform: rotate(-4deg); box-shadow: 0 30px 60px -24px rgba(42, 60, 240, 0.45); }
-.final h2 { font-size: clamp(36px, 5vw, 60px); }
-.final p { margin-top: 12px; font-size: 18px; color: var(--ink-2); }
-.final .hero-ctas { margin-top: 28px; }
+/* Final call, with the knight peeking over the headline. */
+.final { padding: 130px 0 0; text-align: center; overflow: clip; }
+.final-stage { position: relative; width: min(400px, 74vw); margin: 0 auto calc(min(400px, 74vw) * -0.17); }
+.final-stage .halo { top: 52%; }
+.final-stage .floor { display: none; }
+.final-hl { position: relative; z-index: 1; font-size: clamp(76px, 15vw, 232px); font-weight: 800; font-stretch: 62%; text-transform: uppercase; line-height: 0.84; letter-spacing: -0.005em; }
+.final-hl .ln > span { transition: transform 1.2s var(--ease); transition-delay: calc(var(--d) * 1ms); }
+.js .reveal:not(.in) .final-hl .ln > span { transform: translateY(110%); }
+.final .lead { margin-top: 30px; font-size: 19px; color: var(--moon-2); }
+.final .ctas { justify-content: center; }
 
-footer { border-top: 1px solid var(--rule); padding: 28px 0 40px; font-size: 13.5px; color: var(--ink-3); }
-footer .wrap { display: flex; justify-content: space-between; align-items: center; gap: 20px; flex-wrap: wrap; }
-footer nav { display: flex; gap: 22px; }
-footer a:hover { color: var(--ink); }
-footer .brand { font-size: 15px; color: var(--ink); }
-
-.reveal { opacity: 0; transform: translateY(18px); transition: opacity 0.6s ease, transform 0.6s ease; }
-.reveal.in { opacity: 1; transform: none; }
+footer { padding: 120px 0 36px; font-size: 13.5px; color: var(--moon-3); }
+footer .wrap > div { display: flex; justify-content: space-between; align-items: center; gap: 20px; flex-wrap: wrap; padding-top: 26px; border-top: 1px solid var(--night-rule); }
+footer nav { display: flex; gap: 24px; flex-wrap: wrap; }
+footer a { transition: color 0.2s; }
+footer a:hover { color: var(--moon); }
+footer .brand { color: var(--moon); font-size: 20px; }
+footer .brand img { width: 30px; height: 30px; border-radius: 8px; }
 
 /* Responsive */
-@media (max-width: 1060px) {
-  .crew { grid-template-columns: repeat(2, 1fr); }
-  .px { grid-template-columns: 230px 1fr; }
+@media (max-width: 1100px) {
+  .crew { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 8px; }
+  .px { grid-template-columns: 236px minmax(0, 1fr); }
   .px-tab small { display: none; }
   .arch { grid-template-columns: 1fr; }
-  .arch .wire { width: 2px; height: 36px; margin: 0 auto; background: repeating-linear-gradient(180deg, var(--ink-3) 0 6px, transparent 6px 11px); background-size: 2px 22px; animation-name: flow-down; }
+  .arch .wire { width: 2px; height: 44px; margin: 0 auto; background: repeating-linear-gradient(180deg, var(--rule-strong) 0 6px, transparent 6px 11px); background-size: 2px 22px; animation-name: flow-down; }
   .arch .wire::after { right: auto; top: auto; left: -4px; bottom: -2px; border: 5px solid transparent; border-top: 7px solid var(--ink-3); border-bottom: 0; }
+  .arch .wire i { left: -3px; animation-name: packet-down; }
+  .ask { left: -6%; }
+  .ask-log { display: none; }
 }
 @keyframes flow-down { to { background-position: 0 22px; } }
+@keyframes packet-down { 0% { top: 0; opacity: 0; } 15%, 80% { opacity: 1; } 100% { top: calc(100% - 8px); opacity: 0; } }
 @media (max-width: 900px) {
-  :root { --gutter: 20px; }
+  :root { --gutter: 22px; }
   .nav-links { display: none; }
-  .hero { padding: 48px 0 72px; }
-  .hero .wrap { grid-template-columns: 1fr; gap: 40px; }
-  .stage { justify-self: center; max-width: 440px; }
-  .head { margin-bottom: 40px; }
-  .run, .start, .faq-grid { grid-template-columns: 1fr; gap: 40px; }
+  .hero { min-height: 0; }
+  .hero-main { padding: 36px 0 28px; }
+  .hero-grid { display: block; }
+  .hl .big { font-size: 21vw; }
+  .hl .small { font-size: 10vw; }
+  .stage { width: min(520px, 100%); margin: 40px auto 0; padding-bottom: 0; }
+  .floor { top: 64%; }
+  .ask { position: relative; left: auto; bottom: auto; margin: -6% auto 0; }
+  .hero-foot .stack { display: none; }
+  section { padding: 100px 0; }
+  .head { grid-template-columns: 1fr; margin-bottom: 48px; }
+  .run, .start, .faq-grid { grid-template-columns: 1fr; gap: 44px; }
   .steps { grid-template-columns: 1fr; }
-  .step { border-right: 0; border-bottom: 1px solid var(--rule); min-height: 0; }
-  .step:last-child { border-bottom: 0; }
-  .sheet { grid-template-columns: 1fr 1fr; }
-  .cell:nth-child(n) { padding: 28px 22px 30px; border-left: 1px solid var(--rule); }
-  .cell:nth-child(2n + 1) { padding-left: 0; border-left: 0; }
+  .step, .step:first-child, .step:last-child { padding: 30px 0 34px; border-left: 0; border-bottom: 1px solid var(--rule); }
+  .step .n { font-size: 120px; }
+  .sheet { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cell:nth-child(n) { border-left: 1px solid var(--rule); padding: 28px 22px 30px; }
+  .cell:nth-child(2n + 1) { border-left: 0; padding-left: 0; }
   .cell:nth-child(2n) { padding-right: 0; }
-  section { padding: 88px 0; }
-  .final .wrap { grid-template-columns: 1fr; gap: 32px; }
   .px { grid-template-columns: 1fr; }
   .px-list { flex-direction: row; overflow-x: auto; border-right: 0; border-bottom: 1px solid var(--rule); scrollbar-width: none; }
   .px-tab { grid-template-columns: 28px auto; gap: 8px; padding: 8px 12px 8px 8px; flex: none; }
@@ -374,35 +585,83 @@ footer .brand { font-size: 15px; color: var(--ink); }
   .px-tab .ic svg { width: 14px; height: 14px; }
   .px-tab .count { display: none; }
   .trust { grid-template-columns: 1fr; gap: 18px; }
-  .final img { width: 120px; height: 120px; border-radius: 28px; }
+  footer { padding-top: 90px; }
 }
 @media (max-width: 600px) {
   :root { --gutter: 16px; }
+  .ask-top em { display: none; }
+  .nav .wrap { gap: 16px; }
   .nav-cta .btn-line { display: none; }
-  .hero-sub { font-size: 17px; }
-  .float-a { left: -2%; width: 210px; }
-  .float-b { right: -2%; width: 190px; }
-  .float { padding: 10px 12px; font-size: 12.5px; }
+  .hero-sub { font-size: 16.5px; }
+  .ask { width: min(300px, 100%); padding: 12px 14px 13px; }
+  .stamp { font-size: 18px; top: 34px; }
+  .spark.s1 { left: 0; }
+  h2 { font-size: 46px; }
+  .lede { font-size: 16.5px; }
   .sheet { grid-template-columns: 1fr; }
-  .cell:nth-child(n) { padding: 26px 0 28px; border-left: 0; }
+  .cell:nth-child(n) { padding: 26px 0 30px; border-left: 0; }
   .crew { grid-template-columns: 1fr; }
   .px-panel { padding: 22px 18px 20px; }
   .px-top .ic { width: 44px; height: 44px; }
+  .px-top h3 { font-size: 28px; }
   .px-tool em { grid-row: auto; grid-column: 2; grid-row-start: 1; }
   .needs li { grid-template-columns: 1fr; gap: 2px; }
   .term-body { font-size: 12px; height: 440px; padding: 14px; }
-  .faq summary { grid-template-columns: 28px 1fr 20px; font-size: 16px; }
-  .faq details p { padding-left: 28px; padding-right: 0; }
+  .faq summary { grid-template-columns: 30px 1fr 22px; font-size: 16px; }
+  .faq details p { padding-left: 30px; padding-right: 0; }
+  .final { padding-top: 100px; }
+  .final .lead { font-size: 17px; }
+  footer .wrap > div { flex-direction: column; align-items: flex-start; }
 }
 @media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
   *, *::before, *::after { animation: none !important; transition: none !important; }
-  .reveal { opacity: 1; transform: none; }
+  .js .reveal, .js .hero .fade, .js .hero .helm-wake, .js .hero .eyes, .js .hero .halo, .js .ask { opacity: 1; transform: none; }
+  .js .hero .seal { opacity: 1; }
+  .js .hero .ln > span, .js .reveal .w > span, .js .reveal .final-hl .ln > span { transform: none; }
+  .tape-track { overflow-x: auto; }
 }
 </style>
 </head>
 <body>
 
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <radialGradient id="h-helm" cx="0.34" cy="0.24" r="0.9"><stop offset="0" stop-color="#8f99b8"/><stop offset="0.4" stop-color="#555d7a"/><stop offset="1" stop-color="#2a2f42"/></radialGradient>
+    <linearGradient id="h-plate" x1="0" y1="0" x2="0.55" y2="1"><stop offset="0" stop-color="#7a83a2"/><stop offset="0.5" stop-color="#4a516a"/><stop offset="1" stop-color="#2c3144"/></linearGradient>
+    <linearGradient id="h-visor" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0d1019"/><stop offset="1" stop-color="#252a3b"/></linearGradient>
+    <linearGradient id="h-horn" x1="0" y1="1" x2="0.4" y2="0"><stop offset="0" stop-color="#1a64d8"/><stop offset="0.55" stop-color="#36b0ff"/><stop offset="1" stop-color="#bff5ff"/></linearGradient>
+    <linearGradient id="h-rim" x1="0" y1="0" x2="0.3" y2="1"><stop offset="0.35" stop-color="#84eaff" stop-opacity="0"/><stop offset="1" stop-color="#84eaff" stop-opacity="0.55"/></linearGradient>
+    <radialGradient id="h-glow" cx="0.5" cy="0.45" r="0.6"><stop offset="0" stop-color="#f4feff"/><stop offset="0.45" stop-color="#84eaff"/><stop offset="1" stop-color="#1ca4ff"/></radialGradient>
+    <filter id="h-bloom" x="-80%" y="-120%" width="260%" height="340%"><feGaussianBlur stdDeviation="8"/></filter>
+    <path id="h-eye" d="M199 218 242 229C245 230 247 233 246 236L243 247C242 250 239 251 236 250L206 242C202 241 199 237 199 233Z"/>
+    <path id="h-shell" d="M148 206C148 132 194 92 256 92 318 92 364 132 364 206L360 254C358 280 342 296 318 296H194C170 296 154 280 152 254Z"/>
+    <!-- The Pekka helmet from head.svg, without its eyes, so each copy can move its own. -->
+    <g id="helm-static">
+      <path d="M160 178C110 166 92 114 112 60 124 100 150 126 198 136Z" fill="url(#h-horn)"/>
+      <path d="M352 178C402 166 420 114 400 60 388 100 362 126 314 136Z" fill="url(#h-horn)"/>
+      <path d="M122 82C120 104 130 126 150 142" stroke="#e6fbff" stroke-width="3.5" stroke-linecap="round" fill="none" opacity="0.75"/>
+      <path d="M390 82C392 104 382 126 362 142" stroke="#e6fbff" stroke-width="3" stroke-linecap="round" fill="none" opacity="0.45"/>
+      <use href="#h-shell" fill="url(#h-helm)"/>
+      <use href="#h-shell" fill="none" stroke="url(#h-rim)" stroke-width="2.5"/>
+      <path d="M161 198C162 142 196 106 244 100" stroke="#cbd4f6" stroke-width="4.5" stroke-linecap="round" fill="none" opacity="0.5"/>
+      <path d="M346 140C358 160 362 184 361 212" stroke="#8fe3ff" stroke-width="3.5" stroke-linecap="round" fill="none" opacity="0.4"/>
+      <ellipse cx="206" cy="130" rx="36" ry="16" transform="rotate(-30 206 130)" fill="#ffffff" opacity="0.18"/>
+      <ellipse cx="190" cy="124" rx="7" ry="4" transform="rotate(-30 190 124)" fill="#ffffff" opacity="0.55"/>
+      <path d="M245 95C249 92 263 92 267 95L264 168H248Z" fill="#6f7896"/>
+      <path d="M248 97H253L251 166H248Z" fill="#ffffff" opacity="0.2"/>
+      <path d="M153 262C157 283 173 296 194 296H318C339 296 355 283 359 262" stroke="#1a1d29" stroke-width="4" fill="none" opacity="0.5"/>
+      <path d="M178 196C178 178 190 168 208 168H304C322 168 334 178 334 196L330 252C329 264 320 272 308 272H204C192 272 183 264 182 252Z" fill="url(#h-visor)"/>
+      <path d="M170 180 256 204 342 180V160C300 148 212 148 170 160Z" fill="url(#h-plate)"/>
+      <path d="M176 163C210 153 300 153 336 163" stroke="#d6ddf5" stroke-width="3" stroke-linecap="round" fill="none" opacity="0.45"/>
+      <g fill="#2e3447"><rect x="239" y="254" width="6" height="11" rx="3"/><rect x="253" y="254" width="6" height="11" rx="3"/><rect x="267" y="254" width="6" height="11" rx="3"/></g>
+      <circle cx="164" cy="238" r="5" fill="#8a93b2"/>
+      <circle cx="348" cy="238" r="5" fill="#5a6280"/>
+      <path d="M196 288H316" stroke="#c4cdf2" stroke-width="3" stroke-linecap="round" opacity="0.25"/>
+    </g>
+  </defs>
+  <symbol id="i-spark" viewBox="-12 -12 24 24"><path fill="currentColor" d="M0-12C1.5-3 3-1.5 12 0 3 1.5 1.5 3 0 12-1.5 3-3 1.5-12 0-3-1.5-1.5-3 0-12Z"/></symbol>
+  <symbol id="i-pointer" viewBox="0 0 24 24"><path d="M5 3l14 8-6.2 1.6L10 19z" fill="#fff" stroke="#151515" stroke-width="1.6" stroke-linejoin="round"/></symbol>
   <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></symbol>
   <symbol id="i-github" viewBox="0 0 24 24" fill="currentColor"><path d="M12 .5a11.5 11.5 0 0 0-3.64 22.41c.58.1.79-.25.79-.56v-2c-3.2.7-3.88-1.37-3.88-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.71.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.68 0-1.26.45-2.28 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.83 1.19 3.09 0 4.41-2.69 5.38-5.25 5.67.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 12 .5Z"/></symbol>
   <symbol id="i-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
@@ -410,19 +669,21 @@ footer .brand { font-size: 15px; color: var(--ink); }
   <symbol id="i-shield" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/></symbol>
   <symbol id="i-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></symbol>
   <symbol id="i-globe" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 0 1 0 20 15 15 0 0 1 0-20Z"/></symbol>
-  <symbol id="i-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></symbol>
   <symbol id="i-mail" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-10 6L2 7"/></symbol>
   <symbol id="i-inbox" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11Z"/></symbol>
   <symbol id="i-send" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></symbol>
   <symbol id="i-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></symbol>
   <symbol id="i-page" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></symbol>
+  <symbol id="i-calendar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/></symbol>
+  <symbol id="i-folder" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 3h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/></symbol>
+  <symbol id="i-contacts" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M5.5 16a3.5 3.5 0 0 1 7 0M15 9h3M15 13h3"/></symbol>
   <symbol id="i-user" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></symbol>
   <symbol id="i-cpu" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="5" width="14" height="14" rx="2"/><path d="M9 9h6v6H9zM9 1v4M15 1v4M9 19v4M15 19v4M1 9h4M1 15h4M19 9h4M19 15h4"/></symbol>
 </svg>
 
-<header class="nav">
+<header class="nav on-dark">
   <div class="wrap">
-    <a class="brand" href="#top"><img src="logo.png" alt="" width="28" height="28">Pekka</a>
+    <a class="brand" href="#top"><img src="head.svg" alt="" width="34" height="34">Pekka</a>
     <nav class="nav-links" aria-label="Sections">
       <a href="#run">How it works</a>
       <a href="#features">Features</a>
@@ -435,38 +696,69 @@ footer .brand { font-size: 15px; color: var(--ink); }
       <a class="btn btn-ink btn-sm" href="https://pekka-app.vercel.app">Open Pekka</a>
     </div>
   </div>
+  <i class="progress"></i>
 </header>
 
 <main id="top">
   <!-- Hero -->
-  <div class="hero">
-    <div class="wrap">
-      <div>
-        <p class="eyebrow"><b>Open source on GitHub</b>A workspace for your AI bots</p>
-        <h1>Hand off the work.<br><span class="mute">Keep the final say.</span></h1>
-        <p class="hero-sub">Give Pekka a role and a job. Your bots work in their own cloud computers and ask before making changes. Run the open-source project from GitHub, or use the browser workspace with Google sign-in on a configured Pekka server.</p>
-        <div class="hero-ctas">
-          <a class="btn btn-ink" href="https://pekka-app.vercel.app">Open Pekka <svg class="arrow"><use href="#i-arrow"/></svg></a>
-          <a class="btn btn-line" href="https://github.com/sidmanale643/pekka"><svg><use href="#i-github"/></svg>Open source on GitHub</a>
+  <div class="hero dark">
+    <div class="hero-main">
+      <div class="wrap hero-grid">
+        <div class="hero-copy">
+          <h1 class="hl">
+            <span class="big"><span class="ln"><span style="--d:200">It does</span></span><span class="ln"><span style="--d:300">the work.</span></span></span>
+            <span class="small"><span class="ln"><span style="--d:520">You</span></span> <span class="seal">sign off.</span></span>
+          </h1>
+          <p class="hero-sub fade" style="--d:800">Give Pekka a role and a job. Your bots work in <b>their own cloud computers</b> and <b>ask before making changes.</b></p>
+          <div class="ctas fade" style="--d:920">
+            <a class="btn btn-moon" href="https://pekka-app.vercel.app">Open Pekka <svg class="arrow"><use href="#i-arrow"/></svg></a>
+            <a class="btn btn-ghost" href="https://github.com/sidmanale643/pekka"><svg><use href="#i-github"/></svg>Open source on GitHub</a>
+          </div>
+          <div class="fade" style="--d:1040"><div class="cmd"><span id="hero-cmd">git clone https://github.com/sidmanale643/pekka.git</span><button type="button" data-copy="hero-cmd">Copy</button></div></div>
         </div>
-        <div class="cmd"><span id="hero-cmd">git clone https://github.com/sidmanale643/pekka.git</span><button type="button" data-copy="hero-cmd">Copy</button></div>
-      </div>
 
-      <div class="stage" aria-hidden="true">
-        <div class="stage-art"><img src="logo.png" alt=""></div>
-        <div class="float float-a">
-          <div class="top"><svg><use href="#i-shield"/></svg>Permission required</div>
-          <p>Scout wants to write a file</p>
-          <code>reports/2026-10-01.md</code>
-          <div class="acts"><span>Deny</span><span class="yes">Approve once</span></div>
+        <div class="stage" data-helm aria-hidden="true">
+          <div class="halo"></div>
+          <div class="floor"></div>
+          <div class="helm-wake">
+            <div class="helm-tilt">
+              <svg class="helm" viewBox="84 46 344 268">
+                <use href="#helm-static"/>
+                <g class="eyes">
+                  <g class="eye-bloom" fill="#3fd0ff" filter="url(#h-bloom)"><use href="#h-eye"/><use href="#h-eye" transform="matrix(-1 0 0 1 512 0)"/></g>
+                  <g class="eye-core" fill="url(#h-glow)"><use href="#h-eye"/><use href="#h-eye" transform="matrix(-1 0 0 1 512 0)"/></g>
+                </g>
+              </svg>
+            </div>
+          </div>
+          <svg class="spark s1"><use href="#i-spark"/></svg>
+          <svg class="spark s2"><use href="#i-spark"/></svg>
+          <svg class="spark s3"><use href="#i-spark"/></svg>
+          <div class="ask" id="ask">
+            <div class="ask-top"><span class="ask-av">S</span><b class="ask-bot">Scout</b><em>Permission required</em></div>
+            <p class="ask-what">wants to run <code class="ask-tool">write_file</code></p>
+            <p class="ask-arg">reports/2026-10-01.md</p>
+            <div class="ask-acts"><span>Deny</span><span class="yes">Approve once<svg class="ptr"><use href="#i-pointer"/></svg></span></div>
+            <span class="stamp">Approved</span>
+          </div>
+          <ol class="ask-log" id="ask-log"></ol>
         </div>
-        <div class="float float-b ok">
-          <div class="top"><svg><use href="#i-check"/></svg>Task finished · 3 steps</div>
-          <p>Picked 6 of 25 new repositories. Report saved with sources.</p>
-        </div>
-        <div class="float float-c">
-          <div class="chip-row"><span class="ic"><svg><use href="#i-clock"/></svg></span><div><strong>Weekly repo report</strong><small>Next run Monday 09:00</small></div></div>
-        </div>
+      </div>
+    </div>
+
+    <div class="wrap hero-foot fade" style="--d:1300">
+      <span class="stack">Node.js · OpenRouter · Daytona · Cloudflare D1</span>
+      <span class="scroll-cue"><i></i>Scroll</span>
+    </div>
+    <div class="tape" aria-label="Examples of what bots do">
+      <div class="tape-track">
+        <span><b>Scout</b> web_search “new TypeScript repositories” <em>→ automatic</em></span>
+        <span><b>Inbox Manager</b> gmail_create_draft “Re: renewal terms” <em>→ asks first</em></span>
+        <span><b>Issue Triage</b> github_add_comment on issue #412 <em>→ approved once</em></span>
+        <span><b>Librarian</b> notion_search “onboarding” <em>→ automatic</em></span>
+        <span><b>Scout</b> write_file reports/2026-10-01.md <em>→ approved once</em></span>
+        <span><b>Librarian</b> telegram_send_message <em>→ asks first</em></span>
+        <span><b>Scheduler</b> Weekly repo report <em>→ next run Monday 09:00</em></span>
       </div>
     </div>
   </div>
@@ -475,17 +767,18 @@ footer .brand { font-size: 15px; color: var(--ink); }
   <section id="run">
     <div class="wrap">
       <div class="head reveal">
-          <h2>See every step. <span class="mute">Nothing happens out of sight.</span></h2>
-          <p class="lede">Every step streams as it happens: what the model says, which tool it calls, what came back. You can follow a run in the CLI, the web app or over the HTTP API.</p>
-        </div>
+        <p class="kicker"><b>01</b>The run</p>
+        <h2>See every step. <span class="mute">Nothing happens out of sight.</span></h2>
+        <p class="lede">Every step streams as it happens: what the model says, which tool it calls, what came back. You can follow a run in the CLI, the web app or over the HTTP API.</p>
+      </div>
       <div class="run">
-        <ul class="points reveal">
-          <li><span>a</span><div><strong>It plans, then acts</strong><p>The agent loop sends your task and its tools to the model, runs each tool call, and feeds the results back until the job is done.</p></div></li>
-          <li><span>b</span><div><strong>It stops to ask</strong><p>Before a write, a send or a risky command, it shows you the exact arguments and waits for a yes.</p></div></li>
-          <li><span>c</span><div><strong>It tells you what it cost</strong><p>Each run ends with the step count, tokens used, cache hit rate and the cost the provider reported.</p></div></li>
-        </ul>
+        <ol class="points reveal" id="points">
+          <li><span class="pt">a</span><div><strong>It plans, then acts</strong><p>The agent loop sends your task and its tools to the model, runs each tool call, and feeds the results back until the job is done.</p></div></li>
+          <li><span class="pt">b</span><div><strong>It stops to ask</strong><p>Before a write, a send or a risky command, it shows you the exact arguments and waits for a yes.</p></div></li>
+          <li><span class="pt">c</span><div><strong>It tells you what it cost</strong><p>Each run ends with the step count, tokens used, cache hit rate and the cost the provider reported.</p></div></li>
+        </ol>
         <div class="term-win reveal">
-          <div class="term-bar"><i></i><i></i><i></i><small>~/pekka — zsh</small></div>
+          <div class="term-bar"><i></i><i></i><i></i><small>~/pekka — zsh</small><span class="term-state" id="term-state"><i></i><span>waiting</span></span><button class="term-btn" type="button" id="replay" hidden>Replay</button></div>
           <div class="term-body" id="term" aria-label="A recorded Pekka run in the terminal"></div>
         </div>
       </div>
@@ -495,20 +788,23 @@ footer .brand { font-size: 15px; color: var(--ink); }
   <!-- How it works -->
   <section id="how">
     <div class="wrap">
-      <div class="head reveal"><h2>Three steps. <span class="mute">Then it gets to work.</span></h2></div>
+      <div class="head reveal">
+        <p class="kicker"><b>02</b>How it works</p>
+        <h2>Three steps. <span class="mute">Then it gets to work.</span></h2>
+      </div>
       <div class="steps reveal">
-        <div class="step">
-          <span class="n">1</span>
+        <div class="step" style="--i:0">
+          <span class="n">01</span>
           <h3>Create a bot</h3>
           <p>A name, a role and a job. It gets its own sandbox, memory and skills from the start.</p>
           <div class="vis">
-            <div class="field"><small>Name</small>Scout</div>
-            <div class="field"><small>Role</small>Repository researcher</div>
-            <div class="field"><small>Job</small>Find interesting TypeScript repositories and write a report</div>
+            <div class="field" style="--t:500"><small>Name</small>Scout</div>
+            <div class="field" style="--t:650"><small>Role</small>Repository researcher</div>
+            <div class="field" style="--t:800"><small>Job</small>Find interesting TypeScript repositories and write a report</div>
           </div>
         </div>
-        <div class="step">
-          <span class="n">2</span>
+        <div class="step" style="--i:1">
+          <span class="n">02</span>
           <h3>Give it a task</h3>
           <p>Type it in the web app, run it from the CLI or send it over HTTP. With no task, it does its job.</p>
           <div class="vis">
@@ -516,8 +812,8 @@ footer .brand { font-size: 15px; color: var(--ink); }
             <div class="input">Give Scout a task…<i><svg><use href="#i-up"/></svg></i></div>
           </div>
         </div>
-        <div class="step">
-          <span class="n">3</span>
+        <div class="step" style="--i:2">
+          <span class="n">03</span>
           <h3>Approve, then done</h3>
           <p>Say yes to the changes you want. It comes back with the result and can save what it learned.</p>
           <div class="vis">
@@ -537,33 +833,34 @@ footer .brand { font-size: 15px; color: var(--ink); }
   <section id="features">
     <div class="wrap">
       <div class="head reveal">
-          <h2>Built for real work. <span class="mute">And built to be trusted with it.</span></h2>
-          <p class="lede">Bots that remember, keep their own files, run on a schedule and never act behind your back.</p>
-        </div>
+        <p class="kicker"><b>03</b>Features</p>
+        <h2>Built for real work. <span class="mute">And built to be trusted with it.</span></h2>
+        <p class="lede">Bots that remember, keep their own files, run on a schedule and never act behind your back.</p>
+      </div>
       <div class="sheet reveal">
-        <div class="cell">
+        <div class="cell" data-n="01">
           <h3>A computer that stays put</h3>
           <p>Each bot works in its own persistent Linux sandbox on Daytona. It stops after 15 idle minutes and starts again with its files intact.</p>
-          <div class="vis mini-term"><span class="d">~/workspace $</span> ls<br>reports/  edge-kit/  notes.md<br><span class="d">~/workspace $</span> pnpm test<br><span class="g">✓ 148 passed</span></div>
+          <div class="vis"><div class="mini-term"><span style="--k:0"><b>~/workspace $</b> ls</span><span style="--k:1">reports/  edge-kit/  notes.md</span><span style="--k:2"><b>~/workspace $</b> pnpm test</span><span class="g" style="--k:3">✓ 148 passed</span></div></div>
         </div>
-        <div class="cell">
+        <div class="cell" data-n="02">
           <h3>Nothing changes without a yes</h3>
           <p>Reads run on their own. Writes, sends and risky commands wait for one-time approval of the exact arguments, and expire after five minutes.</p>
-          <div class="vis approval">
+          <div class="vis"><div class="approval">
             <div class="top"><svg><use href="#i-shield"/></svg>Permission required</div>
             <code>gmail_send · to dana@acme.com</code>
             <div class="acts"><span>Deny</span><span class="yes">Approve once</span></div>
-          </div>
+          </div></div>
         </div>
-        <div class="cell">
+        <div class="cell" data-n="03">
           <h3>Memory you can read</h3>
           <p>Two Markdown files per bot: one for your preferences, one for what it has learned. Open and edit them any time.</p>
-          <div class="vis doc">
+          <div class="vis"><div class="doc">
             <div class="doc-tabs"><span>PREFERENCES.md</span><span class="on">KNOWLEDGE.md</span></div>
             <ul><li>Reports live in <code>reports/</code>, one per week</li><li class="new">Acme signs annual contracts only</li></ul>
-          </div>
+          </div></div>
         </div>
-        <div class="cell">
+        <div class="cell" data-n="04">
           <h3>Works while you're away</h3>
           <p>Say "every Monday at 9" and the bot schedules itself. Pause, resume or cancel from the Scheduled page.</p>
           <div class="vis tl">
@@ -571,18 +868,18 @@ footer .brand { font-size: 15px; color: var(--ink); }
             <div><b>Daily</b>Inbox sweep<em class="off">Paused</em></div>
           </div>
         </div>
-        <div class="cell">
+        <div class="cell" data-n="05">
           <h3>Skills, loaded when needed</h3>
           <p>Teach a workflow once as a skill folder. Bots see a short list and load the full instructions only when a task calls for them.</p>
-          <div class="vis tags"><span class="on">research</span><span>github</span><span class="on">report-format</span><span>gmail</span><span>notion</span><span>telegram</span></div>
+          <div class="vis tags"><span style="--i:0">research</span><span style="--i:3">github</span><span style="--i:1">report-format</span><span style="--i:4">gmail</span><span style="--i:2">notion</span><span style="--i:5">telegram</span></div>
         </div>
-        <div class="cell">
+        <div class="cell" data-n="06">
           <h3>A voice of its own</h3>
           <p>Give each bot a character for how it talks to you. The work stays exact whatever the voice.</p>
           <div class="vis voices">
-            <div><i></i>Normal <span>direct and natural</span></div>
-            <div class="on"><i></i>Butler <span>polite, dryly witty</span></div>
-            <div><i></i>Custom <span>describe your own</span></div>
+            <div style="--i:0"><i></i>Normal <span>direct and natural</span></div>
+            <div style="--i:1"><i></i>Butler <span>polite, dryly witty</span></div>
+            <div style="--i:2"><i></i>Custom <span>describe your own</span></div>
           </div>
         </div>
       </div>
@@ -593,40 +890,57 @@ footer .brand { font-size: 15px; color: var(--ink); }
   <section id="crew">
     <div class="wrap">
       <div class="head reveal">
-          <h2>A bot for every job. <span class="mute">None of them share a desk.</span></h2>
-          <p class="lede">Each bot keeps its own workspace, memory and skills, so the researcher's notes never end up in the inbox manager's files.</p>
-        </div>
-      <div class="crew">
-        <article class="badge reveal" style="--c:#2a3cf0">
-          <div class="badge-top"></div><div class="badge-av">S</div>
-          <div class="badge-body">
-            <h3>Scout</h3><p class="role">Repository researcher</p>
-            <p class="job">Finds new projects, clones the promising ones and writes a sourced weekly report.</p>
-            <dl><dt>Tools</dt><dd>Web search, scraping, shell</dd><dt>Runs</dt><dd>Mondays 09:00</dd></dl>
+        <p class="kicker"><b>04</b>The crew</p>
+        <h2>A bot for every job. <span class="mute">None of them share a desk.</span></h2>
+        <p class="lede">Each bot keeps its own workspace, memory and skills, so the researcher's notes never end up in the inbox manager's files.</p>
+      </div>
+      <div class="crew reveal">
+        <article class="badge" style="--c:#2a3cf0; --i:0">
+          <i class="strap"></i><i class="clasp"></i>
+          <div class="card">
+            <div class="card-top"></div><div class="card-av">S</div>
+            <div class="card-body">
+              <h3>Scout</h3><p class="role">Repository researcher</p>
+              <p class="job">Finds new projects, clones the promising ones and writes a sourced weekly report.</p>
+              <dl><dt>Tools</dt><dd>Web search, scraping, shell</dd><dt>Runs</dt><dd>Mondays 09:00</dd></dl>
+              <div class="card-id"><span>PK-001</span><i></i></div>
+            </div>
           </div>
         </article>
-        <article class="badge reveal" style="--c:#d39a33">
-          <div class="badge-top"></div><div class="badge-av">I</div>
-          <div class="badge-body">
-            <h3>Inbox Manager</h3><p class="role">Email assistant</p>
-            <p class="job">Finds threads that need you, summarises them and drafts replies for your approval.</p>
-            <dl><dt>Tools</dt><dd>Gmail</dd><dt>Runs</dt><dd>When you ask</dd></dl>
+        <article class="badge" style="--c:#d39a33; --i:1">
+          <i class="strap"></i><i class="clasp"></i>
+          <div class="card">
+            <div class="card-top"></div><div class="card-av">I</div>
+            <div class="card-body">
+              <h3>Inbox Manager</h3><p class="role">Email assistant</p>
+              <p class="job">Finds threads that need you, summarises them and drafts replies for your approval.</p>
+              <dl><dt>Tools</dt><dd>Gmail</dd><dt>Runs</dt><dd>When you ask</dd></dl>
+              <div class="card-id"><span>PK-002</span><i></i></div>
+            </div>
           </div>
         </article>
-        <article class="badge reveal" style="--c:#1f7a4d">
-          <div class="badge-top"></div><div class="badge-av">T</div>
-          <div class="badge-body">
-            <h3>Issue Triage</h3><p class="role">Maintainer's helper</p>
-            <p class="job">Reads new issues, tries to reproduce bugs in its sandbox and comments with what it found.</p>
-            <dl><dt>Tools</dt><dd>GitHub, shell</dd><dt>Runs</dt><dd>When you ask</dd></dl>
+        <article class="badge" style="--c:#1f7a4d; --i:2">
+          <i class="strap"></i><i class="clasp"></i>
+          <div class="card">
+            <div class="card-top"></div><div class="card-av">T</div>
+            <div class="card-body">
+              <h3>Issue Triage</h3><p class="role">Maintainer's helper</p>
+              <p class="job">Reads new issues, tries to reproduce bugs in its sandbox and comments with what it found.</p>
+              <dl><dt>Tools</dt><dd>GitHub, shell</dd><dt>Runs</dt><dd>When you ask</dd></dl>
+              <div class="card-id"><span>PK-003</span><i></i></div>
+            </div>
           </div>
         </article>
-        <article class="badge reveal" style="--c:#151515">
-          <div class="badge-top"></div><div class="badge-av">L</div>
-          <div class="badge-body">
-            <h3>Librarian</h3><p class="role">Knowledge keeper</p>
-            <p class="job">Finds and updates your team's Notion pages, and sends you a summary on Telegram.</p>
-            <dl><dt>Tools</dt><dd>Notion, Telegram</dd><dt>Runs</dt><dd>When you ask</dd></dl>
+        <article class="badge" style="--c:#151515; --i:3">
+          <i class="strap"></i><i class="clasp"></i>
+          <div class="card">
+            <div class="card-top"></div><div class="card-av">L</div>
+            <div class="card-body">
+              <h3>Librarian</h3><p class="role">Knowledge keeper</p>
+              <p class="job">Finds and updates your team's Notion pages, and sends you a summary on Telegram.</p>
+              <dl><dt>Tools</dt><dd>Notion, Telegram</dd><dt>Runs</dt><dd>When you ask</dd></dl>
+              <div class="card-id"><span>PK-004</span><i></i></div>
+            </div>
           </div>
         </article>
       </div>
@@ -637,6 +951,7 @@ footer .brand { font-size: 15px; color: var(--ink); }
   <section id="plugins">
     <div class="wrap">
       <div class="head reveal">
+        <p class="kicker"><b>05</b>Plugins</p>
         <h2>Works with your tools. <span class="mute">Asks before it changes them.</span></h2>
         <p class="lede">Connect a tool once and all your bots can use it. Pick one to see exactly what bots can do with it.</p>
       </div>
@@ -656,27 +971,28 @@ footer .brand { font-size: 15px; color: var(--ink); }
   <section id="architecture">
     <div class="wrap">
       <div class="head reveal">
-          <h2>Runs on your server. <span class="mute">Under your control.</span></h2>
-          <p class="lede">Pekka is a Node.js app you run yourself. It calls the services you choose and keeps every credential on the server.</p>
-        </div>
+        <p class="kicker"><b>06</b>Architecture</p>
+        <h2>Runs on your server. <span class="mute">Under your control.</span></h2>
+        <p class="lede">Pekka is a Node.js app you run yourself. It calls the services you choose and keeps every credential on the server.</p>
+      </div>
       <div class="arch reveal">
         <div class="node">
           <h3><svg><use href="#i-user"/></svg>You</h3>
           <p>Talk to your bots from wherever suits you.</p>
           <div class="rows"><span>Web app</span><span>CLI</span><span>HTTP API + SSE</span></div>
         </div>
-        <div class="wire"></div>
+        <div class="wire"><i></i><i></i></div>
         <div class="node core">
           <h3><svg><use href="#i-cpu"/></svg>Pekka</h3>
           <p>The API and scheduler you run. They hold the keys.</p>
           <div class="rows"><span>Agent loop</span><span>Permission gate</span><span>Scheduler</span><span>Encrypted plugin tokens</span></div>
         </div>
-        <div class="wire"></div>
+        <div class="wire"><i></i><i></i></div>
         <div class="outs">
           <div class="node"><h3>OpenRouter</h3><p>The model, any one with tool calling</p></div>
           <div class="node"><h3>Daytona</h3><p>One persistent sandbox per bot</p></div>
           <div class="node"><h3>Cloudflare D1</h3><p>Bots, memory, skills and schedules</p></div>
-          <div class="node"><h3>Plugins</h3><p>GitHub, Gmail, Notion, Telegram, AgentMail</p></div>
+          <div class="node"><h3>Plugins</h3><p>GitHub, Google, Notion, Telegram, AgentMail</p></div>
         </div>
       </div>
       <p class="arch-note reveal"><svg><use href="#i-lock"/></svg>Turn on Google sign-in to share one server with your team. Everyone gets their own bots, memory, schedules and plugin connections, and nobody can see anyone else's.</p>
@@ -687,6 +1003,7 @@ footer .brand { font-size: 15px; color: var(--ink); }
   <section id="start">
     <div class="wrap start">
       <div class="reveal">
+        <p class="kicker"><b>07</b>Get started</p>
         <h2>Open source on GitHub. <span class="mute">Made for the browser.</span></h2>
         <p class="free-sub">Run Pekka yourself from GitHub and bring your own keys. Its web workspace lets you create bots, assign tasks and approve their work. With Google sign-in enabled, invited users get their own private workspace. Self-hosted users pay only for the services they connect.</p>
         <p class="free-sub">The hosted app currently opens without login. Everyone shares the same workspace.</p>
@@ -699,7 +1016,7 @@ footer .brand { font-size: 15px; color: var(--ink); }
       </div>
       <div class="qs reveal">
         <div class="term-win">
-          <div class="term-bar"><i></i><i></i><i></i><small>quickstart</small><button type="button" data-copy="qs">Copy</button></div>
+          <div class="term-bar"><i></i><i></i><i></i><small>quickstart</small><span class="term-state"></span><button class="term-btn" type="button" data-copy="qs">Copy</button></div>
           <div class="term-body" id="qs"><span class="d"># Node.js 22.13+ and pnpm</span>
 <span class="p">$</span> git clone https://github.com/sidmanale643/pekka.git
 <span class="p">$</span> cd pekka && pnpm install
@@ -720,6 +1037,7 @@ footer .brand { font-size: 15px; color: var(--ink); }
   <section id="faq">
     <div class="wrap faq-grid">
       <aside class="reveal">
+        <p class="kicker"><b>08</b>FAQ</p>
         <h2>Common questions</h2>
         <p>Anything else is probably in the <a href="https://github.com/sidmanale643/pekka#readme">README</a>.</p>
       </aside>
@@ -757,36 +1075,79 @@ footer .brand { font-size: 15px; color: var(--ink); }
   </section>
 
   <!-- Final -->
-  <div class="final">
+  <section class="final dark">
     <div class="wrap reveal">
-      <img src="logo.png" alt="The Pekka mascot, a small armoured knight" width="168" height="168">
-      <div>
-        <h2>Put Pekka to work.</h2>
-        <p>Your first bot is a few minutes away.</p>
-        <div class="hero-ctas">
-          <a class="btn btn-ink" href="https://pekka-app.vercel.app">Open Pekka <svg class="arrow"><use href="#i-arrow"/></svg></a>
-          <a class="btn btn-line" href="https://github.com/sidmanale643/pekka"><svg><use href="#i-github"/></svg>Star on GitHub</a>
+      <div class="final-stage" data-helm aria-hidden="true">
+        <div class="halo"></div>
+        <div class="helm-tilt">
+          <svg class="helm" viewBox="84 46 344 268">
+            <use href="#helm-static"/>
+            <g class="eyes">
+              <g class="eye-bloom" fill="#3fd0ff" filter="url(#h-bloom)"><use href="#h-eye"/><use href="#h-eye" transform="matrix(-1 0 0 1 512 0)"/></g>
+              <g class="eye-core" fill="url(#h-glow)"><use href="#h-eye"/><use href="#h-eye" transform="matrix(-1 0 0 1 512 0)"/></g>
+            </g>
+          </svg>
         </div>
       </div>
+      <h2 class="final-hl"><span class="ln"><span style="--d:0">Over to</span></span><span class="ln"><span style="--d:120">Pekka.</span></span></h2>
+      <p class="lead">Your first bot is a few minutes away.</p>
+      <div class="ctas">
+        <a class="btn btn-moon" href="https://pekka-app.vercel.app">Open Pekka <svg class="arrow"><use href="#i-arrow"/></svg></a>
+        <a class="btn btn-ghost" href="https://github.com/sidmanale643/pekka"><svg><use href="#i-github"/></svg>Star on GitHub</a>
+      </div>
     </div>
-  </div>
+  </section>
 </main>
 
-<footer>
+<footer class="dark">
   <div class="wrap">
-    <a class="brand" href="#top"><img src="logo.png" alt="" width="24" height="24">Pekka</a>
-    <nav aria-label="Footer">
-      <a href="#features">Features</a>
-      <a href="#plugins">Plugins</a>
-      <a href="#faq">FAQ</a>
-      <a href="https://github.com/sidmanale643/pekka">GitHub</a>
-    </nav>
+    <div>
+      <a class="brand" href="#top"><img src="head.svg" alt="" width="30" height="30">Pekka</a>
+      <nav aria-label="Footer">
+        <a href="#features">Features</a>
+        <a href="#plugins">Plugins</a>
+        <a href="#faq">FAQ</a>
+        <a href="https://github.com/sidmanale643/pekka">GitHub</a>
+      </nav>
+    </div>
   </div>
 </footer>
 
 <script>
+const root = document.documentElement;
 const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, reduceMotion ? 0 : ms));
+
+// Start the hero once its display face has loaded, so the type doesn't jump mid-animation.
+// The knight squints happily when "sign off" is stamped.
+Promise.race([document.fonts.load('800 100px "Archivo"'), wait(1500)]).finally(() => {
+  root.classList.add("go");
+  if (!reduceMotion) setTimeout(squint, 1600);
+});
+
+// Split section headings into words that rise into place one after another.
+document.querySelectorAll("h2:not(.final-hl)").forEach((heading) => {
+  heading.setAttribute("aria-label", heading.textContent.replace(/\s+/g, " ").trim());
+  const walker = document.createTreeWalker(heading, NodeFilter.SHOW_TEXT);
+  const texts = [];
+  while (walker.nextNode()) texts.push(walker.currentNode);
+  let index = 0;
+  for (const text of texts) {
+    const words = document.createDocumentFragment();
+    for (const part of text.textContent.split(/(\s+)/)) {
+      if (!part) continue;
+      if (/^\s+$/.test(part)) { words.append(" "); continue; }
+      const word = document.createElement("span");
+      word.className = "w";
+      word.setAttribute("aria-hidden", "true");
+      word.style.setProperty("--i", index++);
+      word.append(document.createElement("span"));
+      word.firstChild.textContent = part;
+      words.append(word);
+    }
+    text.replaceWith(words);
+  }
+});
 
 // Fade content in as it scrolls into view.
 const revealer = new IntersectionObserver((entries) => {
@@ -795,8 +1156,140 @@ const revealer = new IntersectionObserver((entries) => {
     entry.target.classList.add("in");
     revealer.unobserve(entry.target);
   }
-}, { rootMargin: "0px 0px -8% 0px" });
+}, { rootMargin: "0px 0px -10% 0px" });
 document.querySelectorAll(".reveal").forEach((element) => revealer.observe(element));
+
+// The nav turns light over the night sections and gains a backdrop once the page scrolls.
+const nav = document.querySelector(".nav");
+const darkUnderNav = new Set();
+const navWatcher = new IntersectionObserver((entries) => {
+  for (const entry of entries) entry.isIntersecting ? darkUnderNav.add(entry.target) : darkUnderNav.delete(entry.target);
+  nav.classList.toggle("on-dark", darkUnderNav.size > 0);
+}, { rootMargin: "0px 0px -94% 0px" });
+document.querySelectorAll(".dark").forEach((section) => navWatcher.observe(section));
+
+// Ease the hero copy away as the page scrolls past it.
+const heroCopy = document.querySelector(".hero-copy");
+let scrollQueued = false;
+addEventListener("scroll", () => {
+  nav.classList.toggle("scrolled", scrollY > 8);
+  if (reduceMotion || scrollQueued) return;
+  scrollQueued = true;
+  requestAnimationFrame(() => {
+    scrollQueued = false;
+    const progress = Math.min(scrollY / innerHeight, 1);
+    heroCopy.style.transform = `translateY(${(progress * -70).toFixed(1)}px)`;
+    heroCopy.style.opacity = String(1 - progress * 0.85);
+  });
+}, { passive: true });
+
+// The knights: eyes follow the pointer, the helmet leans towards it, and they blink now and then.
+const helms = [...document.querySelectorAll("[data-helm]")].map((stage) => ({
+  svg: stage.querySelector(".helm"),
+  eyes: stage.querySelector(".eyes"),
+  tilt: stage.querySelector(".helm-tilt"),
+  x: 0, y: 0, seen: false,
+}));
+let pointer = null;
+let pointerAt = -Infinity;
+addEventListener("pointermove", (event) => {
+  if (event.pointerType !== "mouse") return;
+  pointer = [event.clientX, event.clientY];
+  pointerAt = performance.now();
+}, { passive: true });
+const helmWatcher = new IntersectionObserver((entries) => {
+  for (const entry of entries) helms.find((helm) => helm.svg === entry.target).seen = entry.isIntersecting;
+});
+helms.forEach((helm) => helmWatcher.observe(helm.svg));
+const clamp = (value) => Math.max(-1, Math.min(1, value));
+
+function track(now) {
+  for (const helm of helms) {
+    if (!helm.seen) continue;
+    let tx, ty;
+    if (pointer && now - pointerAt < 5000) {
+      const box = helm.svg.getBoundingClientRect();
+      tx = (pointer[0] - (box.left + box.width / 2)) / (innerWidth / 2);
+      ty = (pointer[1] - (box.top + box.height * 0.7)) / (innerHeight / 2);
+    } else {
+      // Nobody is pointing, so glance around the room.
+      tx = Math.sin(now / 1900) * 0.75 + Math.sin(now / 610) * 0.08;
+      ty = Math.sin(now / 2700) * 0.35;
+    }
+    helm.x += (clamp(tx) - helm.x) * 0.07;
+    helm.y += (clamp(ty) - helm.y) * 0.07;
+    helm.eyes.style.transform = `translate(${(helm.x * 10).toFixed(2)}px, ${(helm.y * 6).toFixed(2)}px)`;
+    helm.tilt.style.transform = `perspective(1100px) rotateY(${(helm.x * 13).toFixed(2)}deg) rotateX(${(-helm.y * 8).toFixed(2)}deg)`;
+  }
+  requestAnimationFrame(track);
+}
+
+function blink() {
+  helms.forEach((helm) => helm.eyes.classList.add("blink"));
+  setTimeout(() => helms.forEach((helm) => helm.eyes.classList.remove("blink")), 130);
+  setTimeout(blink, 2400 + Math.random() * 4200);
+}
+
+function squint() {
+  helms[0].eyes.classList.add("happy");
+  setTimeout(() => helms[0].eyes.classList.remove("happy"), 700);
+}
+
+if (!reduceMotion) {
+  requestAnimationFrame(track);
+  setTimeout(blink, 3400);
+}
+
+// The hero's permission slip: a bot asks, you approve, it gets stamped, the next one asks.
+const asks = [
+  { bot: "Scout", color: "#2a3cf0", tool: "write_file", arg: "reports/2026-10-01.md" },
+  { bot: "Inbox Manager", color: "#d39a33", tool: "gmail_send", arg: "to dana@acme.com · Re: renewal terms" },
+  { bot: "Issue Triage", color: "#1f7a4d", tool: "github_add_comment", arg: "acme/web · issue #412" },
+  { bot: "Librarian", color: "#151515", tool: "notion_append_text", arg: "Team wiki › Weekly notes" },
+];
+const ask = document.getElementById("ask");
+const askLog = document.getElementById("ask-log");
+let heroSeen = true;
+new IntersectionObserver(([entry]) => (heroSeen = entry.isIntersecting)).observe(document.querySelector(".hero"));
+
+async function cycleAsks() {
+  await wait(1900);
+  for (let i = 0; ; i = (i + 1) % asks.length) {
+    while (!heroSeen || document.hidden) await wait(400);
+    const { bot, color, tool, arg } = asks[i];
+    ask.style.setProperty("--c", color);
+    ask.querySelector(".ask-av").textContent = bot[0];
+    ask.querySelector(".ask-bot").textContent = bot;
+    ask.querySelector(".ask-tool").textContent = tool;
+    ask.querySelector(".ask-arg").textContent = arg;
+    ask.className = "ask";
+    void ask.offsetWidth;
+    ask.classList.add("enter");
+    await wait(1900);
+    ask.classList.add("aim");
+    await wait(850);
+    ask.classList.add("press");
+    await wait(130);
+    ask.classList.add("stamped");
+    squint();
+    await wait(1500);
+    const entry = document.createElement("li");
+    entry.innerHTML = `<b>✓</b>${bot}<code>${tool}</code><em>approved</em>`;
+    askLog.prepend(entry);
+    while (askLog.children.length > 3) askLog.lastElementChild.remove();
+    ask.classList.add("leave");
+    await wait(650);
+  }
+}
+if (!reduceMotion) cycleAsks();
+
+// Loop the ticker by repeating its items once.
+const tape = document.querySelector(".tape-track");
+for (const item of [...tape.children]) {
+  const copy = item.cloneNode(true);
+  copy.setAttribute("aria-hidden", "true");
+  tape.append(copy);
+}
 
 // Copy buttons copy the commands only, without prompts, output or comments.
 document.querySelectorAll("[data-copy]").forEach((button) => {
@@ -815,9 +1308,9 @@ document.querySelectorAll("[data-copy]").forEach((button) => {
 });
 
 // A recorded CLI run, in the format `pnpm pekka bot run` prints.
-// Each line: [html, pause after (ms), typed out?, answer typed at the prompt]
+// Each line: [html, pause after (ms), typed out?, answer typed at the prompt, point to highlight]
 const run = [
-  [`<span class="p">$</span> pnpm pekka bot run "Scout"`, 600],
+  [`<span class="p">$</span> pnpm pekka bot run "Scout"`, 600, false, null, 0],
   [`<span class="d">Connecting to sandbox "pekka-computer-bot-7f3c2a"...</span>`, 700],
   [``, 0],
   [`<span class="d">── step 1 ──</span>`, 300],
@@ -830,7 +1323,7 @@ const run = [
   [`<span class="d">── step 2 ──</span>`, 300],
   [`<span class="t">→ write_file</span> {"path":"reports/2026-10-01.md","content":"# New TypeScript…"}`, 500],
   [``, 0],
-  [`<span class="w">Permission required: write_file</span>`, 200],
+  [`<span class="w">Permission required: write_file</span>`, 200, false, null, 1],
   [`<span class="w">This action can change files, run code or alter state.</span>`, 200],
   [`<span class="d">{ "path": "reports/2026-10-01.md", "content": "# New TypeScript…" }</span>`, 400],
   [`Approve this action once? [y/N] <span class="yes"></span>`, 900, false, "y"],
@@ -839,12 +1332,25 @@ const run = [
   [`<span class="d">── step 3 ──</span>`, 300],
   [`Done. I picked 6 of 25 new repositories: two edge runtimes, a type-safe SQL builder and three developer tools. The report is in reports/2026-10-01.md, with sources.`, 600, true],
   [``, 0],
-  [`<span class="g">3 steps · 18,204 input tokens · 1,312 output tokens · Cache hit rate: 41% · $0.0062</span>`, 0],
+  [`<span class="g">3 steps · 18,204 input tokens · 1,312 output tokens · Cache hit rate: 41% · $0.0062</span>`, 0, false, null, 2],
 ];
+const term = document.getElementById("term");
+const termState = document.getElementById("term-state");
+const points = document.getElementById("points");
+const replay = document.getElementById("replay");
+
+function setState(text, live) {
+  termState.lastElementChild.textContent = text;
+  termState.classList.toggle("live", live);
+}
 
 async function playRun() {
-  const term = document.getElementById("term");
-  for (const [html, pause, typed, answer] of run) {
+  term.replaceChildren();
+  replay.hidden = true;
+  points.classList.add("playing");
+  setState("running", true);
+  for (const [html, pause, typed, answer, point] of run) {
+    if (point !== undefined) [...points.children].forEach((item, i) => item.classList.toggle("on", i === point));
     const line = document.createElement("div");
     line.innerHTML = html || "&nbsp;";
     term.append(line);
@@ -858,23 +1364,32 @@ async function playRun() {
     if (answer) {
       const slot = line.querySelector(".yes");
       slot.classList.add("cur");
+      setState("waiting for you", true);
       await wait(1100);
       slot.classList.remove("cur");
       slot.textContent = answer;
+      setState("running", true);
     }
     await wait(pause);
   }
   const prompt = document.createElement("div");
   prompt.innerHTML = `<span class="p">$</span> <span class="cur"></span>`;
   term.append(prompt);
+  setState("finished · 3 steps", false);
+  replay.hidden = false;
+  await wait(1400);
+  points.classList.remove("playing");
+  [...points.children].forEach((item) => item.classList.remove("on"));
 }
 
-const runObserver = new IntersectionObserver(([entry]) => {
+replay.addEventListener("click", playRun);
+const runWatcher = new IntersectionObserver(([entry]) => {
   if (!entry.isIntersecting) return;
-  runObserver.disconnect();
+  runWatcher.disconnect();
   playRun();
 }, { threshold: 0.35 });
-runObserver.observe(document.getElementById("term"));
+runWatcher.observe(term);
+
 // Plugins: pick one to see its tools and what needs approval.
 const plugins = [
   { name: "GitHub", icon: "i-github", blurb: "Repositories, issues and pull requests", desc: "Explore repositories, read issues and pull requests, and post as you.", access: "Connect with a GitHub OAuth app",
@@ -892,17 +1407,48 @@ const plugins = [
       ["github_add_comment", "Comment on an issue or pull request", 1],
       ["github_create_pull_request", "Open a draft pull request from an existing branch", 1],
     ] },
-  { name: "Gmail", icon: "i-inbox", blurb: "Your own inbox", desc: "Search and read your mail, tidy labels, and draft or send replies.", access: "Connect with Google",
+  { name: "Gmail", icon: "i-inbox", blurb: "Your own inbox", desc: "Search and read your mail and attachments, tidy labels, and draft or send replies.", access: "Connect with Google",
     note: "Can't permanently delete mail. Scheduled runs can't send without you there to approve.",
     tools: [
       ["gmail_search", "Search with Gmail search syntax", 0],
       ["gmail_read_thread", "Read a whole conversation", 0],
       ["gmail_read_message", "Read one message", 0],
+      ["gmail_read_attachment", "Read a PDF, scan or text attachment", 0],
       ["gmail_list_labels", "List your labels", 0],
       ["gmail_create_draft", "Save a draft for you to review", 1],
       ["gmail_modify_labels", "Mark read, archive or star", 1],
       ["gmail_send", "Send an email or reply", 1],
     ] },
+  { name: "Google Calendar", icon: "i-calendar", blurb: "Events, free time and tasks", desc: "Check your schedule, find free time, book and answer invites, and keep Google Tasks up to date.", access: "Connect with Google",
+    note: "Never emails guests unless asked. Deleted events stay in the trash for 30 days.",
+    tools: [
+      ["calendar_list_calendars", "List your calendars", 0],
+      ["calendar_list_events", "List events in a time window", 0],
+      ["calendar_find_free_time", "Find free gaps between busy blocks", 0],
+      ["tasks_list_lists", "List your task lists", 0],
+      ["tasks_list", "List tasks and reminders", 0],
+      ["calendar_create_event", "Create an event, with a Meet link or reminders", 1],
+      ["calendar_update_event", "Change an event or a whole series", 1],
+      ["calendar_respond_to_event", "Accept, decline or maybe an invite", 1],
+      ["calendar_delete_event", "Delete an event", 1],
+      ["tasks_create", "Add a task or reminder", 1],
+      ["tasks_update", "Change or complete a task", 1],
+    ] },
+  { name: "Google Drive", icon: "i-folder", blurb: "Files, Docs and Sheets", desc: "Search and read your files, write Google Docs, and keep Sheets up to date.", access: "Connect with Google",
+    note: "Can't move, share or delete files. Formulas written to Sheets stay plain text unless asked.",
+    tools: [
+      ["drive_search", "Search files, including shared drives", 0],
+      ["drive_read_file", "Read a Doc, Sheet, PDF or scan as text", 0],
+      ["sheets_read", "Read cells from a sheet", 0],
+      ["docs_create", "Create a Google Doc", 1],
+      ["docs_append_text", "Add text to the end of a Doc", 1],
+      ["sheets_create", "Create a Google Sheet", 1],
+      ["sheets_append_rows", "Add rows below the data", 1],
+      ["sheets_update_range", "Overwrite a range of cells", 1],
+    ] },
+  { name: "Google Contacts", icon: "i-contacts", blurb: "People you know", desc: "Look up your contacts and the people you've emailed, so bots get addresses right.", access: "Connect with Google",
+    note: "Read-only. Can't add, change or delete contacts.",
+    tools: [["contacts_search", "Find people by name, email, phone or company", 0]] },
   { name: "Notion", icon: "i-page", blurb: "Pages you share with Pekka", desc: "Find, read and add to the pages you choose to share.", access: "Connect with Notion and pick pages",
     note: "Only sees pages you share on Notion's consent screen.",
     tools: [
@@ -942,8 +1488,8 @@ function renderPlugin(index) {
   const access = plugin.key
     ? `<div class="px-access"><div>Turns on with an API key on the server<small>Available to every bot once it's set.</small></div><span class="keypill">${plugin.key}</span></div>`
     : `<div class="px-access"><div>Allow Pekka to access ${plugin.name}<small>${plugin.access}. Off until you switch it on.</small></div><button class="switch" type="button" role="switch" aria-checked="${on}" aria-label="Allow Pekka to access ${plugin.name}"></button></div>`;
-  const tools = plugin.tools.map(([name, what, asks]) =>
-    `<div class="px-tool"><code>${name}</code><span>${what}</span><em class="${asks ? "ask" : "auto"}">${asks ? "Asks first" : "Automatic"}</em></div>`).join("");
+  const tools = plugin.tools.map(([name, what, asks], i) =>
+    `<div class="px-tool" style="--i:${i}"><code>${name}</code><span>${what}</span><em class="${asks ? "ask" : "auto"}">${asks ? "Asks first" : "Automatic"}</em></div>`).join("");
   pxPanel.innerHTML = `
     <div class="px-top"><span class="ic"><svg><use href="#${plugin.icon}"/></svg></span><div><h3>${plugin.name}</h3><p>${plugin.desc}</p></div></div>
     ${access}
