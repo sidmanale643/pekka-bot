@@ -603,11 +603,22 @@ h2 .mute { display: block; }
 .faq details::details-content { block-size: 0; overflow-y: clip; transition: block-size 0.5s var(--ease), content-visibility 0.5s allow-discrete; }
 .faq details[open]::details-content { block-size: auto; }
 
-/* Final call, with the knight peeking over the headline. */
+/* Final call: the knight and its crew of mini Pekkas, peeking over the headline. */
 .final { padding: 130px 0 0; text-align: center; overflow: clip; }
-.final-stage { position: relative; width: min(400px, 74vw); margin: 0 auto calc(min(400px, 74vw) * -0.17); }
-.final-stage .halo { top: 52%; }
-.final-stage .floor { display: none; }
+.crowd { --scale: 1; position: relative; z-index: 0; left: 50%; translate: -50% 0; width: min(1100px, 100% * var(--scale)); aspect-ratio: 11 / 4; margin-bottom: calc(min(1100px, 100% * var(--scale)) * -0.06); }
+.crowd::before { content: ""; position: absolute; inset: 15% -5% -25%; pointer-events: none;
+  background: radial-gradient(closest-side, rgba(63, 208, 255, 0.1), rgba(42, 60, 240, 0.05) 55%, transparent); }
+.crowd .halo { width: 56%; top: 60%; }
+.chief { position: absolute; left: 50%; bottom: 0; z-index: 2; width: 38%; translate: -50% 0; }
+.mini { position: absolute; z-index: 1; left: var(--x); top: var(--y); width: var(--s); translate: -50% -50%; transition: transform 0.9s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.4s; transition-delay: var(--in); }
+.mini svg { display: block; width: 100%; height: auto; overflow: visible; opacity: var(--o); animation: mini-bob var(--bob) ease-in-out var(--bob-at) infinite; }
+@keyframes mini-bob { 50% { transform: translateY(-8%) rotate(var(--lean)); } }
+.mini .eyes { transition: opacity 0.5s calc(var(--in) + 0.4s); }
+.mini .eye-core { animation: mini-blink var(--blink) linear var(--blink-at) infinite; }
+.mini .eye-bloom { animation: breathe 3.6s ease-in-out infinite, mini-blink var(--blink) linear var(--blink-at) infinite; }
+@keyframes mini-blink { 0%, 96%, 100% { transform: none; } 98% { transform: scaleY(0.08); } }
+.js .reveal:not(.in) .mini { opacity: 0; transform: translateY(40%) scale(0.4); }
+.js .reveal:not(.in) .mini .eyes { opacity: 0; }
 .final-hl { position: relative; z-index: 1; font-size: clamp(76px, 15vw, 232px); font-weight: 800; font-stretch: 62%; text-transform: uppercase; line-height: 0.84; letter-spacing: -0.005em; }
 .final-hl .ln > span { transition: transform 1.2s var(--ease); transition-delay: calc(var(--d) * 1ms); }
 .js .reveal:not(.in) .final-hl .ln > span { transform: translateY(110%); }
@@ -666,6 +677,7 @@ footer .brand img { width: 30px; height: 30px; border-radius: 8px; }
   .px-tab .ic svg { width: 14px; height: 14px; }
   .px-tab .count { display: none; }
   .trust { grid-template-columns: 1fr; gap: 18px; }
+  .crowd { --scale: 1.4; }
   footer { padding-top: 90px; }
 }
 @media (max-width: 600px) {
@@ -699,6 +711,7 @@ footer .brand img { width: 30px; height: 30px; border-radius: 8px; }
   .faq summary { grid-template-columns: 30px 1fr 22px; font-size: 16px; }
   .faq details p { padding-left: 30px; padding-right: 0; }
   .final { padding-top: 100px; }
+  .crowd { --scale: 1.8; }
   .final .lead { font-size: 17px; }
   footer .wrap > div { flex-direction: column; align-items: flex-start; }
 }
@@ -726,7 +739,7 @@ footer .brand img { width: 30px; height: 30px; border-radius: 8px; }
     <filter id="h-bloom" x="-80%" y="-120%" width="260%" height="340%"><feGaussianBlur stdDeviation="8"/></filter>
     <path id="h-eye" d="M199 218 242 229C245 230 247 233 246 236L243 247C242 250 239 251 236 250L206 242C202 241 199 237 199 233Z"/>
     <path id="h-shell" d="M148 206C148 132 194 92 256 92 318 92 364 132 364 206L360 254C358 280 342 296 318 296H194C170 296 154 280 152 254Z"/>
-    <!-- The Pekka helmet from head.svg, without its eyes, so each copy can move its own. -->
+    <!-- The Pekka helmet from head.svg, without its eyes, so each copy can move its own. The crew's mini Pekkas are recoloured clones of it. -->
     <g id="helm-static">
       <path d="M160 178C110 166 92 114 112 60 124 100 150 126 198 136Z" fill="url(#h-horn)"/>
       <path d="M352 178C402 166 420 114 400 60 388 100 362 126 314 136Z" fill="url(#h-horn)"/>
@@ -1245,16 +1258,18 @@ footer .brand img { width: 30px; height: 30px; border-radius: 8px; }
   <!-- Final -->
   <section class="final dark">
     <div class="wrap reveal">
-      <div class="final-stage" data-helm aria-hidden="true">
+      <div class="crowd" data-crowd aria-hidden="true">
         <div class="halo"></div>
-        <div class="helm-tilt">
-          <svg class="helm" viewBox="84 46 344 268">
-            <use href="#helm-static"/>
-            <g class="eyes">
-              <g class="eye-bloom" fill="#3fd0ff" filter="url(#h-bloom)"><use href="#h-eye"/><use href="#h-eye" transform="matrix(-1 0 0 1 512 0)"/></g>
-              <g class="eye-core" fill="url(#h-glow)"><use href="#h-eye"/><use href="#h-eye" transform="matrix(-1 0 0 1 512 0)"/></g>
-            </g>
-          </svg>
+        <div class="chief" data-helm>
+          <div class="helm-tilt">
+            <svg class="helm" viewBox="84 46 344 268">
+              <use href="#helm-static"/>
+              <g class="eyes">
+                <g class="eye-bloom" fill="#3fd0ff" filter="url(#h-bloom)"><use href="#h-eye"/><use href="#h-eye" transform="matrix(-1 0 0 1 512 0)"/></g>
+                <g class="eye-core" fill="url(#h-glow)"><use href="#h-eye"/><use href="#h-eye" transform="matrix(-1 0 0 1 512 0)"/></g>
+              </g>
+            </svg>
+          </div>
         </div>
       </div>
       <h2 class="final-hl"><span class="ln"><span style="--d:0">Over to</span></span><span class="ln"><span style="--d:120">Pekka.</span></span></h2>
@@ -1378,11 +1393,79 @@ const helmWatcher = new IntersectionObserver((entries) => {
 helms.forEach((helm) => helmWatcher.observe(helm.svg));
 const clamp = (value) => Math.max(-1, Math.min(1, value));
 
+// The chief's crew in the final call: mini Pekkas in the crew colours from the launch video, with
+// one recoloured copy of the helmet per colour. Each row is [top, width, opacity, lefts] in percent
+// of the crowd, back row first, for the left half; the right half mirrors it.
+const crewColours = [
+  { helm: ["#9aa6dc", "#56619e", "#262c55"], plate: ["#8590c4", "#4c5690", "#2a3060"], horn: ["#1a2fd0", "#4d64ff", "#d3daff"], rim: "#9fb0ff", glow: ["#f4f6ff", "#9eacff", "#3a50ff"], bloom: "#5a6dff" },
+  { helm: ["#94bfac", "#4f7868", "#22382f"], plate: ["#84ad9b", "#4a6e5f", "#26392f"], horn: ["#0f5a35", "#2fb070", "#cbf5de"], rim: "#8ff0c0", glow: ["#f2fff7", "#86f2b6", "#22b56a"], bloom: "#3fe08f" },
+  { helm: ["#c2ae92", "#806a50", "#3e3122"], plate: ["#b09c80", "#76624a", "#3d3123"], horn: ["#9a6514", "#e3a843", "#fff1cc"], rim: "#ffd890", glow: ["#fffaf0", "#ffd27a", "#e09a2a"], bloom: "#ffc04d" },
+  { helm: ["#8a8d98", "#44474f", "#18191e"], plate: ["#7c7f8a", "#43464f", "#1f2026"], horn: ["#3a3a42", "#9c9ca8", "#f2f2f6"], rim: "#e4e2da", glow: ["#ffffff", "#efede4", "#bdb8a8"], bloom: "#ecebe6" },
+];
+const crowdRows = [
+  [27, 3.8, 0.36, [47, 30, 24.5, 19, 13.5, 8, 2.5]],
+  [40, 5.4, 0.54, [28, 21, 14, 7]],
+  [55, 7.4, 0.74, [26.5, 17.5, 8.5]],
+  [77, 10.5, 1, [22.5, 10.5]],
+];
+// Fixed jitter, so the crowd looks gathered rather than seated but lands the same way every time.
+const jitter = (n) => ((Math.sin(n * 127.1) * 43758.5453) % 1 + 1) % 1 - 0.5;
+const crowd = { box: document.querySelector("[data-crowd]"), minis: [], seen: false };
+const helmMarkup = document.querySelector("#helm-static").outerHTML;
+const stops = (colours, offsets) => colours.map((colour, i) => `<stop offset="${offsets[i]}" stop-color="${colour}"/>`).join("");
+document.querySelector("#helm-static").parentNode.insertAdjacentHTML("beforeend", crewColours.map((c, k) => `
+  <radialGradient id="m${k}-helm" cx="0.34" cy="0.24" r="0.9">${stops(c.helm, [0, 0.4, 1])}</radialGradient>
+  <linearGradient id="m${k}-plate" x1="0" y1="0" x2="0.55" y2="1">${stops(c.plate, [0, 0.5, 1])}</linearGradient>
+  <linearGradient id="m${k}-horn" x1="0" y1="1" x2="0.4" y2="0">${stops(c.horn, [0, 0.55, 1])}</linearGradient>
+  <linearGradient id="m${k}-rim" x1="0" y1="0" x2="0.3" y2="1"><stop offset="0.35" stop-color="${c.rim}" stop-opacity="0"/><stop offset="1" stop-color="${c.rim}" stop-opacity="0.55"/></linearGradient>
+  <radialGradient id="m${k}-glow" cx="0.5" cy="0.45" r="0.6">${stops(c.glow, [0, 0.45, 1])}</radialGradient>
+  ${helmMarkup.replace('id="helm-static"', `id="m${k}-static"`).replace(/url\(#h-(helm|plate|horn|rim)\)/g, `url(#m${k}-$1)`)}`).join(""));
+
+crowdRows.forEach(([top, width, opacity, lefts], row) => {
+  const front = row === crowdRows.length - 1;
+  lefts.forEach((left, i) => [left, 100 - left].forEach((spot, side) => {
+    const k = (row + i + side * 2) % crewColours.length;
+    const seed = i * 7 + row * 5 + side * 3;
+    const x = spot + jitter(seed) * 2.4;
+    const y = top + ((50 - left) / 50) ** 2 * 10 + jitter(seed + 1) * 4; // the floor curves away towards the edges
+    const size = width * (1 + jitter(seed + 2) * 0.16);
+    const mini = document.createElement("span");
+    mini.className = "mini";
+    mini.style.cssText = [
+      `--x:${x}%`, `--y:${y}%`, `--s:${size}%`, `--o:${opacity}`,
+      `--in:${250 + (50 - left) * 22}ms`,
+      `--bob:${3.4 + (seed % 5) * 0.35}s`, `--bob-at:${-(seed % 9) * 0.45}s`, `--lean:${(seed % 2 ? 1 : -1) * 1.5}deg`,
+      `--blink:${5 + (seed % 7)}s`, `--blink-at:${-(seed % 11) * 0.6}s`,
+    ].join(";");
+    const eye = '<use href="#h-eye"/><use href="#h-eye" transform="matrix(-1 0 0 1 512 0)"/>';
+    mini.innerHTML = `<svg viewBox="84 46 344 268"><use href="#m${k}-static"/><g class="eyes">${
+      front ? `<g class="eye-bloom" fill="${crewColours[k].bloom}" filter="url(#h-bloom)">${eye}</g>` : ""
+    }<g class="eye-core" fill="url(#m${k}-glow)">${eye}</g></g></svg>`;
+    crowd.box.insertBefore(mini, crowd.box.querySelector(".chief"));
+    crowd.minis.push({ eyes: mini.querySelector(".eyes"), cx: x / 100, cy: y / 100, x: 0, y: 0, ease: 0.05 + (seed % 5) * 0.01 });
+  }));
+});
+new IntersectionObserver(([entry]) => (crowd.seen = entry.isIntersecting)).observe(crowd.box);
+
 function track(now) {
+  const pointing = pointer && now - pointerAt < 5000;
+  if (crowd.seen) {
+    const box = crowd.box.getBoundingClientRect();
+    for (const mini of crowd.minis) {
+      const cx = box.left + box.width * mini.cx;
+      const cy = box.top + box.height * mini.cy;
+      // Nobody is pointing, so the crew watches its chief.
+      const tx = pointing ? (pointer[0] - cx) / (innerWidth / 2) : (box.left + box.width / 2 - cx) / (box.width * 0.3);
+      const ty = pointing ? (pointer[1] - cy) / (innerHeight / 2) : (box.top + box.height * 0.55 - cy) / (box.height * 0.6);
+      mini.x += (clamp(tx) - mini.x) * mini.ease;
+      mini.y += (clamp(ty) - mini.y) * mini.ease;
+      mini.eyes.style.transform = `translate(${(mini.x * 10).toFixed(2)}px, ${(mini.y * 6).toFixed(2)}px)`;
+    }
+  }
   for (const helm of helms) {
     if (!helm.seen) continue;
     let tx, ty;
-    if (pointer && now - pointerAt < 5000) {
+    if (pointing) {
       const box = helm.svg.getBoundingClientRect();
       tx = (pointer[0] - (box.left + box.width / 2)) / (innerWidth / 2);
       ty = (pointer[1] - (box.top + box.height * 0.7)) / (innerHeight / 2);
