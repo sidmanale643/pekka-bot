@@ -1,8 +1,15 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
+import { BotMemory } from "../bot-memory.ts";
+import { createBot } from "../bots.ts";
 import { FakeComputer } from "../computer/fake-computer.ts";
 import { LOCAL_USER } from "../database/database.ts";
+import { createSqliteDatabase } from "../database/sqlite.ts";
+import { readMemory } from "./bot-memory.ts";
 import { readFile } from "./read-file.ts";
 import { runCommand } from "./run-command.ts";
+
+const databases: ReturnType<typeof createSqliteDatabase>[] = [];
+afterEach(() => { databases.splice(0).forEach((database) => database.close()); });
 
 function withFile(content: string) {
   const computer = new FakeComputer();
@@ -39,4 +46,15 @@ it("keeps the end of long command output, where failures are reported", async ()
   expect(output.startsWith("exit code: 1\nprogress")).toBe(true);
   expect(output).toContain("characters omitted from the middle");
   expect(output.endsWith("FAILED: 3 tests")).toBe(true);
+});
+
+it("tells the agent which memory offset to read next", async () => {
+  const database = createSqliteDatabase();
+  databases.push(database);
+  const memory = new BotMemory(await createBot(LOCAL_USER, { name: "Scout", role: "Research", job: "" }, database), database);
+  await memory.write("KNOWLEDGE.md", `${"a".repeat(25_000)}END`);
+  const context = { computer: new FakeComputer(), userId: LOCAL_USER, memory };
+  const first = await readMemory.run({ file: "KNOWLEDGE.md", offset: 0 }, context);
+  expect(first).toContain("[Truncated. Read from offset 20000 for the rest.]");
+  expect(await readMemory.run({ file: "KNOWLEDGE.md", offset: 20_000 }, context)).toBe(`${"a".repeat(5_000)}END`);
 });
