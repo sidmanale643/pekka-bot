@@ -118,6 +118,45 @@ regardless of case. The CLI always acts as the local user (see
 own skills are keyed by that ID, so the bot is the same from any machine or
 directory that uses the same D1 database. Creating a bot does not schedule runs.
 
+## Chief of staff
+
+Every user has one primary bot named **Chief of Staff**. Pekka creates it the
+first time that user's bots are listed (opening the web interface or running
+`pnpm pekka bot list`). If they already have a bot with that name, that bot
+becomes the chief instead of a second one being created. In the web interface
+it has its own card above the other bots and opens by default. The card shows
+the bots it runs and highlights the ones working on a task it handed off. You
+can rename it and change its description and working instructions. It can't be
+deleted.
+
+The chief has every tool other bots have, plus four for managing the rest:
+
+- `list_bots` shows the user's bots, with their descriptions and instructions.
+- `delegate_task` runs a self-contained brief as another bot and returns its answer. The bot works in its own sandbox, with its own memory, skills, character and tools. It does not see the chief's conversation. Several delegations in one reply run at the same time. Their cost counts toward the chief's run.
+- `create_bot` creates a bot, when you ask for one or agree to the chief's suggestion.
+- `update_bot` changes another bot's description or working instructions.
+
+You can follow a delegation live. In the web interface, a handoff window opens
+when the chief hands work to another bot while you are in the chief's chat. It
+shows the brief, the bot's current step and its reply as it streams in, with a
+tab for each bot when several work at once. Once you close it, it stays closed
+for the rest of that run. The chief's reply gets a status line for each bot it
+is waiting on, and its handoff card stays after the run. Click either to reopen
+the window, which can also take you to that bot's chat. The bot shows as
+running in the sidebar, and its own chat shows the brief and its reply as they
+stream in. The bot keeps the brief
+and its answer in its chat history, so you can follow up with it directly. The
+CLI prints each delegated bot's tool calls as they happen.
+
+Delegated bots cannot delegate further or manage other bots. While a bot is
+working on a delegated task, it can't also run, be edited or be deleted from
+the web interface, and the API returns HTTP 409. This check covers the API
+process and, separately, each CLI or scheduler process, not both together.
+With `PEKKA_REQUIRE_APPROVAL=true`, a delegated bot's actions go to the same
+reviewer as the chief's. In the web interface, they appear as permission cards
+in the chief's chat. To schedule work for another bot, ask the chief. It
+schedules a job for itself that delegates the work when it runs.
+
 ## Web interface
 
 Start the server from the project directory:
@@ -126,8 +165,9 @@ Start the server from the project directory:
 pnpm api
 ```
 
-Open [Pekka in your browser](http://127.0.0.1:3000). Create a bot with a name,
-role, and job, select it in the sidebar, and send a task to see streamed output.
+Open [Pekka in your browser](http://127.0.0.1:3000). Start with Chief of Staff,
+or create a bot with a name and description. Select it and send a task to see
+streamed output.
 The bot header opens its details. No frontend build or separate development
 server is required; the interface and API share the same local address.
 
@@ -232,8 +272,10 @@ CLI. The server loads `.env` on startup.
 URL-encode bot names. Memory file names must be `PREFERENCES.md` or
 `KNOWLEDGE.md`. Creation returns HTTP 201; other successful requests return 200.
 Lists use `{ "bots": [...] }` or `{ "jobs": [...] }`; individual resources
-return the resource object. Errors return `{ "error": "..." }`, with
-validation issues when applicable. JSON request bodies are limited to 1 MB.
+return the resource object. Only the chief of staff's bot object includes
+`"primary": true`, and deleting it returns HTTP 409. Errors return
+`{ "error": "..." }`, with validation issues when applicable. JSON request
+bodies are limited to 1 MB.
 
 ```bash
 curl http://127.0.0.1:3000/api/bots
@@ -249,7 +291,11 @@ A run requires `task` or `botName`; omitting `task` runs the named bot's job.
 By default, the request waits for a JSON result containing `status`, `answer`,
 `steps`, and `usage`. With `Accept: text/event-stream`, it streams agent events
 (`step`, `message_delta`, `message`, `tool_call`, `tool_result`), followed by
-`result` or `error`. Each event's `data` is JSON. A streaming failure uses an
+`result` or `error`. A chief of staff run also streams each delegated bot's
+work: `delegation_start` (`bot` with `id` and `name`, and the `task`),
+`delegation_event` (`bot` and one of that bot's own `event`s) and
+`delegation_end` (`bot`, a `status` of `done`, `step_limit` or `failed`, and
+the `answer`). Each event's `data` is JSON. A streaming failure uses an
 `error` event because HTTP headers have already been sent. Disconnecting does
 not cancel execution. Run history is not persisted.
 
