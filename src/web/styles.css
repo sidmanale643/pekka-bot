@@ -289,6 +289,37 @@ label select {
   top: 50%;
   transform: translateY(-50%);
   color: var(--ink-3);
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+.bot-time {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink-3);
+  pointer-events: none;
+  transition: opacity 0.12s;
+}
+/* The edit button replaces the time on hover, focus and the open bot. */
+.bot-list-item:hover .bot-edit,
+.bot-list-item:focus-within .bot-edit,
+.bot-row.active ~ .bot-edit {
+  opacity: 1;
+}
+.bot-list-item:hover .bot-time,
+.bot-list-item:focus-within .bot-time,
+.bot-row.active ~ .bot-time {
+  opacity: 0;
+}
+@media (hover: none) {
+  .bot-edit {
+    opacity: 1;
+  }
+  .bot-time {
+    display: none;
+  }
 }
 .bot-row {
   position: relative;

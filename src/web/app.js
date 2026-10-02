@@ -167,29 +167,36 @@ function entries(bot) {
   return history[bot.name.toLowerCase()] || [];
 }
 
-function botRow(bot) {
-  const button = element(
-    "button",
-    `bot-row${selected === bot && currentPage === "workspace" ? " active" : ""}`,
-  );
-  button.setAttribute("aria-current", selected === bot && currentPage === "workspace" ? "true" : "false");
-  const copy = element("span", "bot-copy");
-  const preview = running.has(bot.name)
-    ? "Running…"
-    : entries(bot).at(-1)?.text || bot.role;
-  copy.append(element("strong", "", bot.name), element("small", "", preview));
-  button.append(avatar(bot.name, 28), copy);
+// Bot rows preview the last message as one line of text, not raw markdown.
+function plainText(markdown) {
+  const html = marked.parse(markdown.slice(0, 600), { gfm: true, async: false });
+  return new DOMParser().parseFromString(html, "text/html").body.textContent.replace(/\s+/g, " ").trim();
+}
+
+function relativeTime(time) {
+  const minutes = Math.floor((Date.now() - time) / 60000);
+  if (minutes < 1) return "now";
+  if (minutes < 60) return `${minutes}m`;
+  if (minutes < 1440) return `${Math.floor(minutes / 60)}h`;
+  if (minutes < 10080) return `${Math.floor(minutes / 1440)}d`;
+  return new Date(time).toLocaleDateString([], { month: "short", day: "numeric" });
+}
+
+function stateDot(bot) {
   if (running.has(bot.name)) {
     const state = element("span", "bot-state running");
     state.title = "Running";
-    button.append(state);
-  } else if (unread.has(bot.name)) {
+    return [state];
+  }
+  if (unread.has(bot.name)) {
     const state = element("span", "bot-state");
     state.title = "New result";
-    button.append(state);
+    return [state];
   }
-  button.addEventListener("click", () => selectBot(bot));
-  const row = element("div", "bot-list-item");
+  return [];
+}
+
+function editButton(bot) {
   const edit = element("button", "icon-button bot-edit");
   edit.type = "button";
   edit.title = `Edit ${bot.name}`;
@@ -200,7 +207,27 @@ function botRow(bot) {
     $("#details-dialog").showModal();
     showDetails("purpose", bot);
   });
-  row.append(button, edit);
+  return edit;
+}
+
+function botRow(bot) {
+  const button = element(
+    "button",
+    `bot-row${selected === bot && currentPage === "workspace" ? " active" : ""}`,
+  );
+  button.setAttribute("aria-current", selected === bot && currentPage === "workspace" ? "true" : "false");
+  const copy = element("span", "bot-copy");
+  const last = entries(bot).at(-1);
+  const preview = running.has(bot.name)
+    ? "Running…"
+    : (last?.text && plainText(last.text)) || bot.role;
+  copy.append(element("strong", "", bot.name), element("small", "", preview));
+  button.append(avatar(bot.name, 28), copy, ...stateDot(bot));
+  button.addEventListener("click", () => selectBot(bot));
+  const row = element("div", "bot-list-item");
+  row.append(button);
+  if (last?.time && !running.has(bot.name)) row.append(element("time", "bot-time", relativeTime(last.time)));
+  row.append(editButton(bot));
   return row;
 }
 
