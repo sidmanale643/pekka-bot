@@ -224,7 +224,23 @@ function printEvent(event: AgentEvent): void {
     case "tool_result":
       console.log(indent(event.isError ? `✗ ${event.output}` : preview(event.output)));
       break;
+    case "delegation_start":
+      endLine();
+      console.log(`⇢ ${event.bot.name} takes over:\n${indent(preview(event.task, 4))}`);
+      break;
+    case "delegation_event":
+      printDelegatedEvent(event.bot.name, event.event);
+      break;
+    case "delegation_end":
+      console.log(`⇠ ${event.bot.name} ${{ done: "finished", step_limit: "ran out of steps", failed: "failed" }[event.status]}`);
+      break;
   }
+}
+
+/** Only a delegated bot's tool use is shown; streaming its text would interleave with other bots working at once. */
+function printDelegatedEvent(bot: string, event: AgentEvent): void {
+  if (event.type === "tool_call") console.log(indent(`[${bot}] → ${event.name} ${event.arguments}`));
+  if (event.type === "tool_result") console.log(indent(indent(event.isError ? `✗ ${event.output}` : preview(event.output, 4))));
 }
 
 function endLine(): void {
