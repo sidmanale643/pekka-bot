@@ -216,6 +216,8 @@ function botRow(bot) {
     `bot-row${selected === bot && currentPage === "workspace" ? " active" : ""}`,
   );
   button.setAttribute("aria-current", selected === bot && currentPage === "workspace" ? "true" : "false");
+  // The collapsed rail shows only the avatar, so the name moves into a tooltip.
+  if (sidebarRail()) button.title = bot.name;
   const copy = element("span", "bot-copy");
   const last = entries(bot).at(-1);
   const preview = running.has(bot.name)
@@ -1031,16 +1033,22 @@ function sidebarExpanded() {
     : !$("#sidebar").classList.contains("collapsed");
 }
 
+function sidebarRail() {
+  return !mobileSidebar.matches && $("#sidebar").classList.contains("collapsed");
+}
+
 function syncSidebarToggle() {
   const expanded = sidebarExpanded();
   $("#menu").setAttribute("aria-expanded", String(expanded));
   $("#menu").title = expanded ? "Collapse sidebar" : "Expand sidebar";
+  $(".profile-link").title = sidebarRail() ? $("#profile-label").textContent : "";
 }
 
 function setSidebarExpanded(expanded) {
   const className = mobileSidebar.matches ? "open" : "collapsed";
   $("#sidebar").classList.toggle(className, mobileSidebar.matches ? expanded : !expanded);
   syncSidebarToggle();
+  renderBots();
 }
 
 function closeDrawer() {
@@ -1049,9 +1057,11 @@ function closeDrawer() {
 }
 
 mobileSidebar.addEventListener("change", closeDrawer);
+mobileSidebar.addEventListener("change", renderBots);
 syncSidebarToggle();
 
 $("#new-bot").addEventListener("click", () => openCreate());
+$("#rail-new-bot").addEventListener("click", () => openCreate());
 $("#welcome-create").addEventListener("click", () => openCreate());
 $("#search").addEventListener("input", renderBots);
 $("#menu").addEventListener("click", () =>
@@ -1156,6 +1166,7 @@ function renderProfile() {
   const name = profile.displayName || account?.name || "";
   $("#profile-label").textContent = name || "Profile";
   $("#profile-initial").textContent = (name || "You").slice(0, 1).toUpperCase();
+  syncSidebarToggle();
 }
 
 /** Reads this account's profile, preferences, history and cached greetings from browser storage. */
