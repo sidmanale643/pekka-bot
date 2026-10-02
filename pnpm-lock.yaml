@@ -210,6 +210,9 @@ importers:
       '@daytonaio/sdk':
         specifier: ^0.218.0
         version: 0.218.0
+      '@llamaindex/liteparse':
+        specifier: ^2.15.0
+        version: 2.15.0
       dompurify:
         specifier: ^3.4.16
         version: 3.4.16
@@ -512,6 +515,49 @@ packages:
 
   '@js-sdsl/ordered-map@4.4.2':
     resolution: {integrity: sha512-iUKgm52T8HOE/makSxjqoWhe95ZJA1/G1sYsGev2JDKUSS14KAgg1LHb+Ba+IPow0xflbnSkOsZcO08C7w1gYw==}
+
+  '@llamaindex/liteparse-darwin-arm64@2.15.0':
+    resolution: {integrity: sha512-Cn6wuhjSYohiCkvT5ITg4ZfjUcsqawSIi93GuSzIv0IfvI3AOhcnp+dH+WdWPRQT3Y/bw688JKMH7SoovrFIZA==}
+    cpu: [arm64]
+    os: [darwin]
+
+  '@llamaindex/liteparse-darwin-x64@2.15.0':
+    resolution: {integrity: sha512-KJFeFRAGtVK/R/k5uVbp52KU3FVbEKPgUxIGiE6gJA6/YVWHgkGgxyjDDliSfs3ecOhNxorWuq6LwyBgPkv/2Q==}
+    cpu: [x64]
+    os: [darwin]
+
+  '@llamaindex/liteparse-linux-arm64-gnu@2.15.0':
+    resolution: {integrity: sha512-c6zVFb3RyKTTm5Ex1589AVBVQE57ye+Wr8GEgJEDw5uX6pRVuO4rEnK7/EOnY6ujIVapv+AqPzEFqp7NJCPmjg==}
+    cpu: [arm64]
+    os: [linux]
+    libc: [glibc]
+
+  '@llamaindex/liteparse-linux-x64-gnu@2.15.0':
+    resolution: {integrity: sha512-FJZkV1U5hkouq3n9U4pdNWIvQ44rUBi2sCy0ACkNVPSiMvt6/NIwx3KYMJSjgmIWQkDrr9qAV99n/voIQS99OA==}
+    cpu: [x64]
+    os: [linux]
+    libc: [glibc]
+
+  '@llamaindex/liteparse-linux-x64-musl@2.15.0':
+    resolution: {integrity: sha512-AfW5W0lmN+NylYvoEdKhPnqKivNXKKpXUp+3N8vuIwPzcDWuh8utYY2Q3PsDiWn16F5pv0YQZXLl0uPGfKdxKg==}
+    cpu: [x64]
+    os: [linux]
+    libc: [musl]
+
+  '@llamaindex/liteparse-win32-arm64-msvc@2.15.0':
+    resolution: {integrity: sha512-q4pzNgcwOQSldSJcmtlpPnzWWZMpHnUOJdcKNkgPlEbKF9VuiMOwB/KSDUeVgsheli/ZjQ9jiuN8YfSBUxHzxQ==}
+    cpu: [arm64]
+    os: [win32]
+
+  '@llamaindex/liteparse-win32-x64-msvc@2.15.0':
+    resolution: {integrity: sha512-sCnlk+k7nPpBZ9o1ZYCtUFk4Ew9AC+LcnKEf1yjHTxMINjTRCoZ6/wCASF4m+WnCMVEetTcria/mRNrIEyTvNg==}
+    cpu: [x64]
+    os: [win32]
+
+  '@llamaindex/liteparse@2.15.0':
+    resolution: {integrity: sha512-BuSAF8b71ykQG9iVyl08JsVNkb8e15vljj+Q9y0xYwyKdqtQkS/AfJ+msZcYuMfJX7o63+FoJDFBOBNwtxLXdA==}
+    engines: {node: '>=18.0.0'}
+    hasBin: true
 
   '@nodelib/fs.scandir@2.1.5':
     resolution: {integrity: sha512-vq24Bq3ym5HEQm2NKCr3yXDwjc7vTsEThRDnkp2DK9p1uqLR+DHurm/NOTo0KG7HYHU7eppKZj3MyqYuMBf62g==}
@@ -958,6 +1004,10 @@ packages:
   combined-stream@1.0.8:
     resolution: {integrity: sha512-FQN4MRfuJeHf7cBbBMJFXhKSDq+2kAArBlmRBvcvFE5BB1HZKXtSFASDhdlz9zOYwxh8lDdnvmMOe/+5cdoEdg==}
     engines: {node: '>= 0.8'}
+
+  commander@12.1.0:
+    resolution: {integrity: sha512-Vw8qHK3bZM9y/P10u3Vib8o/DdkvA2OtPtZvD871QKjy74Wj1WSKFILMPRPSdUSx5RFK1arlJzEtA4PkFgnbuA==}
+    engines: {node: '>=18'}
 
   debug@4.4.3:
     resolution: {integrity: sha512-RGwwWnwQvkVfavKVt22FGLw+xYSdzARwm0ru6DhTVA3umU5hZc28V3kO4stgYryrTlLpuvgI9GiijltAjNbcqA==}
@@ -1905,6 +1955,39 @@ snapshots:
 
   '@js-sdsl/ordered-map@4.4.2': {}
 
+  '@llamaindex/liteparse-darwin-arm64@2.15.0':
+    optional: true
+
+  '@llamaindex/liteparse-darwin-x64@2.15.0':
+    optional: true
+
+  '@llamaindex/liteparse-linux-arm64-gnu@2.15.0':
+    optional: true
+
+  '@llamaindex/liteparse-linux-x64-gnu@2.15.0':
+    optional: true
+
+  '@llamaindex/liteparse-linux-x64-musl@2.15.0':
+    optional: true
+
+  '@llamaindex/liteparse-win32-arm64-msvc@2.15.0':
+    optional: true
+
+  '@llamaindex/liteparse-win32-x64-msvc@2.15.0':
+    optional: true
+
+  '@llamaindex/liteparse@2.15.0':
+    dependencies:
+      commander: 12.1.0
+    optionalDependencies:
+      '@llamaindex/liteparse-darwin-arm64': 2.15.0
+      '@llamaindex/liteparse-darwin-x64': 2.15.0
+      '@llamaindex/liteparse-linux-arm64-gnu': 2.15.0
+      '@llamaindex/liteparse-linux-x64-gnu': 2.15.0
+      '@llamaindex/liteparse-linux-x64-musl': 2.15.0
+      '@llamaindex/liteparse-win32-arm64-msvc': 2.15.0
+      '@llamaindex/liteparse-win32-x64-msvc': 2.15.0
+
   '@nodelib/fs.scandir@2.1.5':
     dependencies:
       '@nodelib/fs.stat': 2.0.5
@@ -2351,6 +2434,8 @@ snapshots:
   combined-stream@1.0.8:
     dependencies:
       delayed-stream: 1.0.0
+
+  commander@12.1.0: {}
 
   debug@4.4.3:
     dependencies:
