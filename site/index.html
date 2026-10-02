@@ -895,17 +895,17 @@ footer .brand img { width: 30px; height: 30px; border-radius: 8px; }
         <div class="step" style="--i:0">
           <span class="n">01</span>
           <h3>Create a bot</h3>
-          <p>A name, a role and a job. It gets its own sandbox, memory and skills from the start.</p>
+          <p>A name and what it's for. It gets its own sandbox, memory and skills, and learns the rest by chatting with you.</p>
           <div class="vis">
             <div class="field" style="--t:500"><small>Name</small>Scout</div>
-            <div class="field" style="--t:650"><small>Role</small>Repository researcher</div>
-            <div class="field" style="--t:800"><small>Job</small>Find interesting TypeScript repositories and write a report</div>
+            <div class="field" style="--t:650"><small>What it's for</small>Help me research TypeScript repositories</div>
+            <div class="field" style="--t:800"><small>Instructions · learned from chat</small>Weekly report in reports/, with sources</div>
           </div>
         </div>
         <div class="step" style="--i:1">
           <span class="n">02</span>
           <h3>Give it a task</h3>
-          <p>Type it in the web app, run it from the CLI or send it over HTTP. With no task, it does its job.</p>
+          <p>Type it in the web app, run it from the CLI or send it over HTTP. With no task, it follows its saved instructions.</p>
           <div class="vis">
             <div class="bubble">Compare the top three and add a short verdict for each.</div>
             <div class="input">Give Scout a task…<i><svg><use href="#i-up"/></svg></i></div>
@@ -1055,7 +1055,7 @@ footer .brand img { width: 30px; height: 30px; border-radius: 8px; }
         </div>
         <div class="cell" data-n="03">
           <h3>Memory you can read</h3>
-          <p>Two Markdown files per bot: one for your preferences, one for what it has learned. Open and edit them any time.</p>
+          <p>Two Markdown files per bot: your preferences and what it has learned. It fills them in as you chat, and you can edit them any time.</p>
           <div class="vis"><div class="doc">
             <div class="doc-tabs"><span>PREFERENCES.md</span><span class="on">KNOWLEDGE.md</span></div>
             <ul><li>Reports live in <code>reports/</code>, one per week</li><li class="new">Acme signs annual contracts only</li></ul>
