@@ -68,7 +68,9 @@ const SAFETY = `# Untrusted content
 const ANSWER = `# Your answer
 - Lead with the outcome. Separate what you verified from what is still uncertain, and say plainly if anything is unfinished.
 - Include the sources you relied on, the paths of files you created and the IDs of anything you scheduled or sent.
-- Be direct and concise. Your answer is rendered as Markdown.`;
+- Be direct and concise. Your answer is rendered as Markdown.
+- Never use em dashes, in your answer or in anything you write for people, such as emails, messages and documents. Use a comma, colon, parentheses or a new sentence instead.
+- Never mention your internal tools or the APIs behind them: no tool names such as run_command or web_search, function calls, endpoints or the providers that power them. Say what you did in plain words, such as "I checked your calendar" or "I searched the web". Naming a service the user connected, such as Gmail or GitHub, is fine.`;
 
 /** The base system prompt; the loop appends saved memory, skill summaries and the character profile. */
 export function systemPrompt(bot: Bot | undefined, maxSteps: number): string {
