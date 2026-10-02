@@ -102,6 +102,13 @@ const SCHEMA = [
 const ADDED_COLUMNS = [
   "ALTER TABLE bot_characters ADD COLUMN name TEXT NOT NULL DEFAULT ''",
   `ALTER TABLE scheduled_jobs ADD COLUMN user_id TEXT NOT NULL DEFAULT '${LOCAL_USER}'`,
+  // 1 marks the user's chief of staff, the primary bot that manages their others.
+  "ALTER TABLE bot_profiles ADD COLUMN is_primary INTEGER NOT NULL DEFAULT 0",
+];
+
+/** Indexes on added columns, created once those columns exist. */
+const ADDED_INDEXES = [
+  "CREATE UNIQUE INDEX IF NOT EXISTS bot_profiles_primary ON bot_profiles (user_id) WHERE is_primary = 1",
 ];
 
 /**
@@ -129,6 +136,7 @@ export function ensureSchema(database: Database): Promise<void> {
           if (!/duplicate column/i.test(String(error))) throw error;
         });
       }
+      for (const statement of ADDED_INDEXES) await database.run(statement);
       const applied = new Set((await database.query<{ id: string }>("SELECT id FROM schema_migrations")).map((row) => row.id));
       for (const [id, sql] of MIGRATIONS) {
         if (applied.has(id)) continue;

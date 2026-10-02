@@ -30,7 +30,7 @@ it("shares one workspace without cookies only when public access is explicitly e
     for (const cookie of ["", "unrelated=visitor"]) {
       const bots = await call("/api/bots", { cookie });
       expect(bots.status).toBe(200);
-      expect(JSON.parse(bots.body).bots).toHaveLength(1);
+      expect(JSON.parse(bots.body).bots.map((bot: { name: string }) => bot.name)).toEqual(["Chief of Staff", "Shared bot"]);
     }
     expect((await call("/api/bots", { origin: "https://other.example" })).status).toBe(403);
     expect((await call("/api/bots", { host: "other.example" })).status).toBe(403);

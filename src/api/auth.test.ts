@@ -3,7 +3,7 @@ import { request as httpRequest, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { loadAuthConfig, type AuthConfig } from "../auth.ts";
-import { createBot } from "../bots.ts";
+import { CHIEF_OF_STAFF, createBot, type Bot } from "../bots.ts";
 import { ensureSchema, LOCAL_USER } from "../database/database.ts";
 import { createSqliteDatabase } from "../database/sqlite.ts";
 import { NotionService } from "../plugins/notion.ts";
@@ -135,8 +135,13 @@ it("gives the owner the local data and keeps every user's bots, jobs and plugins
   account = { sub: "google-teammate", email: "teammate@example.com", name: "Teammate" };
   const teammate = await signIn();
 
-  expect(await (await call("/api/bots", owner)).json()).toEqual({ bots: [legacy] });
-  expect(await (await call("/api/bots", teammate)).json()).toEqual({ bots: [] });
+  // Each user gets their own chief of staff, listed first.
+  const chief = { ...CHIEF_OF_STAFF, id: expect.any(String), primary: true };
+  const ownerBots = (await (await call("/api/bots", owner)).json() as { bots: Bot[] }).bots;
+  const teammateBots = (await (await call("/api/bots", teammate)).json() as { bots: Bot[] }).bots;
+  expect(ownerBots).toEqual([chief, legacy]);
+  expect(teammateBots).toEqual([chief]);
+  expect(teammateBots[0]!.id).not.toBe(ownerBots[0]!.id);
   expect((await call("/api/bots/Scout", teammate)).status).toBe(404);
   expect((await call("/api/bots/Scout/memory/KNOWLEDGE.md", teammate)).status).toBe(404);
   // Names only need to be unique within one user's bots.

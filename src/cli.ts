@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 import type { AgentEvent } from "./agent/events.ts";
 import type { AgentResult } from "./agent/loop.ts";
-import { createBot, getBot, listBots, type BotProfile } from "./bots.ts";
+import { createBot, ensureChiefOfStaff, getBot, listBots, type BotProfile } from "./bots.ts";
 import { closeDocuments } from "./documents.ts";
 import { loadConfig } from "./config.ts";
 import { executeTask, sandboxNameFor, type RunOwner } from "./runtime.ts";
@@ -48,8 +48,9 @@ async function manageBots(args: string[]): Promise<void> {
     return;
   }
   if (action === "list" && botArgs.length === 0) {
+    await ensureChiefOfStaff(LOCAL_USER);
     const bots = await listBots(LOCAL_USER);
-    console.log(bots.length ? bots.map((bot) => `${bot.name} — ${bot.role}: ${bot.job}`).join("\n") : "No bots yet.");
+    console.log(bots.map((bot) => `${bot.name}${bot.primary ? " (chief of staff)" : ""} — ${bot.role}${bot.job ? `: ${bot.job}` : ""}`).join("\n"));
     return;
   }
   if (action === "run" && botArgs.length === 1 && botArgs[0]) {

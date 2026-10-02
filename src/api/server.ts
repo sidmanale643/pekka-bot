@@ -4,7 +4,7 @@ import { z } from "zod";
 import type { AgentResult } from "../agent/loop.ts";
 import type { EventHandler } from "../agent/events.ts";
 import { BotMemory, memoryFiles } from "../bot-memory.ts";
-import { createBot, deleteBot, updateBot, DuplicateBotError, findBot as findStoredBot, listBots, type Bot } from "../bots.ts";
+import { createBot, deleteBot, updateBot, DuplicateBotError, ensureChiefOfStaff, findBot as findStoredBot, listBots, type Bot } from "../bots.ts";
 import { loadConfig } from "../config.ts";
 import { DatabaseConfigError } from "../database/d1.ts";
 import { getDatabase, type Database } from "../database/database.ts";
@@ -139,6 +139,7 @@ export function createApiServer(options: ServerOptions = {}) {
 
   const removeBot: Handler = async (_request, response, [name], userId) => {
     const { bot, scheduled } = await idleBot(userId, name!);
+    if (bot.primary) throw new HttpError(409, "The chief of staff can't be deleted. Rename it or change its purpose instead.");
     for (const job of scheduled.filter((job) => job.status === "pending" || job.status === "paused")) await cancelScheduledJob(userId, job.id, database());
     await deleteBot(userId, bot.id, database());
     json(response, 200, { deleted: true });
@@ -212,7 +213,10 @@ export function createApiServer(options: ServerOptions = {}) {
     ["GET", /^\/api\/bots\/([^/]+)\/character$/, character],
     ["PUT", /^\/api\/bots\/([^/]+)\/character$/, character],
     ["GET", /^\/api\/health$/, async (_request, response) => { json(response, 200, { status: "ok" }); }, true],
-    ["GET", /^\/api\/bots$/, async (_request, response, _params, userId) => { json(response, 200, { bots: await listBots(userId, database()) }); }],
+    ["GET", /^\/api\/bots$/, async (_request, response, _params, userId) => {
+      await ensureChiefOfStaff(userId, database());
+      json(response, 200, { bots: await listBots(userId, database()) });
+    }],
     ["POST", /^\/api\/bots$/, create],
     ["GET", /^\/api\/bots\/([^/]+)$/, async (_request, response, [name], userId) => { json(response, 200, await findBot(userId, name!)); }],
     ["PUT", /^\/api\/bots\/([^/]+)$/, editBot],
