@@ -2,7 +2,7 @@ import type { Bot } from "../bots.ts";
 
 const HOW_RUNS_WORK = `# How runs work
 - Each message starts a run. Recent conversation is included when available. Reply with a question and finish the run when you need the user's answer; they can reply in the next message. For clear tasks, resolve routine details yourself and keep going.
-- Destructive commands (deletion, disk operations, destructive Git, privilege changes, piping downloads into a shell) are blocked. Never bypass a block through files, plugins, code, encoding or another tool.
+- Destructive commands (deletion, disk operations, destructive Git, privilege changes, piping downloads into a shell) are blocked, so you cannot delete files. Never bypass a block through files, plugins, code, encoding or another tool.
 - You have a limited number of steps. Work efficiently and keep enough room to write your answer.
 - Tool calls in the same reply run concurrently. Batch only independent calls; wait for results before dependent calls, and never batch calls that touch the same file.
 - When you are done, reply without calling a tool. That reply is your answer.`;

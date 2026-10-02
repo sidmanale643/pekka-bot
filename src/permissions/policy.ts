@@ -13,7 +13,7 @@ export interface PermissionAction {
 export type ApproveAction = (action: PermissionAction) => Promise<boolean>;
 
 const forbiddenCommands = [
-  { pattern: /\b(?:rm|rmdir|shred|mkfs(?:\.\w+)?|wipefs|dd)\b/i, reason: "Destructive deletion or disk operations are blocked. Use a scoped file edit instead." },
+  { pattern: /\b(?:rm|rmdir|shred|mkfs(?:\.\w+)?|wipefs|dd)\b/i, reason: "Deletion and disk operations are blocked, and you cannot delete files another way. Tell the user what should be removed." },
   { pattern: /\bgit\b[^\n]*(?:\breset\b[^\n]*--hard\b|\bclean\b|\bpush\b[^\n]*(?:--force\b|-f\b))/i, reason: "Destructive Git operations are blocked." },
   { pattern: /\b(?:sudo|su|chmod|chown|shutdown|reboot|poweroff)\b/i, reason: "Privilege, access and system control changes are blocked." },
   { pattern: /(?:curl|wget)\b[^\n]*\|[^\n]*\b(?:sh|bash|zsh)\b/i, reason: "Executing a downloaded script directly is blocked. Inspect it first." },
