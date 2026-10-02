@@ -452,6 +452,93 @@ function chatIntro(bot) {
   return intro;
 }
 
+// Write tools whose results become cards under the answer.
+const toolOutputs = {
+  notion_create_page: ["Notion", "Created page"],
+  notion_append_text: ["Notion", "Added to page"],
+  github_create_issue: ["GitHub", "Opened issue"],
+  github_create_pull_request: ["GitHub", "Opened pull request"],
+  github_add_comment: ["GitHub", "Commented"],
+  gmail_send: ["Gmail", "Sent email"],
+  gmail_create_draft: ["Gmail", "Saved draft"],
+  calendar_create_event: ["Calendar", "Created event"],
+  calendar_update_event: ["Calendar", "Updated event"],
+  calendar_respond_to_event: ["Calendar", "Answered invitation"],
+  calendar_delete_event: ["Calendar", "Deleted event"],
+  tasks_create: ["Tasks", "Added reminder"],
+  tasks_update: ["Tasks", "Updated task"],
+  docs_create: ["Docs", "Created document"],
+  docs_append_text: ["Docs", "Added to document"],
+  sheets_create: ["Sheets", "Created spreadsheet"],
+  sheets_append_rows: ["Sheets", "Added rows"],
+  sheets_update_range: ["Sheets", "Updated cells"],
+  send_email: ["Email", "Sent email"],
+  telegram_send_message: ["Telegram", "Sent message"],
+  schedule_job: ["Scheduled", "Scheduled task"],
+  write_file: ["Sandbox", "Saved file"],
+};
+
+function parseJson(text) {
+  try {
+    return JSON.parse(text);
+  } catch {}
+}
+
+// Keeps only what the cards show, so history in browser storage stays small.
+function toolOutput(name, args, output) {
+  const kind = toolOutputs[name];
+  if (!kind) return;
+  const input = parseJson(args) ?? {};
+  const result = parseJson(output) ?? {};
+  const url = [result.html_url, result.url].find((value) => /^https:\/\//.test(value ?? ""));
+  const repository = input.owner && input.repo ? `${input.owner}/${input.repo}` : "";
+  const title =
+    input.title ||
+    input.subject ||
+    input.name ||
+    input.path ||
+    (input.issue_number ? `${repository}#${input.issue_number}` : "") ||
+    (input.text ? input.text.slice(0, 80) : "") ||
+    kind[1];
+  const detail = [kind[1], repository && !title.startsWith(repository) ? repository : "", [input.to].flat().filter(Boolean).join(", ")]
+    .filter(Boolean)
+    .join(" · ");
+  return { plugin: kind[0], title, detail, ...(url ? { url } : {}) };
+}
+
+function outputCard(output) {
+  const card = element(output.url ? "a" : "div", "output-card");
+  if (output.url) {
+    card.href = output.url;
+    card.target = "_blank";
+    card.rel = "noopener noreferrer";
+  }
+  const copy = element("span", "output-copy");
+  copy.append(element("strong", "", output.title), element("small", "", output.detail));
+  card.append(element("span", "output-icon", output.plugin.slice(0, 1)), copy);
+  if (output.url) card.append(element("span", "output-open", "↗"));
+  card.title = output.plugin;
+  return card;
+}
+
+function toolTrail(message) {
+  const trail = element("div", "message-trail");
+  const outputs = message.tools.map((tool) => tool.output).filter(Boolean);
+  if (outputs.length) {
+    const cards = element("div", "output-cards");
+    for (const output of outputs) cards.append(outputCard(output));
+    trail.append(cards);
+  }
+  const used = element("div", "tools-used");
+  used.append(element("span", "", `${message.tools.length} ${message.tools.length === 1 ? "step" : "steps"}`));
+  for (const name of new Set(message.tools.map((tool) => tool.name))) {
+    const failed = message.tools.some((tool) => tool.name === name && tool.isError);
+    used.append(element("code", failed ? "failed" : "", name));
+  }
+  trail.append(used);
+  return trail;
+}
+
 function renderTranscript(forceScroll = false) {
   const transcript = $("#transcript");
   const nearBottom =
@@ -480,6 +567,7 @@ function renderTranscript(forceScroll = false) {
     );
     row.append(meta);
     if (message.text) row.append(renderMessage(message));
+    if (message.tools?.length && !message.pending) row.append(toolTrail(message));
     for (const request of message.permissions ?? []) row.append(permissionCard(request, message));
     if (message.status)
       row.append(
@@ -528,11 +616,18 @@ function applyEvent(event, data, message) {
     },
     tool_call: () => {
       message.status = `Using ${data.name}…`;
+      (message.tools ??= []).push({ name: data.name, arguments: data.arguments });
     },
     tool_result: () => {
       message.status = data.isError
         ? `${data.name} reported an error; continuing…`
         : `Finished ${data.name}`;
+      const call = message.tools?.find((tool) => tool.name === data.name && !("isError" in tool));
+      if (!call) return;
+      call.isError = data.isError;
+      const output = !data.isError && toolOutput(call.name, call.arguments, data.output);
+      if (output) call.output = output;
+      delete call.arguments;
     },
     result: () => {
       message.text =
@@ -686,6 +781,7 @@ async function sendTask(task) {
     message.status = "";
   } finally {
     message.pending = false;
+    for (const tool of message.tools ?? []) delete tool.arguments;
     try {
       const updated = await api(`/api/bots/${encodeURIComponent(bot.name)}`);
       if (updated.role !== bot.role || updated.job !== bot.job) forgetGreeting(bot);
