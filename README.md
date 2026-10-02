@@ -414,6 +414,8 @@ for a copyable template.
 | `EXA_API_KEY` | Enables Exa web search or fallback | unset |
 | `SCRAPERAPI_API_KEY` | Enables ScraperAPI web scraping | unset |
 | `AGENTMAIL_API_KEY` | Enables per-bot AgentMail mailboxes and email sending | unset |
+| `PEKKA_OCR` | Set to `false` to stop reading scanned PDFs and images with OCR | unset (OCR on) |
+| `PEKKA_TESSDATA_PATH` | Writable folder for OCR language data, downloaded on first use | `pekka-tessdata` in the system temp directory |
 | `CLOUDFLARE_API_TOKEN` | Cloudflare API token with D1 Edit permission; required for bots and jobs | — |
 | `CLOUDFLARE_ACCOUNT_ID` | Cloudflare account that owns the D1 database | — |
 | `CLOUDFLARE_D1_DATABASE_ID` | ID of the D1 database Pekka stores data in | — |

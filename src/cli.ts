@@ -2,6 +2,7 @@ import { existsSync } from "node:fs";
 import type { AgentEvent } from "./agent/events.ts";
 import type { AgentResult } from "./agent/loop.ts";
 import { createBot, getBot, listBots, type BotProfile } from "./bots.ts";
+import { closeDocuments } from "./documents.ts";
 import { loadConfig } from "./config.ts";
 import { executeTask, sandboxNameFor, type RunOwner } from "./runtime.ts";
 import { cancelScheduledJob, listScheduledJobs, runScheduler } from "./scheduler.ts";
@@ -244,4 +245,4 @@ function indent(text: string): string {
 main(process.argv.slice(2)).catch((error: unknown) => {
   console.error(error instanceof Error ? error.message : error);
   process.exitCode = 1;
-});
+}).finally(closeDocuments);
