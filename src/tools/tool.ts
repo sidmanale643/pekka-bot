@@ -63,3 +63,11 @@ export function limitOutput(text: string): string {
   const omitted = text.length - MAX_OUTPUT_CHARS;
   return `${text.slice(0, MAX_OUTPUT_CHARS)}\n\n[... ${omitted} more characters omitted]`;
 }
+
+/** Like limitOutput, but keeps the start and the end, where commands print their errors and summaries. */
+export function limitOutputMiddle(text: string): string {
+  if (text.length <= MAX_OUTPUT_CHARS) return text;
+  const half = MAX_OUTPUT_CHARS / 2;
+  const omitted = text.length - MAX_OUTPUT_CHARS;
+  return `${text.slice(0, half)}\n\n[... ${omitted} characters omitted from the middle ...]\n\n${text.slice(-half)}`;
+}

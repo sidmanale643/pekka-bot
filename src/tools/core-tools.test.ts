@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { FakeComputer } from "../computer/fake-computer.ts";
 import { LOCAL_USER } from "../database/database.ts";
 import { readFile } from "./read-file.ts";
+import { runCommand } from "./run-command.ts";
 
 function withFile(content: string) {
   const computer = new FakeComputer();
@@ -30,4 +31,12 @@ describe("read_file", () => {
   it("rejects an offset past the end of the file", async () => {
     await expect(readFile.run({ path: "notes.md", offset: 5 }, withFile("one\ntwo\n"))).rejects.toThrow("has 2 lines");
   });
+});
+
+it("keeps the end of long command output, where failures are reported", async () => {
+  const computer = new FakeComputer({ "pnpm test": { exitCode: 1, output: `${"progress\n".repeat(5000)}FAILED: 3 tests` } });
+  const output = await runCommand.run({ command: "pnpm test" }, { computer, userId: LOCAL_USER });
+  expect(output.startsWith("exit code: 1\nprogress")).toBe(true);
+  expect(output).toContain("characters omitted from the middle");
+  expect(output.endsWith("FAILED: 3 tests")).toBe(true);
 });
