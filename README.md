@@ -578,19 +578,7 @@ The model can choose shell commands that change the sandbox. Review what you
 ask it to do and avoid placing secrets in task text. Files in the named sandbox
 persist across tasks in that bot's sandbox.
 
-## Development
-
-```bash
-pnpm typecheck
-pnpm test
-```
-
-The tests use a fake computer and an in-memory SQLite database in place of D1,
-so they do not need API keys. They do not exercise a live Daytona sandbox,
-OpenRouter model, or D1 database. To add a tool, define it in
-`src/tools/` and register it in [src/tools/index.ts](src/tools/index.ts).
-
-### Permission gate
+## Permission gate
 
 Approval review is **off by default**: every action that is not hard-blocked (see below) runs without asking, including in scheduled and non-streaming runs. Set `PEKKA_REQUIRE_APPROVAL=true` to turn on the review described in the rest of this section.
 
@@ -684,3 +672,47 @@ Bots can list repositories, read issues and pull requests (including comments an
 The OAuth app requests GitHub's [`repo` scope](https://docs.github.com/en/apps/oauth-apps/building-oauth-apps/scopes-for-oauth-apps), which grants broad repository access, including private repositories, subject to organization policy. The exposed tools are limited to repository, issue, and pull-request operations; they do not merge pull requests or delete repositories. Writes act as the connected user and should only be requested when you want them published. A pull request requires an existing head branch; the tools do not push commits.
 
 Credentials are encrypted in D1 and stay on the server, outside browser storage, model prompts, and bot sandboxes. Access is checked on every request, and expiring OAuth tokens are refreshed when needed. **Disconnect** disables access, revokes the token at GitHub, and removes the saved connection. If revocation fails, access stays disabled and Disconnect can be retried. Requests already sent may finish.
+
+## Deployment
+
+The repository includes a separate [server.ts](server.ts) entry point and
+[vercel.json](vercel.json) for Vercel. Configure provider, D1, and authentication
+variables in the deployment environment; this entry point does not load `.env`.
+The checked-in configuration sets a 300-second function duration and bundles
+LiteParse's Linux native files. Long runs remain subject to host request limits.
+
+By default, this entry point requires configured Google sign-in and keeps the
+API unavailable until setup is complete. `PEKKA_PUBLIC_ACCESS=true`, together
+with `PEKKA_URL`, instead exposes a shared workspace without sign-in: visitors
+use the same local user's bots, plugins, and jobs. Enable it only when that
+shared access is intended. This flag does not change `pnpm api`.
+
+Run the scheduler separately on a persistent host with the same D1 credentials
+and required provider/plugin configuration. Deploying the HTTP server does not
+start scheduled jobs.
+
+## Troubleshooting
+
+| Symptom | Check |
+| --- | --- |
+| Storage configuration error | Fill in all three Cloudflare variables and run `pnpm pekka db check`. |
+| Task execution configuration error | Set OpenRouter and Daytona keys, then restart the process. |
+| Bot has no saved task | Send a task in chat or through the API; a description alone is not working instructions. |
+| Jobs remain pending | Keep `pnpm pekka scheduler` running against the same D1 database. |
+| Scheduled writes are rejected | With approval review enabled, scheduled jobs have no reviewer. |
+| OAuth callback or host rejected | Match the browser origin, registered callback, and configured redirect URI, including port. |
+| Connected plugin is unavailable | Enable its access switch after connecting. |
+| Chat history appears missing | Use the same browser, origin, and user; export a copy from Settings. |
+| Port 3000 is occupied | Run `PEKKA_API_PORT=3001 pnpm api`; update OAuth callbacks if used. |
+
+## Development
+
+```bash
+pnpm typecheck
+pnpm test
+```
+
+The tests use a fake computer and an in-memory SQLite database in place of D1,
+so they do not need API keys. They do not exercise a live Daytona sandbox,
+OpenRouter model, or D1 database. To add a tool, define it in
+`src/tools/` and register it in [src/tools/index.ts](src/tools/index.ts).
