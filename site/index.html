@@ -412,6 +412,25 @@ h2 .mute { display: block; }
 .js .sheet:not(.in) .mini-term span { opacity: 0; }
 .mini-term b { font-weight: 400; color: var(--term-2); }
 .mini-term .g { color: #7fd6a4; }
+.cell.wide { grid-column: 1 / -1; border-left: 0; }
+@media (min-width: 901px) {
+  .cell.wide { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr); grid-template-rows: auto auto 1fr; column-gap: 56px; }
+  .cell.wide::before, .cell.wide h3, .cell.wide p { grid-column: 1; }
+  .cell.wide .vis { grid-column: 2; grid-row: 1 / -1; margin-top: 0; padding-top: 0; }
+}
+.pc { border-radius: 8px; overflow: hidden; background: var(--term); }
+.pc-bar { display: flex; align-items: flex-end; justify-content: space-between; padding: 8px 14px 0; border-bottom: 1px solid #1c1f28; font-family: var(--mono); font-size: 11.5px; color: var(--term-2); }
+.pc-tabs { display: flex; gap: 16px; }
+.pc-tabs span { padding-bottom: 7px; }
+.pc-tabs .on { color: var(--term-ink); box-shadow: inset 0 -2px 0 #8fb8e8; }
+.pc-state { display: inline-flex; align-items: center; gap: 6px; padding-bottom: 7px; color: #8fb8e8; }
+.pc-state i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; animation: breathe 1.6s ease-in-out infinite; }
+.pc .mini-term { border-radius: 0; }
+.pc-screen .d { color: rgba(236, 235, 230, 0.62); padding-left: 16px; }
+.pc-screen .r { color: #f08a7e; padding-left: 16px; }
+.pc-screen .n { display: flex; gap: 10px; align-items: center; color: var(--term-2); font-size: 11px; }
+.pc-screen .n::after { content: ""; flex: 1; height: 1px; background: rgba(236, 235, 230, 0.12); }
+.pc-screen .cur::after { content: ""; display: inline-block; width: 7px; height: 13px; margin-left: 16px; vertical-align: -2px; background: var(--term-2); animation: blink 1s steps(1) infinite; }
 .cell .approval .yes { animation: nudge 2.6s ease-out infinite; }
 @keyframes nudge { 0% { box-shadow: 0 0 0 0 rgba(42, 60, 240, 0.5); } 55%, 100% { box-shadow: 0 0 0 8px rgba(42, 60, 240, 0); } }
 .doc { border: 1px solid var(--rule); border-radius: 8px; background: var(--sheet); overflow: hidden; font-size: 13px; }
@@ -670,6 +689,7 @@ footer .brand img { width: 30px; height: 30px; border-radius: 8px; }
   .cell:nth-child(n) { border-left: 1px solid var(--rule); padding: 28px 22px 30px; }
   .cell:nth-child(2n + 1) { border-left: 0; padding-left: 0; }
   .cell:nth-child(2n) { padding-right: 0; }
+  .cell.wide:nth-child(n) { border-left: 0; padding-left: 0; padding-right: 0; }
   .px { grid-template-columns: 1fr; }
   .px-list { flex-direction: row; overflow-x: auto; border-right: 0; border-bottom: 1px solid var(--rule); scrollbar-width: none; }
   .px-tab { grid-template-columns: 28px auto; gap: 8px; padding: 8px 12px 8px 8px; flex: none; }
@@ -1117,6 +1137,23 @@ footer .brand img { width: 30px; height: 30px; border-radius: 8px; }
           <h3>Lines it can't cross</h3>
           <p>Deleting files, force-pushing, sudo and piping a download into a shell are blocked outright, whether or not anyone is watching.</p>
           <div class="vis nope"><span style="--i:0"><svg><use href="#i-lock"/></svg>rm -rf</span><span style="--i:1"><svg><use href="#i-lock"/></svg>git push --force</span><span style="--i:2"><svg><use href="#i-lock"/></svg>sudo</span><span style="--i:3"><svg><use href="#i-lock"/></svg>curl … | sh</span></div>
+        </div>
+        <div class="cell wide" data-n="10">
+          <h3>A live view of the bot's computer</h3>
+          <p>Open the computer view beside any chat and follow a bot's work step by step: each command it runs, its output and exit code, and every file it reads, saves or edits. Bots you hand work to show theirs too.</p>
+          <div class="vis"><div class="pc">
+            <div class="pc-bar"><span class="pc-tabs"><span class="on">Terminal</span><span>Files 2</span></span><span class="pc-state"><i></i>On</span></div>
+            <div class="mini-term pc-screen">
+              <span class="n" style="--k:0">09:02 New task</span>
+              <span style="--k:1"><b>$</b> git clone https://github.com/acme/edge-kit</span>
+              <span class="d" style="--k:2">Cloning into 'edge-kit'... done.</span>
+              <span style="--k:3"><b>$</b> pnpm test</span>
+              <span class="d" style="--k:4">Tests  1 failed | 29 passed (30)</span>
+              <span class="r" style="--k:5">exit 1</span>
+              <span style="--k:6"><b>›</b> Saved reports/edge-kit.md <b>· 6 lines</b></span>
+              <span class="cur" style="--k:7"></span>
+            </div>
+          </div></div>
         </div>
       </div>
     </div>
