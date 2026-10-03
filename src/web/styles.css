@@ -1,4 +1,5 @@
-/* One theme. Every color, face and radius used below comes from these tokens. */
+/* Every color, face and radius used below comes from these tokens. The light theme is here;
+   the dark theme below swaps the colors when <html data-theme="dark">. */
 :root {
   --paper: #efeee9;
   --paper-2: #e7e6e0;
@@ -13,6 +14,11 @@
   --accent-soft: #dcdff7;
   --danger: #a8281d;
   --danger-soft: #f3dfda;
+  /* The avatar tiles' other two primaries, for the thinking glyph. */
+  --tile-red: #e4572e;
+  --tile-yellow: #f2b134;
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
 
   --sans: "Geist", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
   --mono: "Geist Mono", ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
@@ -20,6 +26,18 @@
   --radius-soft: 8px;
   --measure: 816px;
   --panel: 300px;
+  --computer-panel: 420px;
+  /* The computer view's terminal, matching the site's. */
+  --term: #0d0f15;
+  --term-ink: #ecebe6;
+  --term-dim: #8d8d86;
+  --term-prompt: #8fb8e8;
+  --term-ok: #7fd6a4;
+  --term-bad: #f08a7e;
+  /* Shadows and the dialog scrim are --shade at each rule's alpha times --shade-depth,
+     so dark paper can deepen them all at once. */
+  --shade: 21 21 21;
+  --shade-depth: 1;
 
   font-family: var(--sans);
   font-size: 14px;
@@ -30,6 +48,26 @@
   font-synthesis: none;
   -webkit-font-smoothing: antialiased;
   scrollbar-color: var(--rule-strong) transparent;
+}
+/* Warm charcoal paper with the same hierarchy: the sidebar sits a step darker, sheets and hovers a
+   step lighter. The accent and danger lighten to stay readable; the terminal is already dark. */
+:root[data-theme="dark"] {
+  --paper: #191918;
+  --paper-2: #141413;
+  --sheet: #20201e;
+  --sunk: #2a2a27;
+  --rule: #31312e;
+  --rule-strong: #4a4945;
+  --ink: #ecebe6;
+  --ink-2: #b5b4ac;
+  --ink-3: #8b8a82;
+  --accent: #7d89ff;
+  --accent-soft: #2b3270;
+  --danger: #f08a7e;
+  --danger-soft: #3b211d;
+  --shade: 0 0 0;
+  --shade-depth: 2.5;
+  color-scheme: dark;
 }
 * {
   box-sizing: border-box;
@@ -376,7 +414,7 @@ label select {
 .chief-card.active {
   border-color: var(--rule-strong);
   border-top-color: var(--accent);
-  box-shadow: 3px 3px 0 rgb(21 21 21 / 0.08);
+  box-shadow: 3px 3px 0 rgb(var(--shade) / calc(0.08 * var(--shade-depth)));
 }
 .chief-main {
   position: relative;
@@ -456,7 +494,7 @@ label select {
   display: block;
   flex-shrink: 0;
   border-radius: var(--radius);
-  outline: 1px solid rgb(21 21 21 / 0.1);
+  outline: 1px solid color-mix(in srgb, var(--ink) 10%, transparent);
   outline-offset: -1px;
 }
 .bot-state {
@@ -580,7 +618,9 @@ main {
   font-weight: 400;
   color: var(--ink-3);
 }
-#details {
+.panel-toggles {
+  display: flex;
+  gap: 2px;
   margin-left: auto;
 }
 #notice {
@@ -950,14 +990,13 @@ a.output-card:hover .output-open {
   font-size: 11px;
   color: var(--ink-3);
 }
-.tools-used code {
+.tool-chip {
   padding: 1px 6px;
   border: 1px solid var(--rule);
   border-radius: var(--radius);
-  font-family: var(--mono);
   color: var(--ink-2);
 }
-.tools-used code.failed {
+.tool-chip.failed {
   border-color: var(--danger-soft);
   color: var(--danger);
 }
@@ -974,6 +1013,201 @@ a.output-card:hover .output-open {
   font-family: var(--mono);
   font-size: 12px;
   color: var(--ink-3);
+}
+
+/* A running reply. Looping animations start at var(--sync), the page clock, so redraws don't restart them,
+   and entrances start at var(--enter), so they finish across redraws. */
+.message.enter,
+.message-trail.enter {
+  animation: rise 0.35s var(--ease-out) var(--enter, 0s) both;
+}
+@keyframes rise {
+  from { opacity: 0; transform: translateY(6px); }
+}
+.shimmer {
+  --shimmer-base: var(--ink-3);
+  --shimmer-peak: var(--ink);
+  color: transparent;
+  background: linear-gradient(100deg, var(--shimmer-base) 0 40%, var(--shimmer-peak) 50%, var(--shimmer-base) 60% 100%) 0 0 / 250% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  animation: shimmer-text 2.4s linear var(--sync, 0s) infinite;
+}
+@keyframes shimmer-text {
+  from { background-position: 100% 0; }
+  to { background-position: 0 0; }
+}
+.live-steps {
+  display: grid;
+  max-width: 560px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+.message-body + .live-steps {
+  margin-top: 14px;
+}
+.live-step {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  height: 28px;
+  position: relative;
+  font-size: 13px;
+  color: var(--ink-3);
+}
+/* A hairline joins each step to the next, so the list reads as one timeline. */
+.live-step:not(:last-child)::before {
+  content: "";
+  position: absolute;
+  left: 6px;
+  top: 21px;
+  bottom: -7px;
+  width: 1px;
+  background: var(--rule);
+}
+.live-step.enter {
+  animation: step-in 0.3s var(--ease-out) var(--enter, 0s) both;
+}
+@keyframes step-in {
+  from { opacity: 0; transform: translateX(-6px); }
+}
+.live-step.earlier {
+  padding-left: 23px;
+  font-family: var(--mono);
+  font-size: 11px;
+}
+.step-mark {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 13px;
+  height: 13px;
+}
+.step-mark svg {
+  display: block;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.live-step.running .step-mark::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  background: var(--accent);
+  animation: tumble 1.2s var(--ease-in-out) var(--sync, 0s) infinite;
+}
+@keyframes tumble {
+  0%, 15% { transform: none; }
+  50% { transform: rotate(45deg) scale(0.7); }
+  85%, 100% { transform: rotate(90deg); }
+}
+.live-step.done .step-mark.enter path {
+  stroke-dasharray: 1;
+  animation: draw 0.4s var(--ease-out) var(--enter, 0s) both;
+}
+@keyframes draw {
+  from { stroke-dashoffset: 1; }
+  to { stroke-dashoffset: 0; }
+}
+.live-step.failed .step-mark {
+  color: var(--danger);
+}
+.live-step.failed .step-mark.enter svg {
+  animation: pop 0.4s cubic-bezier(0.3, 1.6, 0.5, 1) var(--enter, 0s) both;
+}
+@keyframes pop {
+  from { opacity: 0; transform: scale(0.3); }
+}
+.step-name {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.live-step.running .step-name {
+  --shimmer-base: var(--ink-2);
+}
+.live-step.failed .step-name {
+  color: var(--danger);
+}
+.step-hint {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink-3);
+  opacity: 0.85;
+}
+.live-clock {
+  flex-shrink: 0;
+  margin-left: auto;
+  padding-left: 12px;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-3);
+}
+.live-line {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  font-size: 13px;
+  color: var(--ink-3);
+}
+.live-steps + .live-line {
+  margin-top: 6px;
+}
+.live-line.enter {
+  animation: fade-in 0.3s ease-out var(--enter, 0s) both;
+}
+@keyframes fade-in {
+  from { opacity: 0; }
+}
+.live-line .live-clock {
+  margin-left: 0;
+  padding-left: 0;
+}
+/* The thinking glyph turns through the avatar tiles: a red square, a blue circle, a yellow quarter. */
+.tile-glyph {
+  flex-shrink: 0;
+  width: 9px;
+  height: 9px;
+  margin: 0 2px;
+  background: var(--accent);
+  animation: tile 3.6s var(--ease-in-out) var(--sync, 0s) infinite;
+}
+@keyframes tile {
+  0%, 22% { border-radius: 0; background: var(--tile-red); transform: none; }
+  33%, 55% { border-radius: 50%; background: var(--accent); transform: rotate(90deg); }
+  66%, 88% { border-radius: 0 0 100% 0; background: var(--tile-yellow); transform: rotate(180deg); }
+  100% { border-radius: 0; background: var(--tile-red); transform: rotate(270deg); }
+}
+.live-line.waiting {
+  color: var(--accent);
+}
+.live-line.waiting .tile-glyph {
+  animation: blink 1.1s steps(2, jump-none) var(--sync, 0s) infinite;
+}
+/* A block caret follows text as it streams. Each token redraws it, so it holds still while text
+   arrives and blinks only when the bot pauses. */
+.writing .message-body > :is(p, h1, h2, h3, h4, h5, h6, blockquote):last-child::after,
+.writing .message-body > :is(ul, ol):last-child > li:last-child::after {
+  content: "";
+  display: inline-block;
+  width: 0.5em;
+  height: 1.05em;
+  margin-left: 3px;
+  vertical-align: -0.17em;
+  background: var(--accent);
+  animation: caret 1.06s steps(1) infinite;
+}
+@keyframes caret {
+  50% { opacity: 0; }
 }
 .delegation-line {
   display: flex;
@@ -1005,6 +1239,11 @@ a.output-card:hover .output-open {
 }
 .delegation-line.live span {
   color: var(--accent);
+}
+.delegation-line .shimmer {
+  --shimmer-base: var(--accent);
+  --shimmer-peak: var(--ink);
+  color: transparent;
 }
 /* The chief of staff handing work to another bot. */
 #handoff-dialog {
@@ -1069,7 +1308,7 @@ a.output-card:hover .output-open {
 .handoff-work .tools-used {
   margin-top: 10px;
 }
-.handoff-work > .run-status:first-child {
+.handoff-work > :is(.run-status, .live-line, .live-steps):first-child {
   margin-top: 0;
 }
 .run-status.live {
@@ -1077,10 +1316,10 @@ a.output-card:hover .output-open {
 }
 .run-status.live::before {
   content: "";
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
   background: currentColor;
-  animation: blink 1.1s steps(2, jump-none) infinite;
+  animation: tile 3.6s var(--ease-in-out) infinite;
 }
 @keyframes blink {
   50% {
@@ -1101,11 +1340,29 @@ a.output-card:hover .output-open {
   background: var(--sheet);
   border: 1px solid var(--rule-strong);
   border-radius: var(--radius-soft);
-  box-shadow: 0 1px 0 rgb(21 21 21 / 0.03), 0 10px 28px -16px rgb(21 21 21 / 0.28);
+  box-shadow: 0 1px 0 rgb(var(--shade) / calc(0.03 * var(--shade-depth))), 0 10px 28px -16px rgb(var(--shade) / calc(0.28 * var(--shade-depth)));
   transition: border-color 0.12s;
 }
 #composer:focus-within {
   border-color: var(--ink);
+}
+/* While the bot works, a short line sweeps along the composer's top edge. */
+#composer {
+  position: relative;
+}
+#composer.running::after {
+  content: "";
+  position: absolute;
+  top: -1px;
+  left: var(--radius-soft);
+  right: var(--radius-soft);
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent) no-repeat -50% 0 / 30% 100%;
+  animation: scan 2.4s var(--ease-in-out) infinite;
+  pointer-events: none;
+}
+@keyframes scan {
+  to { background-position: 150% 0; }
 }
 #task {
   flex: 1;
@@ -1153,7 +1410,7 @@ a.output-card:hover .output-open {
   inset: 0 0 0 auto;
   z-index: 4;
   width: min(var(--panel), 92%);
-  box-shadow: -8px 0 0 rgb(21 21 21 / 0.06);
+  box-shadow: -8px 0 0 rgb(var(--shade) / calc(0.06 * var(--shade-depth)));
 }
 .context-about {
   display: flex;
@@ -1273,6 +1530,340 @@ a.context-empty:hover {
   text-align: right;
   font-family: var(--mono);
   color: var(--ink-2);
+}
+
+/* Computer view */
+#computer {
+  position: relative;
+}
+/* A dot on the toggle while the bot's computer is on, so it can be found mid-task. */
+#computer.live::after {
+  content: "";
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 2px var(--paper);
+  animation: computer-pulse 1.6s var(--ease-in-out) infinite;
+}
+@keyframes computer-pulse {
+  50% { opacity: 0.35; }
+}
+.computer-panel {
+  display: flex;
+  flex-direction: column;
+  width: var(--computer-panel);
+  min-height: 0;
+  flex-shrink: 0;
+  padding: 22px 20px 20px;
+  background: var(--paper-2);
+  border-left: 1px solid var(--rule);
+}
+.computer-panel.overlay {
+  position: absolute;
+  inset: 0 0 0 auto;
+  z-index: 4;
+  width: min(var(--computer-panel), 92%);
+  box-shadow: -8px 0 0 rgb(var(--shade) / calc(0.06 * var(--shade-depth)));
+}
+.computer-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+.computer-head div {
+  min-width: 0;
+}
+.computer-head h2 {
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.computer-head p {
+  margin-top: 1px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink-3);
+}
+.computer-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  padding: 1px 8px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink-3);
+}
+.computer-state::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--rule-strong);
+}
+.computer-state.on {
+  border-color: var(--accent-soft);
+  background: var(--sheet);
+  color: var(--accent);
+}
+.computer-state.on::before {
+  background: var(--accent);
+  animation: computer-pulse 1.6s var(--ease-in-out) infinite;
+}
+.computer-note {
+  margin-top: 10px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--ink-3);
+}
+.computer-tabs {
+  display: flex;
+  gap: 18px;
+  margin: 12px 0 14px;
+  border-bottom: 1px solid var(--rule);
+}
+.computer-tabs button {
+  margin-bottom: -1px;
+  padding: 8px 0;
+  border-bottom: 2px solid transparent;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.computer-tabs button:hover {
+  color: var(--ink);
+}
+.computer-tabs .active {
+  color: var(--ink);
+  border-color: var(--accent);
+}
+.computer-screen {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 12px 14px;
+  background: var(--term);
+  border-radius: var(--radius-soft);
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--term-ink);
+  scrollbar-width: thin;
+  scrollbar-color: var(--ink-2) transparent;
+}
+.computer-screen.empty {
+  display: grid;
+  align-content: center;
+  gap: 8px;
+  padding: 24px;
+  text-align: center;
+  font-family: var(--sans);
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--term-dim);
+}
+.computer-screen.empty p:first-child {
+  color: var(--term-ink);
+}
+.screen-note {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 16px 0 10px;
+  font-size: 11px;
+  color: var(--term-dim);
+}
+.screen-note:first-child {
+  margin-top: 0;
+}
+.screen-note::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: rgb(236 235 230 / 0.12);
+}
+.screen-command,
+.screen-file {
+  margin: 0 0 10px;
+}
+.command-line,
+.screen-file {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+.command-line code {
+  flex: 1;
+  min-width: 0;
+  font: inherit;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.computer-screen .prompt {
+  flex-shrink: 0;
+  color: var(--term-prompt);
+}
+.computer-screen .live-clock {
+  color: var(--term-dim);
+}
+/* A waiting cursor under a command that hasn't finished. */
+.screen-command.running::after {
+  content: "";
+  display: block;
+  width: 7px;
+  height: 13px;
+  margin: 5px 0 0 16px;
+  background: var(--term-dim);
+  animation: cursor-blink 1s steps(1) var(--sync, 0s) infinite;
+}
+@keyframes cursor-blink {
+  50% { opacity: 0; }
+}
+.command-cwd {
+  display: block;
+  margin-left: 16px;
+  font-size: 11px;
+  color: var(--term-dim);
+}
+.command-output {
+  margin: 4px 0 0 16px;
+  font: inherit;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: rgb(236 235 230 / 0.72);
+}
+.command-output.error,
+.command-exit,
+.screen-file.failed {
+  color: var(--term-bad);
+}
+.command-exit {
+  display: block;
+  margin: 4px 0 0 16px;
+  font-size: 11px;
+}
+.screen-more {
+  margin: 4px 0 0 16px;
+  font-size: 11px;
+  color: var(--term-prompt);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.screen-file {
+  color: var(--term-dim);
+}
+.screen-command .screen-file {
+  margin: 0;
+}
+.screen-file code {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: inherit;
+  color: var(--term-ink);
+}
+.screen-file .file-size {
+  flex-shrink: 0;
+}
+.computer-files {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  margin: 0 -8px;
+  padding: 0;
+  list-style: none;
+  scrollbar-width: thin;
+}
+.file-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 7px 8px;
+  border-radius: var(--radius);
+  text-align: left;
+}
+.file-row:hover,
+.computer-file.open .file-row {
+  background: var(--sunk);
+}
+.file-name {
+  flex: 1;
+  min-width: 0;
+}
+.file-name strong,
+.file-name small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.file-name strong {
+  font-size: 13px;
+  font-weight: 500;
+}
+.file-name small {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink-3);
+}
+.file-action {
+  flex-shrink: 0;
+  padding: 1px 6px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink-2);
+}
+.file-row time {
+  flex-shrink: 0;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink-3);
+}
+.file-content,
+.file-diff {
+  max-height: 340px;
+  margin: 6px 8px 12px;
+  overflow: auto;
+  padding: 10px 12px;
+  background: var(--term);
+  border-radius: var(--radius-soft);
+  font-family: var(--mono);
+  font-size: 11.5px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: var(--term-ink);
+  scrollbar-width: thin;
+}
+.file-diff .removed {
+  color: var(--term-bad);
+}
+.file-diff .added {
+  color: var(--term-ok);
+}
+.computer-empty {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink-3);
+}
+.computer-file .computer-empty {
+  margin: 6px 8px 12px;
+  font-size: 12px;
 }
 
 /* Markdown answers */
@@ -1478,7 +2069,7 @@ a.context-empty:hover {
   font-size: 13px;
   color: var(--ink-2);
 }
-.preference-row input {
+.preference-row input[type="checkbox"] {
   appearance: none;
   position: relative;
   flex-shrink: 0;
@@ -1493,7 +2084,7 @@ a.context-empty:hover {
     background-color 0.12s,
     border-color 0.12s;
 }
-.preference-row input::after {
+.preference-row input[type="checkbox"]::after {
   content: "";
   position: absolute;
   top: 2px;
@@ -1504,13 +2095,56 @@ a.context-empty:hover {
   background: var(--ink-3);
   transition: transform 0.12s;
 }
-.preference-row input:checked {
+.preference-row input[type="checkbox"]:checked {
   background: var(--accent);
   border-color: var(--accent);
 }
-.preference-row input:checked::after {
+.preference-row input[type="checkbox"]:checked::after {
   background: var(--sheet);
   transform: translateX(16px);
+}
+/* A row of radio choices, such as the theme. */
+.segmented {
+  display: inline-flex;
+  flex-shrink: 0;
+  padding: 2px;
+  background: var(--sunk);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+}
+.preference-row[role="radiogroup"] {
+  cursor: default;
+}
+.segmented label {
+  position: relative;
+}
+/* The radio covers its whole label, so the browser still handles clicks and arrow keys. */
+.segmented input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.segmented span {
+  display: block;
+  padding: 3px 10px;
+  border-radius: 2px;
+  transition: color 0.12s, background-color 0.12s;
+}
+.segmented label:hover span {
+  color: var(--ink);
+}
+.segmented input:checked + span {
+  background: var(--sheet);
+  color: var(--ink);
+  box-shadow: inset 0 0 0 1px var(--rule-strong);
+}
+.segmented input:focus-visible + span {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
 }
 .panel-section details {
   border-bottom: 1px solid var(--rule);
@@ -1621,10 +2255,10 @@ dialog {
   color: inherit;
   border: 1px solid var(--ink);
   border-radius: var(--radius);
-  box-shadow: 6px 6px 0 rgb(21 21 21 / 0.12);
+  box-shadow: 6px 6px 0 rgb(var(--shade) / calc(0.12 * var(--shade-depth)));
 }
 dialog::backdrop {
-  background: rgb(21 21 21 / 0.28);
+  background: rgb(var(--shade) / calc(0.28 * var(--shade-depth)));
 }
 .dialog-heading {
   display: flex;
@@ -1758,13 +2392,17 @@ dialog::backdrop {
 .compact .user .message-body {
   padding: 8px 12px;
 }
-.reduce-motion * {
+.reduce-motion *,
+.reduce-motion *::before,
+.reduce-motion *::after {
   scroll-behavior: auto !important;
   transition: none !important;
   animation: none !important;
 }
 @media (prefers-reduced-motion: reduce) {
-  * {
+  *,
+  *::before,
+  *::after {
     scroll-behavior: auto !important;
     transition: none !important;
     animation: none !important;
@@ -1900,7 +2538,7 @@ dialog::backdrop {
     z-index: 5;
     width: min(288px, 86vw);
     display: none;
-    box-shadow: 8px 0 0 rgb(21 21 21 / 0.08);
+    box-shadow: 8px 0 0 rgb(var(--shade) / calc(0.08 * var(--shade-depth)));
   }
   .sidebar.open {
     display: flex;
@@ -1958,6 +2596,7 @@ dialog::backdrop {
 .plugin-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 22px; }
 .plugin-card .info-note { margin-top: 18px; }
 #plugin-status:not(:empty) { display: block; margin-top: 18px; }
+#theme-status:not(:empty) { margin-top: 10px; }
 .character-custom > label + label {
   margin-top: 16px;
 }
@@ -2383,6 +3022,8 @@ a.schedule-link:hover {
 .plugin-details[open] { background: var(--paper); border-radius: 12px; }
 .plugin-page .plugin-icon { flex-shrink: 0; width: 44px; height: 44px; padding: 7px; border: 1px solid var(--rule); background: var(--sheet); border-radius: 10px; }
 .plugin-icon svg { display: block; width: 100%; height: 100%; }
+/* Notion's mark is a page in the theme's paper, so its currentColor strokes show in both themes. */
+.notion-icon rect { fill: var(--sheet); }
 .plugin-heading > div { flex: 1; min-width: 0; }
 .plugin-page .plugin-heading h2 { font-size: 15px; font-weight: 500; margin-bottom: 3px; }
 .plugin-heading .muted { font-size: 12px; color: var(--ink-3); line-height: 1.6; }
@@ -2430,6 +3071,7 @@ a.schedule-link:hover {
   background: rgba(190, 139, 60, 0.07);
 }
 .permission-card p { margin: 10px 0; }
+.permission-tool { font-weight: 500; }
 .permission-arguments {
   max-height: 320px;
   overflow: auto;

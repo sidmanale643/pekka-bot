@@ -3,8 +3,16 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="color-scheme" content="light" />
+    <meta name="color-scheme" content="light dark" />
     <meta name="theme-color" content="#efeee9" />
+    <script>
+      // Picks the theme before the first paint, so a dark page never flashes light. app.js keeps it in sync.
+      try {
+        const choice = localStorage.getItem("pekka.theme.v1");
+        const dark = choice ? choice === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+        document.documentElement.dataset.theme = dark ? "dark" : "light";
+      } catch {}
+    </script>
     <title>Pekka</title>
     <link rel="icon" type="image/png" href="/favicon.png" />
     <link rel="icon" type="image/svg+xml" href="/head.svg" />
@@ -86,19 +94,33 @@
             </svg>
           </button>
           <div id="heading"></div>
-          <button
-            id="details"
-            class="icon-button"
-            aria-label="Toggle bot panel"
-            aria-controls="context-panel"
-            aria-expanded="false"
-            hidden
-          >
-            <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true">
-              <rect x="2.5" y="3.5" width="15" height="13" rx="1" fill="none" stroke="currentColor" stroke-width="1.3" />
-              <path d="M12.5 3.5v13" stroke="currentColor" stroke-width="1.3" />
-            </svg>
-          </button>
+          <div id="panel-toggles" class="panel-toggles" hidden>
+            <button
+              id="computer"
+              data-computer-view
+              class="icon-button"
+              aria-label="Toggle computer view"
+              aria-controls="computer-panel"
+              aria-expanded="false"
+            >
+              <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true">
+                <rect x="2.5" y="3.5" width="15" height="10" rx="1" fill="none" stroke="currentColor" stroke-width="1.3" />
+                <path d="M7 16.5h6M10 13.5v3M5.5 7l2 1.5-2 1.5M9.5 10.5h3" fill="none" stroke="currentColor" stroke-width="1.3" />
+              </svg>
+            </button>
+            <button
+              id="details"
+              class="icon-button"
+              aria-label="Toggle bot panel"
+              aria-controls="context-panel"
+              aria-expanded="false"
+            >
+              <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true">
+                <rect x="2.5" y="3.5" width="15" height="13" rx="1" fill="none" stroke="currentColor" stroke-width="1.3" />
+                <path d="M12.5 3.5v13" stroke="currentColor" stroke-width="1.3" />
+              </svg>
+            </button>
+          </div>
         </header>
         <div id="notice" role="status" hidden></div>
         <section id="welcome" class="welcome" hidden>
@@ -132,6 +154,7 @@
             </div>
           </div>
           <aside id="context-panel" class="context-panel" aria-label="Bot panel"></aside>
+          <aside id="computer-panel" class="computer-panel" aria-label="Computer" hidden></aside>
         </section>
         <section id="scheduled" class="scheduled" hidden>
           <div class="schedule-sidebar">
@@ -171,6 +194,18 @@
             </div>
           </div>
           <div data-panel="settings" hidden>
+            <div class="panel-section">
+              <h2>Appearance</h2>
+              <div class="preference-row" role="radiogroup" aria-labelledby="theme-label">
+                <span><strong id="theme-label">Theme</strong><small>System follows your device's light or dark setting.</small></span>
+                <span class="segmented" id="theme-picker"
+                  ><label><input type="radio" name="theme" value="system" /><span>System</span></label
+                  ><label><input type="radio" name="theme" value="light" /><span>Light</span></label
+                  ><label><input type="radio" name="theme" value="dark" /><span>Dark</span></label
+                ></span>
+              </div>
+              <p id="theme-status" class="form-status" role="status"></p>
+            </div>
             <form id="settings-form" class="panel-section">
               <h2>Conversation</h2>
               <label class="preference-row"><span><strong>Enter to send</strong><small>Shift + Enter always adds a new line.</small></span><input type="checkbox" name="enterToSend" role="switch" /></label>
@@ -296,6 +331,7 @@
               <p class="muted">Each bot has a description, a sandbox and a memory. It can learn your preferences and refine its purpose as you chat.</p>
               <details open><summary>How do I get started?</summary><p>Start chatting with Chief of Staff, your primary bot. Tell it about yourself and what you want help with, or give it a task straight away. You can also create a bot with a name and description for a particular kind of work.</p></details>
               <details><summary>What does the chief of staff do?</summary><p>Chief of Staff is listed first and manages your other bots. It handles general requests itself and hands work to the bot whose purpose fits, briefing several at once when that helps. It can create a new bot when you ask, change other bots' descriptions and instructions, and schedule work for any of them. You can rename it, but not delete it.</p></details>
+              <details data-computer-view><summary>What does the computer view show?</summary><p>Open it with the monitor button above a chat. While the bot works it shows each command it runs on its computer, with the output and exit code, and the files it reads, saves or edits. Sandbox sessions are ephemeral: once a task ends its session is shut down, and the view only shows tasks run while this page is open.</p></details>
               <details><summary>What does a bot remember?</summary><p>Open Details, then Memory, to read and edit its preferences and knowledge. Conversation history is kept in this browser and is separate from bot memory.</p></details>
               <details><summary>How do scheduled tasks work?</summary><p>Open Scheduled to create a task for a bot, or ask a bot to schedule one. From there you can pause, resume or cancel tasks and read the latest result. The scheduler (<code>pnpm pekka scheduler</code>) must be running for scheduled tasks to execute.</p></details>
               <details><summary>Where are my settings saved?</summary><p>Your profile, preferences and history stay in this browser and do not sync between devices. Export your history from Settings to keep a copy.</p></details>

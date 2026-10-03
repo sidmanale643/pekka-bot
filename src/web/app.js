@@ -2,15 +2,31 @@ import { marked } from "/vendor/marked.js";
 import DOMPurify from "/vendor/dompurify.js";
 
 const $ = (selector) => document.querySelector(selector);
+const escapeHtml = (text) => text.replace(/[&<>"]/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[character]);
+
+// HTML in a reply is shown as the text the bot wrote, instead of the sanitizer
+// silently dropping the tags. Line breaks still work, since bots use <br> in table cells.
+marked.use({
+  renderer: {
+    html({ text, block }) {
+      const shown = text.split(/<br\s*\/?>/i).map(escapeHtml).join("<br>");
+      return block ? `<p>${shown.trim().replaceAll("\n", "<br>")}</p>\n` : shown;
+    },
+  },
+});
 const storageKey = "pekka.task-history.v1";
 const profileKey = "pekka.profile.v1";
 const preferencesKey = "pekka.preferences.v1";
+// The theme is saved once per browser rather than per account, because index.html reads it
+// before anyone signs in. With nothing saved it follows the device.
+const themeKey = "pekka.theme.v1";
 const profileDefaults = { displayName: "", occupation: "", bio: "" };
 const preferenceDefaults = { enterToSend: true, compact: false, reduceMotion: false };
 // The signed-in Google account, or null when the server runs without sign-in.
 let account = null;
 let profile = { ...profileDefaults };
 let preferences = { ...preferenceDefaults };
+let theme = "system";
 let currentPage = "workspace";
 let bots = [];
 let selected;
@@ -223,8 +239,8 @@ function botRow(bot) {
   const preview = running.has(bot.name)
     ? "Running…"
     : (last?.text && plainText(last.text)) || bot.role;
-  copy.append(element("strong", "", bot.name), element("small", "", preview));
-  button.append(avatar(bot.name, 28), copy, ...stateDot(bot));
+  copy.append(element("strong", "", bot.name), element("small", running.has(bot.name) ? "shimmer" : "", preview));
+  button.append(avatar(bot.name, 28), synced(copy), ...stateDot(bot));
   button.addEventListener("click", () => selectBot(bot));
   const row = element("div", "bot-list-item");
   row.append(button);
@@ -248,7 +264,8 @@ function chiefCard(chief, team) {
   const copy = element("span", "bot-copy");
   // A renamed chief keeps its title, so it still reads as the one in charge.
   if (chief.name.toLowerCase() !== "chief of staff") copy.append(element("small", "chief-label", "Chief of staff"));
-  copy.append(element("strong", "", chief.name), element("small", "", preview));
+  copy.append(element("strong", "", chief.name), element("small", running.has(chief.name) ? "shimmer" : "", preview));
+  synced(copy);
   const strip = element("span", "chief-team");
   const faces = element("span", "chief-faces");
   for (const bot of team.slice(0, 5)) {
@@ -302,7 +319,7 @@ function selectBot(bot) {
   closeDrawer();
   $("#welcome").hidden = true;
   $("#conversation").hidden = false;
-  $("#details").hidden = false;
+  $("#panel-toggles").hidden = false;
   $("#heading").replaceChildren(
     avatar(bot.name, 22),
     element("strong", "", bot.name),
@@ -313,6 +330,7 @@ function selectBot(bot) {
   updateComposer();
   renderBots();
   renderTranscript(true);
+  renderComputer();
 }
 
 function linkedText(node, text) {
@@ -549,10 +567,98 @@ const toolOutputs = {
   write_file: ["Sandbox", "Saved file"],
 };
 
+// What each tool is called in the chat, while it runs and once it's done. Internal names stay out of sight.
+const toolAliases = {
+  web_search: ["Searching the web", "Searched the web"],
+  web_scrape: ["Reading a web page", "Read a web page"],
+  read_file: ["Reading a file", "Read a file"],
+  write_file: ["Saving a file", "Saved a file"],
+  edit_file: ["Editing a file", "Edited a file"],
+  run_command: ["Running a command", "Ran a command"],
+  read_memory: ["Checking memory", "Checked memory"],
+  write_memory: ["Updating memory", "Updated memory"],
+  list_skills: ["Looking through skills", "Looked through skills"],
+  load_skill: ["Loading a skill", "Loaded a skill"],
+  update_bot_config: ["Updating its setup", "Updated its setup"],
+  list_bots: ["Checking the team", "Checked the team"],
+  create_bot: ["Creating a bot", "Created a bot"],
+  update_bot: ["Updating a bot", "Updated a bot"],
+  delegate_task: ["Handing off work", "Handed off work"],
+  schedule_job: ["Scheduling a task", "Scheduled a task"],
+  list_scheduled_jobs: ["Checking the schedule", "Checked the schedule"],
+  cancel_scheduled_job: ["Cancelling a scheduled task", "Cancelled a scheduled task"],
+  get_email_address: ["Looking up its email address", "Looked up its email address"],
+  send_email: ["Sending an email", "Sent an email"],
+  gmail_search: ["Searching Gmail", "Searched Gmail"],
+  gmail_read_message: ["Reading an email", "Read an email"],
+  gmail_read_thread: ["Reading an email thread", "Read an email thread"],
+  gmail_read_attachment: ["Reading an attachment", "Read an attachment"],
+  gmail_send: ["Sending an email", "Sent an email"],
+  gmail_create_draft: ["Drafting an email", "Drafted an email"],
+  gmail_list_labels: ["Checking Gmail labels", "Checked Gmail labels"],
+  gmail_modify_labels: ["Relabeling an email", "Relabeled an email"],
+  calendar_list_calendars: ["Checking calendars", "Checked calendars"],
+  calendar_list_events: ["Checking the calendar", "Checked the calendar"],
+  calendar_find_free_time: ["Finding free time", "Found free time"],
+  calendar_create_event: ["Creating an event", "Created an event"],
+  calendar_update_event: ["Updating an event", "Updated an event"],
+  calendar_respond_to_event: ["Answering an invitation", "Answered an invitation"],
+  calendar_delete_event: ["Deleting an event", "Deleted an event"],
+  tasks_list_lists: ["Checking task lists", "Checked task lists"],
+  tasks_list: ["Checking tasks", "Checked tasks"],
+  tasks_create: ["Adding a reminder", "Added a reminder"],
+  tasks_update: ["Updating a task", "Updated a task"],
+  contacts_search: ["Searching contacts", "Searched contacts"],
+  drive_search: ["Searching Drive", "Searched Drive"],
+  drive_read_file: ["Reading a Drive file", "Read a Drive file"],
+  docs_create: ["Creating a document", "Created a document"],
+  docs_append_text: ["Adding to a document", "Added to a document"],
+  sheets_read: ["Reading a spreadsheet", "Read a spreadsheet"],
+  sheets_create: ["Creating a spreadsheet", "Created a spreadsheet"],
+  sheets_append_rows: ["Adding rows", "Added rows"],
+  sheets_update_range: ["Updating cells", "Updated cells"],
+  notion_search: ["Searching Notion", "Searched Notion"],
+  notion_get_page: ["Reading a Notion page", "Read a Notion page"],
+  notion_list_blocks: ["Reading a Notion page", "Read a Notion page"],
+  notion_create_page: ["Creating a Notion page", "Created a Notion page"],
+  notion_append_text: ["Adding to a Notion page", "Added to a Notion page"],
+  github_list_repositories: ["Listing repositories", "Listed repositories"],
+  github_get_repository: ["Checking a repository", "Checked a repository"],
+  github_list_issues: ["Checking issues", "Checked issues"],
+  github_get_issue: ["Reading an issue", "Read an issue"],
+  github_list_issue_comments: ["Reading comments", "Read comments"],
+  github_list_pull_requests: ["Checking pull requests", "Checked pull requests"],
+  github_get_pull_request: ["Reading a pull request", "Read a pull request"],
+  github_list_pull_request_files: ["Reviewing changed files", "Reviewed changed files"],
+  github_create_issue: ["Opening an issue", "Opened an issue"],
+  github_add_comment: ["Commenting", "Commented"],
+  github_create_pull_request: ["Opening a pull request", "Opened a pull request"],
+  telegram_send_message: ["Sending a Telegram message", "Sent a Telegram message"],
+};
+
+/** A tool's name for people: what it's doing while `running`, otherwise what it did. */
+function toolAlias(name, running = false) {
+  const alias = toolAliases[name];
+  if (alias) return alias[running ? 0 : 1];
+  // A tool added later still reads as words rather than an identifier.
+  const words = name.replace(/[_-]+/g, " ").trim();
+  return words ? words[0].toUpperCase() + words.slice(1) : "Working";
+}
+
 function parseJson(text) {
   try {
     return JSON.parse(text);
   } catch {}
+}
+
+const toolHintKeys = ["query", "url", "path", "command", "title", "subject", "bot_name", "name", "file", "task", "text"];
+
+// The detail a step is about, like the search query or the file path, read from its arguments.
+function toolHint(args) {
+  const input = parseJson(args ?? "");
+  if (!input || typeof input !== "object") return "";
+  const value = toolHintKeys.map((key) => input[key]).find((value) => typeof value === "string" && value.trim());
+  return value ? value.replace(/^https?:\/\//, "").replace(/\s+/g, " ").trim().slice(0, 140) : "";
 }
 
 // Keeps only what the cards show, so history in browser storage stays small.
@@ -611,14 +717,359 @@ function toolTrail(message) {
     for (const output of outputs) cards.append(outputCard(output, message));
     trail.append(cards);
   }
-  const used = element("div", "tools-used");
-  used.append(element("span", "", `${message.tools.length} ${message.tools.length === 1 ? "step" : "steps"}`));
-  for (const name of new Set(message.tools.map((tool) => tool.name))) {
-    const failed = message.tools.some((tool) => tool.name === name && tool.isError);
-    used.append(element("code", failed ? "failed" : "", name));
-  }
-  trail.append(used);
+  trail.append(stepsUsed(message.tools));
   return trail;
+}
+
+/** The step count and what the steps did, once each, after a run. */
+function stepsUsed(tools) {
+  const used = element("div", "tools-used");
+  used.append(element("span", "", `${tools.length} ${tools.length === 1 ? "step" : "steps"}`));
+  const failed = new Set(tools.filter((tool) => tool.isError).map((tool) => toolAlias(tool.name)));
+  for (const alias of new Set(tools.map((tool) => toolAlias(tool.name)))) used.append(element("span", `tool-chip${failed.has(alias) ? " failed" : ""}`, alias));
+  return used;
+}
+
+// What a running reply is doing, for the live view only, so it's never saved with the history.
+// `phase` is thinking, writing, tools, waiting, compacting or done, and `since` is when it began.
+const liveRuns = new WeakMap();
+// When each tool call of a running reply started and ended, and the detail it was about.
+const toolRuns = new WeakMap();
+
+function startLive(message) {
+  liveRuns.set(message, { phase: "thinking", since: Date.now() });
+}
+
+function setPhase(message, phase) {
+  const live = liveRuns.get(message);
+  if (live && live.phase !== phase) Object.assign(live, { phase, since: Date.now() });
+}
+
+// The transcript is redrawn on every streamed token, which restarts CSS animations.
+// Looping ones take their phase from the page clock instead, so they keep moving smoothly.
+function synced(node) {
+  node.style.setProperty("--sync", `${-Math.round(document.timeline.currentTime ?? performance.now())}ms`);
+  return node;
+}
+
+// A one-off entrance keeps its progress across redraws by starting as far in as time has passed.
+function entrance(node, since, length = 450) {
+  const passed = Date.now() - since;
+  if (passed >= length) return node;
+  node.classList.add("enter");
+  node.style.setProperty("--enter", `${-passed}ms`);
+  return node;
+}
+
+function elapsed(ms) {
+  const seconds = Math.floor(ms / 1000);
+  if (seconds < 1) return "";
+  return seconds < 60 ? `${seconds}s` : `${Math.floor(seconds / 60)}m ${String(seconds % 60).padStart(2, "0")}s`;
+}
+
+/** A running clock, kept current by the ticker below. */
+function clock(since) {
+  const node = element("span", "live-clock", elapsed(Date.now() - since));
+  node.dataset.since = since;
+  return node;
+}
+
+setInterval(() => {
+  if (!running.size) return;
+  for (const node of document.querySelectorAll("[data-since]")) node.textContent = elapsed(Date.now() - Number(node.dataset.since));
+}, 500);
+
+const liveStepLimit = 5;
+
+/** A running reply's tool calls as they happen: what each is doing, what it's about and how long it took. */
+function liveSteps(message) {
+  const list = synced(element("ol", "live-steps"));
+  list.setAttribute("aria-label", "Steps so far");
+  const earlier = message.tools.length - liveStepLimit;
+  if (earlier > 0) list.append(element("li", "live-step earlier", `${earlier} earlier ${earlier === 1 ? "step" : "steps"}`));
+  for (const tool of message.tools.slice(-liveStepLimit)) {
+    const run = toolRuns.get(tool) ?? {};
+    const state = !("isError" in tool) ? "running" : tool.isError ? "failed" : "done";
+    const row = element("li", `live-step ${state}`);
+    if (run.start) entrance(row, run.start);
+    const mark = element("span", "step-mark");
+    mark.setAttribute("aria-hidden", "true");
+    if (state === "done") mark.innerHTML = '<svg viewBox="0 0 12 12" width="12" height="12"><path d="M2.5 6.4 5 8.8l4.6-5.3" pathLength="1" /></svg>';
+    if (state === "failed") mark.innerHTML = '<svg viewBox="0 0 12 12" width="12" height="12"><path d="m3.5 3.5 5 5m0-5-5 5" /></svg>';
+    if (run.end) entrance(mark, run.end, 500);
+    row.append(mark, element("span", state === "running" ? "step-name shimmer" : "step-name", toolAlias(tool.name, state === "running")));
+    if (run.hint) row.append(element("span", "step-hint", run.hint));
+    if (state === "running" && run.start) row.append(clock(run.start));
+    else if (run.start && run.end) row.append(element("span", "live-clock", duration(run.end - run.start)));
+    list.append(row);
+  }
+  return list;
+}
+
+function duration(ms) {
+  return ms < 10_000 ? `${(ms / 1000).toFixed(1)}s` : elapsed(ms);
+}
+
+const liveLabels = { thinking: "Thinking", compacting: "Tidying up earlier work", waiting: "Waiting for your permission" };
+
+/** The line under a running reply while the bot thinks between steps, or waits on you. */
+function liveLine(message) {
+  const live = liveRuns.get(message) ?? { phase: "thinking", since: message.time };
+  const label = liveLabels[live.phase];
+  if (!label) return [];
+  const line = entrance(synced(element("div", `live-line ${live.phase}`)), live.since, 300);
+  const glyph = element("span", "tile-glyph");
+  glyph.setAttribute("aria-hidden", "true");
+  line.append(glyph, element("span", live.phase === "waiting" ? "" : "shimmer", label), clock(live.since));
+  return [line];
+}
+
+// The computer view: what each bot does on its sandbox, built from its runs' tool events while this page is open.
+// Commands keep their output and files their last known text. Sandbox sessions are ephemeral, so the log lives
+// in memory only and is gone after a reload.
+const computers = new Map();
+const computerEntryLimit = 300;
+const fileActions = { read_file: "Read", write_file: "Saved", edit_file: "Edited" };
+const computerTools = new Set(["run_command", ...Object.keys(fileActions)]);
+const commandTailLines = 12;
+
+function computerFor(bot) {
+  if (!computers.has(bot.id)) computers.set(bot.id, { entries: [], files: new Map(), tab: "terminal", openFile: "" });
+  return computers.get(bot.id);
+}
+
+/** Adds a run event to the bot's computer view. Only its sandbox tools, permission prompts and the run's end matter here. */
+function watchComputer(bot, event, data) {
+  if (event === "result" || event === "error") return endComputerRun(bot);
+  const computer = computerFor(bot);
+  const pending = (match) => computer.entries.find((entry) => entry.name && !entry.end && match(entry));
+  if (event === "tool_call" && computerTools.has(data.name)) {
+    // The sandbox starts on a task's first command or file, so that's where the task begins here too.
+    if (!computer.run) {
+      computer.run = { used: false };
+      computer.entries.push({ note: "New task", time: Date.now() });
+    }
+    computer.entries.push({ id: data.id, name: data.name, input: parseJson(data.arguments) ?? {}, start: Date.now() });
+    computer.entries.splice(0, computer.entries.length - computerEntryLimit);
+  } else if (event === "tool_result") {
+    const entry = pending((entry) => (entry.id && data.id ? entry.id === data.id : entry.name === data.name));
+    if (!entry) return;
+    settleEntry(computer, entry, data);
+  } else if (event === "permission_requested") {
+    const entry = pending((entry) => entry.name === data.request.tool && !entry.permission);
+    if (!entry) return;
+    entry.permission = data.request.id;
+  } else if (event === "permission_resolved") {
+    const entry = pending((entry) => entry.permission === data.id);
+    if (!entry) return;
+    delete entry.permission;
+  } else return;
+  if (selected?.id === bot.id) renderComputer();
+}
+
+/**
+ * Records a step's result. A command keeps its exit code and output, a file updates the Files tab,
+ * and only what the terminal shows stays on the entry.
+ */
+function settleEntry(computer, entry, { output, isError }) {
+  Object.assign(entry, { end: Date.now(), failed: isError });
+  delete entry.permission;
+  if (isError) entry.output = output.replace(/^Error: /, "");
+  else if (entry.name === "run_command") {
+    computer.run.used = true;
+    const match = /^exit code: (-?\d+)\n?/.exec(output);
+    if (match) entry.exitCode = Number(match[1]);
+    entry.output = (match ? output.slice(match[0].length) : output).replace(/\n$/, "");
+  } else {
+    computer.run.used = true;
+    const text = entry.name === "read_file" ? output : entry.input.content;
+    if (typeof text === "string") entry.lines = lineCount(text);
+    trackFile(computer, entry, output);
+  }
+  const { command, cwd, path } = entry.input;
+  entry.input = { command, cwd, path };
+}
+
+/**
+ * Closes the bot's task in its computer view. The server stops the sandbox when a run ends,
+ * but if the connection dropped first the task, and its computer, may still be going.
+ */
+function endComputerRun(bot, connected = true) {
+  const computer = computers.get(bot.id);
+  if (!computer?.run) return;
+  for (const entry of computer.entries) if (entry.name && !entry.end) Object.assign(entry, { end: Date.now(), lost: true });
+  if (!connected) computer.entries.push({ note: "Connection ended. The task may still be running.", time: Date.now() });
+  else if (computer.run.used) computer.entries.push({ note: "Task finished. Computer stopped.", time: Date.now() });
+  computer.run = undefined;
+  if (selected?.id === bot.id) renderComputer();
+}
+
+/** Remembers a file the bot read, saved or edited, with the text it last had as far as this page knows. */
+function trackFile(computer, entry, output) {
+  const { path, content, old_string: before, new_string: after, replace_all: everywhere } = entry.input;
+  if (typeof path !== "string") return;
+  const file = computer.files.get(path) ?? { path };
+  // Moved to the end, so the newest file is last.
+  computer.files.delete(path);
+  computer.files.set(path, Object.assign(file, { action: fileActions[entry.name], time: entry.end }));
+  delete file.change;
+  if (entry.name === "read_file") file.content = output;
+  if (entry.name === "write_file") file.content = content;
+  if (entry.name !== "edit_file") return;
+  file.change = { before, after };
+  // The whole file is only known if it was read or saved here first; then the same replacement brings it up to date.
+  if (typeof file.content === "string" && file.content.includes(before))
+    file.content = everywhere ? file.content.split(before).join(after) : file.content.replace(before, () => after);
+  else delete file.content;
+}
+
+const lineCount = (text) => text.split("\n").length - (text.endsWith("\n") ? 1 : 0);
+const lineLabel = (count) => `${count} ${count === 1 ? "line" : "lines"}`;
+
+/** How long a step took, how long it has been going, or why it has no result. */
+function entryTime(entry) {
+  if (!entry.end) return entry.permission ? element("span", "live-clock", "Waiting for your permission") : clock(entry.start);
+  return element("span", "live-clock", entry.lost ? "No result" : duration(entry.end - entry.start));
+}
+
+function entryState(entry) {
+  if (!entry.end) return "running";
+  if (entry.failed || (entry.exitCode ?? 0) !== 0) return "failed";
+  return entry.lost ? "lost" : "done";
+}
+
+function commandEntry(entry) {
+  const block = element("div", `screen-command ${entryState(entry)}`);
+  const line = element("div", "command-line");
+  line.append(element("span", "prompt", "$"), element("code", "", entry.input.command ?? ""), entryTime(entry));
+  block.append(line);
+  if (entry.input.cwd) block.append(element("small", "command-cwd", `in ${entry.input.cwd}`));
+  if (entry.output) {
+    const lines = entry.output.split("\n");
+    const hidden = entry.expanded ? 0 : Math.max(0, lines.length - commandTailLines);
+    block.append(element("pre", entry.failed ? "command-output error" : "command-output", lines.slice(hidden).join("\n")));
+    if (lines.length > commandTailLines) {
+      const more = element("button", "screen-more", entry.expanded ? "Show the last lines only" : `Show all ${lines.length} lines`);
+      more.type = "button";
+      more.addEventListener("click", () => {
+        entry.expanded = !entry.expanded;
+        renderComputer();
+      });
+      block.append(more);
+    }
+  }
+  if (entry.exitCode) block.append(element("span", "command-exit", `exit ${entry.exitCode}`));
+  return block;
+}
+
+function fileEntry(entry) {
+  const row = element("div", `screen-file ${entryState(entry)}`);
+  const verbs = { read_file: ["Reading", "Read"], write_file: ["Saving", "Saved"], edit_file: ["Editing", "Edited"] }[entry.name];
+  row.append(element("span", "prompt", "›"), element("span", "", verbs[entry.end ? 1 : 0]), element("code", "", entry.input.path ?? ""));
+  if (entry.lines !== undefined) row.append(element("span", "file-size", lineLabel(entry.lines)));
+  row.append(entryTime(entry));
+  if (!entry.failed) return row;
+  const block = element("div", "screen-command failed");
+  block.append(row, element("pre", "command-output error", entry.output));
+  return block;
+}
+
+function terminalView(computer, bot) {
+  const screen = element("div", "computer-screen");
+  screen.setAttribute("role", "log");
+  screen.setAttribute("aria-label", `${bot.name}'s terminal`);
+  if (!computer?.entries.length) {
+    screen.classList.add("empty");
+    // The chat lists steps from earlier tasks, but their sandbox session ended with them.
+    const earlier = entries(bot).some((message) => message.tools?.some((tool) => computerTools.has(tool.name)));
+    screen.append(
+      element("p", "", earlier ? `The sandbox session from ${bot.name}'s earlier tasks was ephemeral and has been shut down.` : `${bot.name}'s computer isn't running.`),
+      element("p", "", "Give it a task to watch the commands it runs, their output and the files it opens, live."),
+    );
+    return screen;
+  }
+  for (const entry of computer.entries) {
+    if (entry.note) {
+      const note = element("p", "screen-note");
+      const time = element("time", "", clockTime(entry.time));
+      time.dateTime = new Date(entry.time).toISOString();
+      note.append(time, element("span", "", entry.note));
+      screen.append(note);
+    } else screen.append(entry.name === "run_command" ? commandEntry(entry) : fileEntry(entry));
+  }
+  return synced(screen);
+}
+
+function filesView(computer, bot) {
+  const files = [...(computer?.files.values() ?? [])].reverse();
+  if (!files.length) return element("p", "computer-empty", `No files yet. Files ${bot.name} reads, saves or edits show up here, newest first.`);
+  const list = element("ul", "computer-files");
+  for (const file of files) {
+    const open = computer.openFile === file.path;
+    const item = element("li", `computer-file${open ? " open" : ""}`);
+    const toggle = element("button", "file-row");
+    toggle.type = "button";
+    toggle.setAttribute("aria-expanded", String(open));
+    const slash = file.path.lastIndexOf("/");
+    const name = element("span", "file-name");
+    name.append(element("strong", "", file.path.slice(slash + 1)), element("small", "", slash > 0 ? file.path.slice(0, slash) : ""));
+    toggle.append(name, element("span", "file-action", file.action), element("time", "", clockTime(file.time)));
+    toggle.addEventListener("click", () => {
+      computer.openFile = open ? "" : file.path;
+      renderComputer();
+    });
+    item.append(toggle);
+    if (open) {
+      if (file.change) {
+        const diff = element("pre", "file-diff");
+        for (const [sign, text] of [["-", file.change.before], ["+", file.change.after]])
+          for (const line of text ? text.split("\n") : []) diff.append(element("span", sign === "-" ? "removed" : "added", `${sign} ${line}\n`));
+        item.append(diff);
+      }
+      if (typeof file.content === "string") item.append(element("pre", "file-content", file.content || "(empty file)"));
+      else item.append(element("p", "computer-empty", `Only this change is known here. The whole file shows once ${bot.name} reads or saves it.`));
+    }
+    list.append(item);
+  }
+  return list;
+}
+
+/** Draws the selected bot's computer view, keeping the terminal pinned to the newest line unless you scrolled up. */
+function renderComputer() {
+  const computer = selected && computers.get(selected.id);
+  $("#computer").classList.toggle("live", Boolean(computer?.run));
+  const panel = $("#computer-panel");
+  if (!selected || panel.hidden || currentPage !== "workspace") return;
+  const bot = selected;
+  const tab = computer?.tab ?? "terminal";
+  // The same tab as last time keeps its scroll position.
+  const before = panel.querySelector(tab === "files" ? ".computer-files" : ".computer-screen");
+  const pinned = tab === "terminal" && (!before || before.scrollHeight - before.scrollTop - before.clientHeight < 40);
+
+  const head = element("header", "computer-head");
+  const title = element("div", "");
+  title.append(element("h2", "", "Computer"), element("p", "", `${bot.name}'s Linux sandbox`));
+  const state = element("span", `computer-state${computer?.run ? " on" : ""}`, computer?.run ? "On" : "Off");
+  head.append(title, state);
+  const note = element("p", "computer-note", "Starts when a task needs it and stops when the task ends. Its files stay.");
+
+  const tabs = element("div", "computer-tabs");
+  tabs.setAttribute("role", "group");
+  tabs.setAttribute("aria-label", "Computer view");
+  for (const [key, label] of [["terminal", "Terminal"], ["files", `Files${computer?.files.size ? ` ${computer.files.size}` : ""}`]]) {
+    const button = element("button", tab === key ? "active" : "", label);
+    button.type = "button";
+    button.setAttribute("aria-pressed", String(tab === key));
+    button.addEventListener("click", () => {
+      computerFor(bot).tab = key;
+      renderComputer();
+    });
+    tabs.append(button);
+  }
+
+  const view = tab === "files" ? filesView(computer, bot) : terminalView(computer, bot);
+  panel.replaceChildren(head, note, tabs, view);
+  view.scrollTop = pinned ? view.scrollHeight : (before?.scrollTop ?? 0);
 }
 
 function renderTranscript(forceScroll = false) {
@@ -645,18 +1096,16 @@ function renderTranscript(forceScroll = false) {
     stamp.dateTime = new Date(message.time).toISOString();
     meta.append(element("strong", "", author), stamp);
     row.append(meta);
+    // Messages sent or started in this session rise in; older ones are already there.
+    entrance(row, message.time, 350);
+    const live = liveRuns.get(message);
+    row.classList.toggle("writing", Boolean(message.pending && live?.phase === "writing"));
     if (message.text) row.append(renderMessage(message));
-    if (message.tools?.length && !message.pending) row.append(toolTrail(message));
+    if (message.tools?.length) row.append(message.pending ? liveSteps(message) : live?.phase === "done" ? entrance(toolTrail(message), live.since) : toolTrail(message));
     for (const request of message.permissions ?? []) row.append(permissionCard(request, message));
     if (message.pending) for (const delegation of message.delegations ?? []) row.append(delegationLine(delegation));
-    if (message.status)
-      row.append(
-        element(
-          "div",
-          `run-status${message.pending ? " live" : ""}`,
-          message.status,
-        ),
-      );
+    if (message.pending) row.append(...liveLine(message));
+    else if (message.status) row.append(element("div", "run-status", message.status));
     // An answer still streaming is redrawn on every token, so it gets its copy button once it settles.
     if (message.text && !message.pending) row.append(messageActions(message.text));
     transcript.append(row);
@@ -669,7 +1118,8 @@ function delegationLine(delegation) {
   const line = element("a", `delegation-line${delegation.done ? "" : " live"}`);
   line.href = "#bot/" + encodeURIComponent(delegation.name);
   line.title = `Open ${delegation.name} to follow its work`;
-  line.append(avatar(delegation.name, 16), element("strong", "", delegation.name), element("span", "", delegation.status));
+  line.append(avatar(delegation.name, 16), element("strong", "", delegation.name), element("span", delegation.done ? "" : "shimmer", delegation.status));
+  if (!delegation.done) synced(line);
   line.addEventListener("click", (event) => {
     if (!handoff.items.some((item) => item.delegation === delegation)) return;
     event.preventDefault();
@@ -726,15 +1176,12 @@ function renderHandoffWork() {
   const brief = element("div", "handoff-brief");
   linkedText(brief, item.task);
   const work = element("div", "handoff-work");
-  if (item.reply.text) work.append(renderMessage(item.reply));
-  const steps = (item.reply.tools ?? []).map((tool) => element("code", tool.isError ? "failed" : "", tool.name));
-  if (steps.length) {
-    const used = element("div", "tools-used");
-    used.append(element("span", "", `${steps.length} ${steps.length === 1 ? "step" : "steps"}`), ...steps);
-    work.append(used);
-  }
-  const status = item.delegation.status || "Finished";
-  work.append(element("div", `run-status${item.delegation.done ? "" : " live"}`, status));
+  const { reply } = item;
+  work.classList.toggle("writing", Boolean(reply.pending && liveRuns.get(reply)?.phase === "writing"));
+  if (reply.text) work.append(renderMessage(reply));
+  if (reply.tools?.length) work.append(reply.pending ? liveSteps(reply) : stepsUsed(reply.tools));
+  if (reply.pending && !item.delegation.done) work.append(...liveLine(reply));
+  else work.append(element("div", "run-status", item.delegation.status || "Finished"));
   $("#handoff-content").replaceChildren(
     element("p", "handoff-label", "Brief"), brief,
     element("p", "handoff-label", `${item.delegation.name} is ${item.delegation.done ? "done" : "working"}`), work,
@@ -744,11 +1191,28 @@ function renderHandoffWork() {
 
 $("#handoff-dialog").addEventListener("close", () => { handoff.dismissed = true; });
 $("#handoff-close").addEventListener("click", () => $("#handoff-dialog").close());
+closeOnBackdrop($("#handoff-dialog"));
 $("#handoff-open").addEventListener("click", () => {
   const target = bots.find((bot) => bot.id === focusedHandoff()?.delegation.id);
   $("#handoff-dialog").close();
   if (target) selectBot(target);
 });
+
+/**
+ * Closes a dialog when you click the dimmed page around it. A click on the backdrop lands on the dialog itself,
+ * outside its box. Both ends of the click must be out there, so a text selection that ends past the edge doesn't count.
+ */
+function closeOnBackdrop(dialog) {
+  const outside = (event) => {
+    const box = dialog.getBoundingClientRect();
+    return event.target === dialog && (event.clientX < box.left || event.clientX > box.right || event.clientY < box.top || event.clientY > box.bottom);
+  };
+  let pressedOutside = false;
+  dialog.addEventListener("pointerdown", (event) => { pressedOutside = outside(event); });
+  dialog.addEventListener("click", (event) => {
+    if (pressedOutside && outside(event)) dialog.close();
+  });
+}
 
 // A bot's live reply to a brief from the chief of staff, by bot ID. Each bot takes one brief at a time.
 const delegatedReplies = new Map();
@@ -764,6 +1228,7 @@ function applyDelegation(event, data, message, chief) {
     const delegation = { id: data.bot.id, name: target?.name || data.bot.name, status: "Starting…" };
     message.delegations.push(delegation);
     const reply = { role: "assistant", text: "", time: Date.now(), pending: true, status: "Starting…" };
+    startLive(reply);
     delegatedReplies.set(data.bot.id, reply);
     if (handoff.message !== message) Object.assign(handoff, { message, chief, items: [], dismissed: false });
     handoff.items.push({ delegation, task: data.task, reply });
@@ -786,10 +1251,12 @@ function applyDelegation(event, data, message, chief) {
   if (!delegation || !reply) return false;
   const before = delegation.status;
   if (event === "delegation_event") {
+    watchComputer(data.bot, data.event.type, data.event);
     applyEvent(data.event.type, data.event, reply);
     delegation.status = reply.status;
   }
   if (event === "delegation_end") {
+    endComputerRun(data.bot);
     finishReply(reply, data.answer, data.status === "done" ? "" : delegationEndings[data.status]);
     delegatedReplies.delete(data.bot.id);
     delegation.done = true;
@@ -806,6 +1273,7 @@ function applyDelegation(event, data, message, chief) {
 
 function finishReply(reply, answer, status) {
   reply.pending = false;
+  setPhase(reply, "done");
   reply.text = answer || reply.text;
   reply.status = status;
   for (const tool of reply.tools ?? []) delete tool.arguments;
@@ -822,50 +1290,71 @@ function settleBot(bot) {
 
 function updateComposer() {
   const busy = running.has(selected.name);
-  $("#send").disabled = busy;
+  $("#send").disabled = busy || !$("#task").value.trim();
   $("#send").textContent = busy ? "Running" : "Send";
+  $("#composer").classList.toggle("running", busy);
   $("#task").style.height = "auto";
   $("#task").style.height = `${Math.min($("#task").scrollHeight, 200)}px`;
 }
 
 function applyEvent(event, data, message) {
+  const live = liveRuns.get(message);
+  const toolsRunning = () => message.tools?.some((tool) => !("isError" in tool));
   const handlers = {
     permission_requested: () => {
       message.permissions ??= [];
       message.permissions.push(data.request);
       message.status = "Waiting for your permission…";
+      setPhase(message, "waiting");
     },
     permission_resolved: () => {
       const request = message.permissions?.find((request) => request.id === data.id);
       if (request) request.decision = data.approved ? "Approved once" : "Denied or expired";
       message.status = data.approved ? "Permission approved; continuing…" : "Permission denied; continuing…";
+      setPhase(message, toolsRunning() ? "tools" : "thinking");
     },
     message_delta: () => {
+      // Each step's text replaces the last one's when it completes, so it streams in fresh too.
+      if (live?.newText) message.text = "";
+      if (live) live.newText = false;
       message.text += data.text;
+      setPhase(message, "writing");
     },
     message: () => {
       message.text = data.text;
+      setPhase(message, "thinking");
     },
     compaction: () => {
       message.status = "Summarizing earlier work to free up context…";
+      setPhase(message, "compacting");
     },
     step: () => {
-      message.status = "Working…";
+      message.status = "Thinking…";
+      if (live) live.newText = true;
+      setPhase(message, "thinking");
     },
     tool_call: () => {
-      message.status = `Using ${data.name}…`;
-      (message.tools ??= []).push({ name: data.name, arguments: data.arguments });
+      message.status = `${toolAlias(data.name, true)}…`;
+      const tool = { name: data.name, arguments: data.arguments };
+      (message.tools ??= []).push(tool);
+      toolRuns.set(tool, { start: Date.now(), hint: toolHint(data.arguments) });
+      setPhase(message, "tools");
     },
     tool_result: () => {
-      message.status = data.isError
-        ? `${data.name} reported an error; continuing…`
-        : `Finished ${data.name}`;
       const call = message.tools?.find((tool) => tool.name === data.name && !("isError" in tool));
+      if (call) call.isError = data.isError;
+      // Parallel calls finish one by one, so the status names one still going until none are.
+      const other = message.tools?.find((tool) => !("isError" in tool));
+      message.status = data.isError
+        ? `${toolAlias(data.name, true)} failed; continuing…`
+        : other ? `${toolAlias(other.name, true)}…` : toolAlias(data.name);
       if (!call) return;
-      call.isError = data.isError;
       const output = !data.isError && toolOutput(call.name, call.arguments, data.output);
       if (output) call.output = output;
       delete call.arguments;
+      const run = toolRuns.get(call);
+      if (run) run.end = Date.now();
+      if (!toolsRunning()) setPhase(message, "thinking");
     },
     result: () => {
       message.text =
@@ -887,7 +1376,7 @@ function permissionCard(request, message) {
   card.setAttribute("aria-label", "Permission review");
   card.append(element("strong", "", request.plugin ? `${request.plugin}: permission required` : "Permission required"));
   card.append(element("p", "", request.reason));
-  card.append(element("code", "", request.tool));
+  card.append(element("p", "permission-tool", toolAlias(request.tool, true)));
   card.append(element("pre", "permission-arguments", JSON.stringify(request.arguments, null, 2)));
   const expired = Date.parse(request.expiresAt) <= Date.now();
   if (request.decision || expired || !message.pending) {
@@ -963,6 +1452,20 @@ async function consumeStream(response, onEvent) {
   }
 }
 
+// The server accepts up to 4000 characters per earlier message. A longer one keeps
+// its start and its end, where a pasted document's question usually is, and says
+// what was left out so the bot doesn't mistake the cut for the real ending.
+function clipForContext(text, limit = 4000) {
+  if (text.length <= limit) return text;
+  const room = limit - 60; // the marker is always shorter than 60 characters
+  let head = Math.floor(room / 2);
+  let tail = text.length - (room - head);
+  // Never split an emoji or other surrogate pair.
+  if (/[\uD800-\uDBFF]/.test(text[head - 1])) head--;
+  if (/[\uDC00-\uDFFF]/.test(text[tail])) tail++;
+  return `${text.slice(0, head)}\n\n[… ${tail - head} characters of this message left out …]\n\n${text.slice(tail)}`;
+}
+
 async function sendTask(task) {
   const bot = selected;
   if (!task.trim() || running.has(bot.name)) return;
@@ -971,7 +1474,7 @@ async function sendTask(task) {
   const conversation = history[key]
     .filter((entry) => ["user", "assistant"].includes(entry.role) && !entry.pending && entry.text.trim())
     .slice(-20)
-    .map((entry) => ({ role: entry.role, content: (entry.from ? `(Brief from ${entry.from}) ${entry.text}` : entry.text).slice(0, 4000) }));
+    .map((entry) => ({ role: entry.role, content: clipForContext(entry.from ? `(Brief from ${entry.from}) ${entry.text}` : entry.text) }));
   if (!conversation.length && greetingFor(bot)) conversation.push({ role: "assistant", content: greetingFor(bot).message });
   const message = {
     role: "assistant",
@@ -980,6 +1483,7 @@ async function sendTask(task) {
     pending: true,
     status: "Starting…",
   };
+  startLive(message);
   history[key].push(
     { role: "user", text: task.trim(), time: Date.now() },
     message,
@@ -1006,6 +1510,7 @@ async function sendTask(task) {
       throw new Error(error.error || "Unable to start this task.");
     }
     await consumeStream(response, (event, data) => {
+      if (!event.startsWith("delegation_")) watchComputer(bot, event, data);
       // A delegated bot's text streams into its own chat, so the chief's only redraws when a status line changes.
       const changed = event.startsWith("delegation_") ? applyDelegation(event, data, message, bot) : (applyEvent(event, data, message), true);
       if (changed && selected === bot) renderTranscript();
@@ -1016,7 +1521,9 @@ async function sendTask(task) {
     message.status = "";
   } finally {
     message.pending = false;
+    setPhase(message, "done");
     for (const tool of message.tools ?? []) delete tool.arguments;
+    endComputerRun(bot, false);
     // Bots still working when the chief's connection ended may finish on the server.
     for (const delegation of (message.delegations ?? []).filter((item) => !item.done)) {
       const reply = delegatedReplies.get(delegation.id);
@@ -1024,6 +1531,7 @@ async function sendTask(task) {
       delegatedReplies.delete(delegation.id);
       delegation.done = true;
       delegation.status = "Connection ended. The task may still be running.";
+      endComputerRun(delegation, false);
       const target = bots.find((item) => item.id === delegation.id);
       if (target) settleBot(target);
     }
@@ -1145,6 +1653,7 @@ async function removeBotProfile(bot, form, status) {
     // History is kept by name, so a new bot given this name would otherwise inherit the chat.
     delete history[bot.name.toLowerCase()];
     persist();
+    computers.delete(bot.id);
     drafts.delete(bot.name);
     unread.delete(bot.name);
     forgetGreeting(bot);
@@ -1424,40 +1933,57 @@ mobileSidebar.addEventListener("change", closeDrawer);
 mobileSidebar.addEventListener("change", renderBots);
 syncSidebarToggle();
 
-// Wide screens keep the bot panel beside the chat, remembered per browser; narrower ones open it over the chat.
+// One side panel shows at a time: the bot panel ("context") or the computer view ("computer").
+// Wide screens keep it beside the chat, remembered per browser; narrower ones open it over the chat.
 const widePanel = window.matchMedia("(min-width: 1280px)");
 const panelKey = "pekka.bot-panel.v1";
-let panelPinned = true;
-let panelOverlay = false;
+const sidePanels = {
+  context: { panel: "#context-panel", toggle: "#details", name: "bot panel", render: () => renderContext() },
+  computer: { panel: "#computer-panel", toggle: "#computer", name: "computer view", render: () => renderComputer() },
+};
+// The computer view is switched off for now. Set this to true to bring back its button and help entry.
+const computerViewEnabled = false;
+for (const node of document.querySelectorAll("[data-computer-view]")) node.hidden = !computerViewEnabled;
+let pinnedPanel = "context";
+let overlayPanel = "";
 try {
-  panelPinned = localStorage.getItem(panelKey) !== "closed";
+  // Saved as "open" or "closed" before the computer view existed.
+  pinnedPanel =
+    { closed: "", computer: computerViewEnabled ? "computer" : "context" }[localStorage.getItem(panelKey)] ?? "context";
 } catch {}
 
-function panelOpen() {
-  return widePanel.matches ? panelPinned : panelOverlay;
+/** The side panel that is open, or "" for none. */
+function openPanel() {
+  return widePanel.matches ? pinnedPanel : overlayPanel;
 }
 
-function setPanelOpen(open) {
+function setPanel(panel) {
   if (widePanel.matches) {
-    panelPinned = open;
+    pinnedPanel = panel;
     try {
-      localStorage.setItem(panelKey, open ? "open" : "closed");
+      localStorage.setItem(panelKey, panel || "closed");
     } catch {}
-  } else panelOverlay = open;
+  } else overlayPanel = panel;
   syncPanel();
 }
 
+function togglePanel(panel) {
+  setPanel(openPanel() === panel ? "" : panel);
+}
+
 function syncPanel() {
-  const open = panelOpen();
-  $("#context-panel").hidden = !open;
-  $("#context-panel").classList.toggle("overlay", !widePanel.matches);
-  $("#details").setAttribute("aria-expanded", String(open));
-  $("#details").title = open ? "Hide bot panel" : "Show bot panel";
-  renderContext();
+  const open = openPanel();
+  for (const [key, side] of Object.entries(sidePanels)) {
+    $(side.panel).hidden = open !== key;
+    $(side.panel).classList.toggle("overlay", !widePanel.matches);
+    $(side.toggle).setAttribute("aria-expanded", String(open === key));
+    $(side.toggle).title = `${open === key ? "Hide" : "Show"} ${side.name}`;
+    if (open === key) side.render();
+  }
 }
 
 widePanel.addEventListener("change", () => {
-  panelOverlay = false;
+  overlayPanel = "";
   syncPanel();
 });
 syncPanel();
@@ -1544,10 +2070,10 @@ function renderContext() {
 
   const counts = new Map();
   for (const tool of answers.flatMap((message) => message.tools ?? []))
-    counts.set(tool.name, (counts.get(tool.name) ?? 0) + 1);
+    counts.set(toolAlias(tool.name), (counts.get(toolAlias(tool.name)) ?? 0) + 1);
   if (counts.size) {
     const tools = element("div", "tools-used");
-    for (const [tool, count] of counts) tools.append(element("code", "", count > 1 ? `${tool} ×${count}` : tool));
+    for (const [alias, count] of counts) tools.append(element("span", "tool-chip", count > 1 ? `${alias} ×${count}` : alias));
     panel.append(panelSection("Tools used", tools));
   }
 
@@ -1578,7 +2104,10 @@ $("#menu").addEventListener("click", () =>
 );
 $(".app > main").addEventListener("click", (event) => {
   if (!event.target.closest("#menu")) closeDrawer();
-  if (panelOverlay && !event.target.closest("#context-panel, #details")) setPanelOpen(false);
+  // Only clicks in the chat the panel covers close it; the header's buttons, like the sidebar toggle, leave it open.
+  // The computer view redraws on its own clicks, so the clicked node may already be gone; the event's path still has it.
+  const inside = event.composedPath().some((node) => node.matches?.("#context-panel, #computer-panel, .topbar"));
+  if (overlayPanel && !inside) setPanel("");
 });
 $("#task").addEventListener("input", updateComposer);
 $("#composer").addEventListener("submit", (event) => {
@@ -1591,7 +2120,8 @@ $("#task").addEventListener("keydown", (event) => {
     sendTask($("#task").value);
   }
 });
-$("#details").addEventListener("click", () => setPanelOpen(!panelOpen()));
+$("#details").addEventListener("click", () => togglePanel("context"));
+$("#computer").addEventListener("click", () => togglePanel("computer"));
 document
   .querySelectorAll("[data-tab]")
   .forEach((button) =>
@@ -1621,7 +2151,7 @@ document.addEventListener("keydown", (event) => {
   }
   if (event.key === "Escape") {
     closeDrawer();
-    if (panelOverlay && !document.querySelector("dialog[open]")) setPanelOpen(false);
+    if (overlayPanel && !document.querySelector("dialog[open]")) setPanel("");
   }
 });
 window.addEventListener("beforeunload", (event) => {
@@ -1720,6 +2250,24 @@ function applyPreferences() {
     : "Enter adds a new line";
 }
 
+const darkScheme = window.matchMedia("(prefers-color-scheme: dark)");
+
+function savedTheme() {
+  try {
+    const value = localStorage.getItem(themeKey);
+    return value === "light" || value === "dark" ? value : "system";
+  } catch {
+    return "system";
+  }
+}
+
+function applyTheme() {
+  const dark = theme === "system" ? darkScheme.matches : theme === "dark";
+  document.documentElement.dataset.theme = dark ? "dark" : "light";
+  $('meta[name="theme-color"]').content = getComputedStyle(document.documentElement).getPropertyValue("--paper").trim();
+  $(`#theme-picker input[value="${theme}"]`).checked = true;
+}
+
 function updateNavigation() {
   for (const link of document.querySelectorAll("[data-page]")) {
     if (link.dataset.page === currentPage) link.setAttribute("aria-current", "page");
@@ -1738,7 +2286,7 @@ function openPage(page) {
   };
   $("#welcome").hidden = true;
   $("#conversation").hidden = true;
-  $("#details").hidden = true;
+  $("#panel-toggles").hidden = true;
   $("#scheduled").hidden = true;
   $("#pages").hidden = false;
   $("#pages").classList.toggle("plugin-page", page === "plugins");
@@ -1781,7 +2329,7 @@ function route() {
   $("#scheduled").hidden = true;
   $("#welcome").hidden = !loaded;
   $("#conversation").hidden = true;
-  $("#details").hidden = true;
+  $("#panel-toggles").hidden = true;
   $("#heading").textContent = loaded ? "Bots" : "";
   updateNavigation();
   closeDrawer();
@@ -2202,6 +2750,25 @@ $("#settings-form").addEventListener("submit", (event) => {
   if (!saveLocal(scoped(preferencesKey), value, form)) return;
   preferences = value;
   applyPreferences();
+});
+// The theme applies as soon as it's picked, so it saves without the preferences form's button.
+$("#theme-picker").addEventListener("change", (event) => {
+  theme = event.target.value;
+  applyTheme();
+  try {
+    if (theme === "system") localStorage.removeItem(themeKey);
+    else localStorage.setItem(themeKey, theme);
+    $("#theme-status").textContent = "";
+  } catch {
+    $("#theme-status").textContent = "Could not save. Browser storage is unavailable, so the theme resets when you reload.";
+  }
+});
+darkScheme.addEventListener("change", applyTheme);
+// Other tabs of this browser follow a theme change.
+window.addEventListener("storage", (event) => {
+  if (event.key !== themeKey) return;
+  theme = savedTheme();
+  applyTheme();
 });
 for (const form of document.querySelectorAll("#profile-form, #settings-form")) {
   form.addEventListener("input", () => { form.querySelector(".form-status").textContent = "Unsaved changes"; });
@@ -2706,7 +3273,7 @@ async function openScheduled(view) {
   for (const dialog of document.querySelectorAll("dialog[open]")) dialog.close();
   $("#welcome").hidden = true;
   $("#conversation").hidden = true;
-  $("#details").hidden = true;
+  $("#panel-toggles").hidden = true;
   $("#pages").hidden = true;
   $("#scheduled").hidden = false;
   document.title = "Scheduled — Pekka";
@@ -2772,4 +3339,6 @@ async function start() {
 }
 
 $("#host").textContent = location.host;
+theme = savedTheme();
+applyTheme();
 start();
