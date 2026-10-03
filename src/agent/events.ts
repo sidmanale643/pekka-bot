@@ -17,8 +17,9 @@ export type AgentEvent =
   | { type: "step"; step: number }
   | { type: "message_delta"; text: string }
   | { type: "message"; text: string }
-  | { type: "tool_call"; name: string; arguments: string }
-  | { type: "tool_result"; name: string; output: string; isError: boolean }
+  // `id` is the model's ID for the call, so a result can be matched to its call when several run at once.
+  | { type: "tool_call"; id: string; name: string; arguments: string }
+  | { type: "tool_result"; id: string; name: string; output: string; isError: boolean }
   // A delegated bot's run, reported live inside the chief of staff's run.
   | { type: "delegation_start"; bot: DelegatedBot; task: string }
   | { type: "delegation_event"; bot: DelegatedBot; event: AgentEvent }
