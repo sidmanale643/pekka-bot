@@ -66,3 +66,7 @@ Web chat turns are grouped into sessions by user, bot, and chat history. Tracing
 pnpm typecheck
 pnpm test
 ```
+
+## License
+
+Pekka is licensed under the [Apache License 2.0](LICENSE).

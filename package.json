@@ -9,7 +9,7 @@
     "typecheck": "tsc"
   },
   "author": "",
-  "license": "ISC",
+  "license": "Apache-2.0",
   "devEngines": {
     "packageManager": {
       "name": "pnpm",
