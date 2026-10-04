@@ -25,7 +25,7 @@
   --radius: 3px;
   --radius-soft: 8px;
   --measure: 816px;
-  --panel: 300px;
+  --panel: 320px;
   --computer-panel: 420px;
   /* The computer view's terminal, matching the site's. */
   --term: #0d0f15;
@@ -1395,12 +1395,12 @@ a.output-card:hover .output-open {
   opacity: 1;
 }
 
-/* Bot panel */
+/* Bot panel: an overview of the bot, with each setting opening in place of it. */
 .context-panel {
   width: var(--panel);
   flex-shrink: 0;
   overflow-y: auto;
-  padding: 22px 20px 32px;
+  padding: 22px 16px 28px;
   background: var(--paper-2);
   border-left: 1px solid var(--rule);
   scrollbar-width: thin;
@@ -1418,52 +1418,127 @@ a.output-card:hover .output-open {
   gap: 12px;
 }
 .context-about .avatar {
+  flex-shrink: 0;
   border-radius: 6px;
 }
 .context-about div {
   min-width: 0;
 }
 .context-about h2 {
+  overflow-wrap: anywhere;
   font-size: 16px;
   font-weight: 600;
+  line-height: 1.3;
   letter-spacing: -0.01em;
 }
-.context-about p {
-  margin-top: 1px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.context-tag {
+  display: inline-block;
+  margin-top: 3px;
+  padding: 0 6px;
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius);
   font-family: var(--mono);
-  font-size: 11px;
-  color: var(--ink-3);
+  font-size: 10.5px;
+  line-height: 17px;
+  color: var(--ink-2);
 }
-.context-job {
+.context-role {
   display: -webkit-box;
-  margin-top: 14px;
+  margin-top: 12px;
   overflow: hidden;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 4;
   font-size: 13px;
   line-height: 1.55;
   color: var(--ink-2);
+  overflow-wrap: anywhere;
 }
-.context-tabs {
+.context-settings {
+  display: grid;
+  margin-top: 18px;
+  overflow: hidden;
+  background: var(--sheet);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-soft);
+}
+.setting-row {
   display: flex;
-  flex-wrap: wrap;
-  gap: 2px;
-  margin: 12px 0 0 -10px;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 10px 10px 14px;
+  text-align: left;
+  transition: background-color 0.12s;
 }
-.context-section {
-  margin-top: 24px;
-  padding-top: 14px;
+.setting-row + .setting-row {
   border-top: 1px solid var(--rule);
 }
+.setting-row:hover {
+  background: var(--paper);
+}
+.setting-row:focus-visible {
+  outline-offset: -2px;
+}
+.setting-copy {
+  flex: 1;
+  min-width: 0;
+}
+.setting-copy strong,
+.setting-copy small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.setting-copy strong {
+  font-size: 13px;
+  font-weight: 500;
+}
+.setting-copy small {
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.setting-row svg {
+  flex-shrink: 0;
+  color: var(--ink-3);
+  transition: color 0.12s, transform 0.12s var(--ease-out);
+}
+.setting-row:hover svg {
+  color: var(--ink);
+  transform: translateX(2px);
+}
+.context-section {
+  margin-top: 26px;
+}
+.context-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 24px;
+  margin-bottom: 6px;
+}
 .context-section h3 {
-  margin: 0 0 10px;
   font-family: var(--mono);
   font-size: 11px;
   font-weight: 500;
   color: var(--ink-3);
+}
+.context-add {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-right: -6px;
+  padding: 3px 7px;
+  border-radius: var(--radius);
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink-2);
+  text-decoration: none;
+}
+.context-add:not(:disabled):hover {
+  color: var(--ink);
+  background: var(--sunk);
 }
 .context-list {
   display: grid;
@@ -1497,39 +1572,127 @@ a.output-card:hover .output-open {
   color: var(--ink-3);
 }
 .context-empty {
-  display: block;
-  margin-top: 24px;
+  padding: 6px 8px;
   font-size: 13px;
   line-height: 1.5;
   color: var(--ink-3);
-  text-decoration: none;
 }
-.context-list .context-empty {
-  margin: 0;
-  padding: 6px 8px;
-}
-a.context-empty:hover {
-  color: var(--ink);
-}
+/* The chat's cards, flattened into rows to fit the panel. */
 .context-panel .output-card {
+  gap: 10px;
   max-width: none;
+  padding: 6px 8px;
+  background: none;
+  border: 0;
+  border-radius: var(--radius);
 }
-.context-facts {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 6px 16px;
-  margin: 0;
+.context-panel a.output-card:hover {
+  background: var(--sunk);
+}
+.context-panel .output-icon {
+  width: 26px;
+  height: 26px;
+  border-radius: 5px;
   font-size: 12px;
 }
-.context-facts dt {
+.link-card .output-icon {
+  background: var(--sheet);
+  border: 1px solid var(--rule);
+  color: var(--ink-2);
+}
+.context-usage {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 26px;
+  padding-top: 12px;
+  border-top: 1px solid var(--rule);
   font-family: var(--mono);
+  font-size: 11px;
   color: var(--ink-3);
 }
-.context-facts dd {
-  margin: 0;
+.context-usage span:last-child {
   text-align: right;
-  font-family: var(--mono);
   color: var(--ink-2);
+}
+/* An open setting keeps its heading in place while the form scrolls. */
+.context-panel.setting {
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+}
+.panel-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 16px 12px 8px;
+  border-bottom: 1px solid var(--rule);
+}
+.panel-head div {
+  min-width: 0;
+}
+.panel-head h2 {
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+}
+.panel-head p {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--ink-3);
+}
+.panel-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 18px 16px 28px;
+  font-size: 13px;
+  line-height: 1.6;
+  scrollbar-width: thin;
+}
+.panel-body > .loading {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.panel-body form > label + label {
+  margin-top: 16px;
+}
+.panel-body label textarea,
+.panel-body label input:not([type="checkbox"]) {
+  font-size: 13px;
+}
+.panel-body .form-actions {
+  margin-top: 14px;
+}
+.panel-body .detail-note {
+  color: var(--ink-3);
+}
+.memory-file label small {
+  display: block;
+  font-family: var(--sans);
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.danger-zone {
+  margin-top: 28px;
+  padding-top: 16px;
+  border-top: 1px solid var(--rule);
+}
+.danger-zone .muted {
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.danger-zone .button {
+  margin-top: 12px;
+}
+.danger-zone .form-status:not(:empty) {
+  margin-top: 8px;
 }
 
 /* Computer view */
@@ -2313,15 +2476,6 @@ dialog::backdrop {
   color: var(--ink);
   border-color: var(--accent);
 }
-#detail-content {
-  font-size: 14px;
-  line-height: 1.65;
-}
-#detail-content > .loading {
-  font-family: var(--mono);
-  font-size: 12px;
-  color: var(--ink-3);
-}
 .detail-field + .detail-field {
   margin-top: 18px;
 }
@@ -2597,9 +2751,6 @@ dialog::backdrop {
 .plugin-card .info-note { margin-top: 18px; }
 #plugin-status:not(:empty) { display: block; margin-top: 18px; }
 #theme-status:not(:empty) { margin-top: 10px; }
-.character-custom > label + label {
-  margin-top: 16px;
-}
 
 /* Scheduled */
 .visually-hidden {
@@ -2887,17 +3038,6 @@ dialog::backdrop {
 .button.danger:not(:disabled):hover {
   color: var(--danger);
   background: var(--danger-soft);
-}
-a.schedule-link {
-  display: block;
-  color: var(--ink);
-  text-decoration: none;
-}
-a.schedule-link:hover {
-  background: var(--paper-2);
-}
-#detail-content .button.small {
-  margin-bottom: 14px;
 }
 @media (max-width: 850px) {
   .scheduled {

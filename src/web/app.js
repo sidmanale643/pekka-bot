@@ -222,8 +222,7 @@ function editButton(bot) {
   edit.innerHTML = '<svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><path d="m12.5 3.5 4 4M3 17l4.5-1 9-9a2.8 2.8 0 0 0-4-4l-9 9L3 17Z" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round" /></svg>';
   edit.addEventListener("click", () => {
     selectBot(bot);
-    $("#details-dialog").showModal();
-    showDetails("purpose", bot);
+    openBotSetting(bot, "purpose");
   });
   return edit;
 }
@@ -316,6 +315,7 @@ function selectBot(bot) {
   $("#scheduled").hidden = true;
   updateNavigation();
   if (selected) drafts.set(selected.name, $("#task").value);
+  if (panelView.bot !== bot.id) panelView = { bot: bot.id, view: "" };
   selected = bot;
   unread.delete(bot.name);
   closeDrawer();
@@ -1684,7 +1684,6 @@ async function saveBotProfile(bot, form, status) {
     persist();
     window.history.replaceState(null, "", "#bot/" + encodeURIComponent(bot.name));
     selectBot(bot);
-    $("#detail-name").replaceChildren(avatar(bot.name, 24), bot.name);
     status.textContent = "Changes saved.";
   } catch (error) { status.textContent = error.message; }
   finally { for (const button of form.querySelectorAll("button")) button.disabled = false; }
@@ -1705,7 +1704,6 @@ async function removeBotProfile(bot, form, status) {
     unread.delete(bot.name);
     forgetGreeting(bot);
     selected = undefined;
-    $("#details-dialog").close();
     window.history.replaceState(null, "", "#workspace");
     renderBots();
     route();
@@ -1713,107 +1711,7 @@ async function removeBotProfile(bot, form, status) {
   finally { for (const button of form.querySelectorAll("button")) button.disabled = false; }
 }
 
-let detailsVersion = 0;
-async function showDetails(tab = "purpose", bot = selected) {
-  const version = ++detailsVersion;
-  $("#detail-name").replaceChildren(avatar(bot.name, 24), bot.name);
-  const content = $("#detail-content");
-  content.replaceChildren(element("p", "loading", "Loading…"));
-  document
-    .querySelectorAll("[data-tab]")
-    .forEach((button) =>
-      button.classList.toggle("active", button.dataset.tab === tab),
-    );
-  const panel = element("div", "");
-  try {
-    await detailViews[tab](panel, bot);
-    if (version === detailsVersion) content.replaceChildren(panel);
-  } catch (error) {
-    if (version === detailsVersion)
-      content.replaceChildren(element("p", "error", error.message));
-  }
-}
-
-// Replaced by the server's list on load; Normal and Custom keep the form usable until then.
-let characterPresets = [
-  { id: "normal", name: "Normal" },
-  { id: "custom", name: "Custom" },
-];
-
-function characterFields(value = { preset: "normal", name: "", description: "" }) {
-  const fields = element("div", "character-fields");
-  const label = element("label", "", "Character");
-  const select = element("select", "");
-  select.name = "preset";
-  for (const preset of characterPresets) {
-    const option = element("option", "", preset.name);
-    option.value = preset.id;
-    select.append(option);
-  }
-  select.value = value.preset;
-  label.append(select);
-  const custom = element("div", "character-custom");
-  const nameLabel = element("label", "", "Character name");
-  const name = element("input", "");
-  // "name" is taken by the bot's own name in the create form.
-  name.name = "characterName";
-  name.maxLength = 100;
-  name.placeholder = "e.g. Nova (optional)";
-  name.value = value.name ?? "";
-  nameLabel.append(name);
-  const descriptionLabel = element("label", "", "Custom character");
-  const description = element("textarea", "");
-  description.name = "description";
-  description.maxLength = 2000;
-  description.rows = 3;
-  description.placeholder = "Describe the character, tone and mannerisms…";
-  description.value = value.description;
-  descriptionLabel.append(description);
-  custom.append(nameLabel, descriptionLabel);
-  const hint = element("p", "muted");
-  const update = () => {
-    custom.hidden = select.value !== "custom";
-    description.required = select.value === "custom";
-    description.disabled = name.disabled = select.value !== "custom";
-    const preset = characterPresets.find(({ id }) => id === select.value);
-    hint.textContent = ["normal", "custom"].includes(select.value)
-      ? "Shapes conversation style. Your tasks and instructions still come first."
-      : `${preset.description} Same capabilities, ${preset.name}'s mannerisms.`;
-  };
-  select.addEventListener("change", update);
-  update();
-  fields.append(label, hint, custom);
-  return fields;
-}
-
 const detailViews = {
-  character: async (panel, bot) => {
-    const path = `/api/bots/${encodeURIComponent(bot.name)}/character`;
-    const form = element("form", "");
-    form.append(characterFields(await api(path)));
-    const save = element("button", "button primary", "Save character");
-    const status = element("p", "form-status");
-    status.setAttribute("role", "status");
-    form.append(save, status);
-    form.addEventListener("submit", async (event) => {
-      event.preventDefault();
-      save.disabled = true;
-      try {
-        const { preset, characterName, description } = Object.fromEntries(new FormData(form));
-        await api(path, {
-          method: "PUT",
-          body: JSON.stringify({ preset, name: characterName, description }),
-        });
-        forgetGreeting(bot);
-        status.textContent = "Saved. Applies from the next task, including scheduled runs.";
-      } catch (error) {
-        status.textContent = error.message;
-      } finally {
-        save.disabled = false;
-      }
-    });
-    panel.append(form);
-  },
   purpose: async (panel, bot) => {
     const form = element("form", "");
     for (const [name, title] of [["name", "Name"], ["role", "Description"], ["job", "Working instructions"]]) {
@@ -1823,25 +1721,29 @@ const detailViews = {
       input.value = bot[name];
       input.required = name !== "job";
       input.maxLength = name === "name" ? 200 : 100000;
-      if (name === "job") input.rows = 4;
+      input.rows = name === "job" ? 10 : 4;
+      if (name === "job") input.placeholder = "Anything it should always do, like steps to follow or how to format results";
       label.append(input);
       form.append(label);
     }
-    const status = element("p", "muted");
+    const status = element("span", "form-status");
     status.setAttribute("role", "status");
     const actions = element("div", "form-actions");
-    const save = element("button", "button primary", "Save changes");
-    actions.append(save);
-    form.append(actions, status);
+    actions.append(status, element("button", "button primary", "Save changes"));
+    form.append(actions);
+    // Deleting sits apart from saving, so it isn't pressed by mistake.
+    const danger = element("div", "danger-zone");
     if (bot.primary) {
-      form.append(element("p", "muted", "This is your chief of staff, your primary bot. It runs your other bots and can't be deleted, but you can rename it and change its purpose."));
+      danger.append(element("p", "muted", "This is your chief of staff. It runs your other bots and can't be deleted, but you can rename it and change its purpose."));
     } else {
-      const remove = element("button", "button secondary", "Delete bot");
+      const remove = element("button", "button secondary danger", "Delete bot");
       remove.type = "button";
-      remove.addEventListener("click", () => removeBotProfile(bot, form, status));
-      actions.append(remove);
-      form.append(element("p", "muted", "Deleting cancels upcoming schedules and removes this bot from Pekka. Sandbox files and saved memory are retained."));
+      const removing = element("p", "form-status");
+      removing.setAttribute("role", "status");
+      remove.addEventListener("click", () => removeBotProfile(bot, form, removing));
+      danger.append(element("p", "muted", "Deleting removes its sandbox and files and cancels upcoming schedules. Saved memory is kept."), remove, removing);
     }
+    form.append(danger);
     form.addEventListener("submit", (event) => {
       event.preventDefault();
       saveBotProfile(bot, form, status);
@@ -1849,13 +1751,19 @@ const detailViews = {
     panel.append(form);
   },
   memory: async (panel, bot) => {
-    for (const file of ["PREFERENCES.md", "KNOWLEDGE.md"]) {
+    panel.append(element("p", "detail-note", `${bot.name} updates these notes as it learns. Your edits apply from its next task.`));
+    for (const [file, title, hint] of [
+      ["PREFERENCES.md", "Preferences", "How you like things done."],
+      ["KNOWLEDGE.md", "Knowledge", "Facts about you and your work."],
+    ]) {
       const path = `/api/bots/${encodeURIComponent(bot.name)}/memory/${file}`;
       const data = await api(path);
       const section = element("div", "memory-file");
-      const label = element("label", "", file);
+      const label = element("label", "", title);
+      label.title = file;
+      label.append(element("small", "", hint));
       const input = element("textarea", "");
-      input.rows = 7;
+      input.rows = 10;
       input.value = data.content;
       input.maxLength = 900000;
       input.spellcheck = false;
@@ -1907,40 +1815,6 @@ const detailViews = {
     }
     if (data.skills.length) panel.append(list);
     for (const error of data.errors) panel.append(element("p", "error", error));
-  },
-  schedules: async (panel, bot) => {
-    const data = await api("/api/jobs");
-    const botJobs = data.jobs.filter(
-      (job) => job.bot?.name.toLowerCase() === bot.name.toLowerCase(),
-    );
-    panel.append(
-      element(
-        "p",
-        "detail-note",
-        botJobs.length
-          ? "Scheduled tasks run only while the local scheduler is running."
-          : "No scheduled tasks. Create one here or ask this bot to schedule one; it runs while the local scheduler is running.",
-      ),
-    );
-    const create = element("a", "button secondary small", "New scheduled task");
-    create.href = "#scheduled/new";
-    create.addEventListener("click", () => { scheduleDraft = { botName: bot.name }; });
-    panel.append(create);
-    const list = element("div", "detail-list");
-    for (const job of botJobs) {
-      const row = element("a", "detail-row schedule-link");
-      row.href = "#scheduled/" + encodeURIComponent(job.id);
-      const title = element("h3", "", job.name);
-      title.append(element("span", "", statusLabels[job.status] || job.status));
-      row.append(title);
-      if (job.nextRunAt)
-        row.append(
-          element("p", "", `Next run ${new Date(job.nextRunAt).toLocaleString()}`),
-        );
-      if (job.lastError) row.append(element("p", "error", job.lastError));
-      list.append(row);
-    }
-    if (botJobs.length) panel.append(list);
   },
 };
 
@@ -2042,11 +1916,40 @@ function markdownLinks(text) {
   }));
 }
 
-const skillSources = { bot: "This bot", shared: "Shared", base: "Built in" };
+const chevronIcon = (direction) =>
+  `<svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><path d="${direction === "left" ? "M12 4.5 6.5 10l5.5 5.5" : "m8 4.5 5.5 5.5L8 15.5"}" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" /></svg>`;
 
-function panelSection(title, ...children) {
+// The bot panel shows the bot at a glance, or one of its settings opened from there.
+// `view` belongs to the bot with id `bot`, so opening another bot starts back at the overview.
+let panelView = { bot: undefined, view: "" };
+let panelVersion = 0;
+const skillSources = { bot: "This bot", shared: "Shared", base: "Built in" };
+const botSettings = {
+  purpose: ["Purpose", "Name, description and instructions"],
+  memory: ["Memory", "What it has learned about you"],
+  skills: ["Skills", "Know-how it loads when a task needs it"],
+};
+
+function openBotSetting(bot, view) {
+  panelView = { bot: bot.id, view };
+  if (openPanel() === "context") renderContext();
+  else setPanel("context");
+  $("#context-panel .panel-back")?.focus();
+}
+
+function closeBotSetting() {
+  const { view } = panelView;
+  panelView.view = "";
+  renderContext();
+  $(`#context-panel [data-setting="${view}"]`)?.focus();
+}
+
+function panelSection(title, body, action) {
   const section = element("section", "context-section");
-  section.append(element("h3", "", title), ...children);
+  const head = element("div", "context-section-head");
+  head.append(element("h3", "", title));
+  if (action) head.append(action);
+  section.append(head, body);
   return section;
 }
 
@@ -2054,93 +1957,134 @@ function renderContext() {
   const panel = $("#context-panel");
   if (!selected || panel.hidden || currentPage !== "workspace") return;
   const bot = selected;
-  const messages = entries(bot);
-  panel.replaceChildren();
+  const view = panelView.bot === bot.id ? panelView.view : "";
+  panel.classList.toggle("setting", Boolean(view));
+  if (!view) return renderBotOverview(panel, bot);
+  // A setting is drawn once when it opens, so the redraws a streaming reply causes keep what you typed.
+  const key = `${bot.id}:${view}`;
+  if (panel.dataset.view === key) {
+    // Only a rename changes the heading, so the back button otherwise keeps its focus.
+    const head = panel.querySelector(".panel-head");
+    if (head.querySelector("p").textContent !== bot.name) head.replaceWith(settingHead(bot, view));
+    return;
+  }
+  panel.dataset.view = key;
+  const body = element("div", "panel-body");
+  body.append(element("p", "loading", "Loading…"));
+  panel.replaceChildren(settingHead(bot, view), body);
+  panel.scrollTop = 0;
+  const version = ++panelVersion;
+  const content = element("div", "");
+  detailViews[view](content, bot).then(
+    () => version === panelVersion && body.replaceChildren(content),
+    (error) => version === panelVersion && body.replaceChildren(element("p", "error", error.message)),
+  );
+}
 
+function settingHead(bot, view) {
+  const head = element("header", "panel-head");
+  const back = element("button", "icon-button panel-back");
+  back.type = "button";
+  back.title = `Back to ${bot.name}`;
+  back.setAttribute("aria-label", `Back to ${bot.name}`);
+  back.innerHTML = chevronIcon("left");
+  back.addEventListener("click", closeBotSetting);
+  const title = element("div", "");
+  title.append(element("h2", "", botSettings[view][0]), element("p", "", bot.name));
+  head.append(back, title);
+  return head;
+}
+
+function renderBotOverview(panel, bot) {
+  // Drops a setting that is still loading, so it can't replace the overview when it arrives.
+  panelVersion++;
+  panel.dataset.view = "";
   const about = element("header", "context-about");
   const name = element("div", "");
-  name.append(element("h2", "", bot.name), element("p", "", bot.role));
+  name.append(element("h2", "", bot.name));
+  if (bot.primary && bot.name.toLowerCase() !== "chief of staff") name.append(element("span", "context-tag", "Chief of staff"));
   about.append(avatar(bot.name, 40), name);
-  const tabs = element("div", "context-tabs");
-  for (const [tab, label] of [["purpose", "Edit"], ["memory", "Memory"], ["skills", "Skills"], ["character", "Character"]]) {
-    const button = element("button", "button ghost small", label);
-    button.type = "button";
-    button.addEventListener("click", () => {
-      $("#details-dialog").showModal();
-      showDetails(tab, bot);
-    });
-    tabs.append(button);
-  }
-  panel.append(about);
-  if (bot.job) panel.append(element("p", "context-job", bot.job));
-  panel.append(tabs);
 
-  const upcoming = jobs.filter((job) => job.bot?.name === bot.name && upcomingStatuses.includes(job.status));
-  const schedule = element("div", "context-list");
-  for (const job of upcoming) {
+  const settings = element("nav", "context-settings");
+  settings.setAttribute("aria-label", `${bot.name} settings`);
+  for (const [view, [label, hint]] of Object.entries(botSettings)) {
+    const row = element("button", "setting-row");
+    row.type = "button";
+    row.dataset.setting = view;
+    const copy = element("span", "setting-copy");
+    copy.append(element("strong", "", label), element("small", "", hint));
+    row.append(copy);
+    row.insertAdjacentHTML("beforeend", chevronIcon("right"));
+    row.addEventListener("click", () => openBotSetting(bot, view));
+    settings.append(row);
+  }
+
+  const answers = entries(bot).filter((message) => message.role === "assistant").reverse();
+  // A streaming reply redraws the overview on every token, so a focused setting row is focused again.
+  const focused = panel.contains(document.activeElement) ? document.activeElement.dataset.setting : undefined;
+  panel.replaceChildren(about, element("p", "context-role", bot.role), settings, scheduleSection(bot), chatSection(bot, answers));
+  if (focused) panel.querySelector(`[data-setting="${focused}"]`).focus();
+  const usage = answers.find((message) => message.usage)?.usage;
+  if (usage) panel.append(usageLine(usage));
+}
+
+function scheduleSection(bot) {
+  const add = element("a", "context-add");
+  add.href = "#scheduled/new";
+  add.title = `Schedule a task for ${bot.name}`;
+  add.setAttribute("aria-label", `Schedule a task for ${bot.name}`);
+  add.innerHTML = '<svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><path d="M8 2.5v11M2.5 8h11" stroke="currentColor" stroke-width="1.5" /></svg>New';
+  add.addEventListener("click", () => { scheduleDraft = { botName: bot.name }; });
+  const list = element("div", "context-list");
+  for (const job of jobs.filter((job) => job.bot?.id === bot.id && upcomingStatuses.includes(job.status))) {
     const row = element("a", "context-row");
     row.href = "#scheduled/" + encodeURIComponent(job.id);
     row.append(element("strong", "", job.name), element("small", "", jobSummary(job)));
-    schedule.append(row);
+    list.append(row);
   }
-  if (!upcoming.length) {
-    const add = element("a", "context-empty", "Nothing scheduled. Schedule a task →");
-    add.href = "#scheduled/new";
-    schedule.append(add);
-  }
-  panel.append(panelSection("Scheduled", schedule));
+  if (!list.children.length) list.append(element("p", "context-empty", "Nothing scheduled."));
+  return panelSection("Scheduled", list, add);
+}
 
-  const answers = messages.filter((message) => message.role === "assistant").reverse();
-  const outputs = answers.flatMap((message) => (message.tools ?? []).map((tool) => tool.output).filter(Boolean));
-  if (outputs.length) {
-    const cards = element("div", "output-cards");
-    for (const output of outputs.slice(0, 6)) cards.append(outputCard(output));
-    panel.append(panelSection("Created in this chat", cards));
-  }
-
-  const seen = new Set(outputs.map((output) => output.url));
-  const links = element("div", "context-list");
+/** What the bot made and the links it shared in this chat, newest first. */
+function chatSection(bot, answers) {
+  const list = element("div", "context-list");
+  const outputs = answers.flatMap((message) => (message.tools ?? []).filter((tool) => tool.output).map((tool) => [tool.output, message]));
+  for (const [output, message] of outputs.slice(0, 6)) list.append(outputCard(output, message));
+  const seen = new Set(outputs.map(([output]) => output.url));
+  let links = 0;
   for (const link of answers.flatMap((message) => markdownLinks(message.text))) {
-    if (seen.has(link.url) || links.children.length >= 8) continue;
+    if (seen.has(link.url) || links >= 8) continue;
     seen.add(link.url);
+    links++;
     let host = link.url;
     try {
       host = new URL(link.url).hostname.replace(/^www\./, "");
     } catch {}
-    const row = element("a", "context-row");
+    const row = element("a", "output-card link-card");
     row.href = link.url;
     row.target = "_blank";
     row.rel = "noopener noreferrer";
-    row.append(element("strong", "", link.label || host), element("small", "", host));
-    links.append(row);
+    const icon = element("span", "output-icon");
+    icon.innerHTML = '<svg viewBox="0 0 20 20" width="14" height="14" aria-hidden="true"><path d="M8.5 11.5a3 3 0 0 0 4.24 0l2.83-2.83a3 3 0 0 0-4.24-4.24l-1 1M11.5 8.5a3 3 0 0 0-4.24 0l-2.83 2.83a3 3 0 0 0 4.24 4.24l1-1" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" /></svg>';
+    const copy = element("span", "output-copy");
+    copy.append(element("strong", "", link.label || host), element("small", "", host));
+    row.append(icon, copy, element("span", "output-open", "↗"));
+    list.append(row);
   }
-  if (links.children.length) panel.append(panelSection("Links", links));
+  if (!list.children.length) list.append(element("p", "context-empty", "Links it shares and things it makes, like pages and emails, collect here."));
+  return panelSection("From this chat", list);
+}
 
-  const counts = new Map();
-  for (const tool of answers.flatMap((message) => message.tools ?? []))
-    counts.set(toolAlias(tool.name), (counts.get(toolAlias(tool.name)) ?? 0) + 1);
-  if (counts.size) {
-    const tools = element("div", "tools-used");
-    for (const [alias, count] of counts) tools.append(element("span", "tool-chip", count > 1 ? `${alias} ×${count}` : alias));
-    panel.append(panelSection("Tools used", tools));
-  }
-
-  const usage = answers.find((message) => message.usage)?.usage;
-  if (usage) {
-    const facts = element("dl", "context-facts");
-    const cache = usage.cacheHitRate == null ? "—" : `${(usage.cacheHitRate * 100).toFixed(0)}%`;
-    for (const [term, value] of [
-      ["Input", `${usage.promptTokens.toLocaleString()} tokens`],
-      ["Output", `${usage.completionTokens.toLocaleString()} tokens`],
-      ["Cache hits", cache],
-      ["Cost", `$${usage.costUsd.toFixed(4)}`],
-    ])
-      facts.append(element("dt", "", term), element("dd", "", value));
-    panel.append(panelSection("Last run", facts));
-  }
-
-  if (!messages.length)
-    panel.append(element("p", "context-empty", "Pages, links and tools from this chat collect here."));
+function usageLine(usage) {
+  const line = element("p", "context-usage");
+  const tokens = usage.promptTokens + usage.completionTokens;
+  const parts = [`${tokens.toLocaleString()} tokens`];
+  if (usage.cacheHitRate != null) parts.push(`${(usage.cacheHitRate * 100).toFixed(0)}% cached`);
+  parts.push(`$${usage.costUsd.toFixed(4)}`);
+  line.title = `${usage.promptTokens.toLocaleString()} input and ${usage.completionTokens.toLocaleString()} output tokens`;
+  line.append(element("span", "", "Last run"), element("span", "", parts.join(" · ")));
+  return line;
 }
 
 $("#new-bot").addEventListener("click", () => openCreate());
@@ -2184,11 +2128,6 @@ $("#task").addEventListener("keydown", (event) => {
 $("#details").addEventListener("click", () => togglePanel("context"));
 $("#computer").addEventListener("click", () => togglePanel("computer"));
 document
-  .querySelectorAll("[data-tab]")
-  .forEach((button) =>
-    button.addEventListener("click", () => showDetails(button.dataset.tab)),
-  );
-document
   .querySelectorAll("[data-template]")
   .forEach((button) =>
     button.addEventListener("click", () =>
@@ -2211,6 +2150,11 @@ document.addEventListener("keydown", (event) => {
     $("#search").focus();
   }
   if (event.key === "Escape") {
+    // In an open setting, Escape steps back to the overview, unless you are typing in it.
+    if (panelView.view && event.target.closest?.("#context-panel") && !event.target.matches("input,textarea,select")) {
+      closeBotSetting();
+      return;
+    }
     closeDrawer();
     if (overlayPanel && !document.querySelector("dialog[open]")) setPanel("");
   }
@@ -2224,12 +2168,7 @@ window.addEventListener("beforeunload", (event) => {
 
 async function initialize() {
   try {
-    const [data, presets] = await Promise.all([
-      api("/api/bots"),
-      api("/api/characters"),
-    ]);
-    bots = data.bots;
-    characterPresets = presets.characters;
+    bots = (await api("/api/bots")).bots;
     loaded = true;
     renderBots();
     route();
