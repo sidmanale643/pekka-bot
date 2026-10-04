@@ -6,7 +6,8 @@ import { FakeComputer } from "../computer/fake-computer.ts";
 import { LOCAL_USER } from "../database/database.ts";
 import { createSqliteDatabase } from "../database/sqlite.ts";
 import { readMemory } from "./bot-memory.ts";
-import { defaultTools, unnamedTools } from "./index.ts";
+import { chiefTools, defaultTools, unnamedTools, withPlugins, withServerKeys } from "./index.ts";
+import { createPluginLoader } from "./load-plugin.ts";
 import { readFile } from "./read-file.ts";
 import { runCommand } from "./run-command.ts";
 
@@ -65,6 +66,47 @@ it("leaves tools that need a named bot out of unnamed runs", () => {
   const named = ["read_memory", "write_memory", "update_bot_config", "write_skill", "get_email_address", "send_email"];
   expect(defaultTools.map((tool) => tool.name)).toEqual(expect.arrayContaining(named));
   expect(unnamedTools.map((tool) => tool.name)).toEqual(defaultTools.map((tool) => tool.name).filter((name) => !named.includes(name)));
+});
+
+it("only gives a run the tools of plugins that are set up", () => {
+  const names = (plugins: string[]) => withPlugins(chiefTools, new Set(plugins)).map((tool) => tool.name);
+  const core = chiefTools.filter((tool) => !tool.permission?.plugin).map((tool) => tool.name);
+  expect(names([])).toEqual(core);
+  expect(names(["gmail"])).toEqual(expect.arrayContaining([...core, "gmail_search", "gmail_send"]));
+  expect(names(["gmail"]).filter((name) => !core.includes(name)).every((name) => name.startsWith("gmail_"))).toBe(true);
+});
+
+it("lists only the run's own plugins, with their tools", () => {
+  expect(systemPrompt(undefined, 30)).not.toContain("# Acting outside your computer");
+
+  const some = systemPrompt(undefined, 30, { plugins: createPluginLoader(withPlugins(defaultTools, new Set(["gmail", "agentmail"]))).plugins });
+  expect(some).toContain("call load_plugin with a plugin's id");
+  expect(some).toContain("- agentmail (Email): Your own mailbox, for sending email as yourself. Tools: get_email_address, send_email.");
+  expect(some).toMatch(/- gmail \(Gmail\): .+ Tools: gmail_search, gmail_read_message, .+, gmail_modify_labels\./);
+  // Guidance arrives with load_plugin, not up front.
+  expect(some).not.toContain("gmail_send sends as the user");
+  expect(some).not.toMatch(/calendar|notion|github|telegram|not connected/i);
+  expect(some).toContain("These are your only plugins.");
+});
+
+it("leaves out web tools the server has no key for, and the prompt follows", () => {
+  const names = (env: NodeJS.ProcessEnv) => withServerKeys(defaultTools, env).map((tool) => tool.name);
+  expect(names({ EXA_API_KEY: "k", SCRAPERAPI_API_KEY: "k" })).toEqual(expect.arrayContaining(["web_search", "web_scrape"]));
+  expect(names({ TAVILY_API_KEY: "k" })).not.toContain("web_scrape");
+  expect(names({ SCRAPERAPI_API_KEY: " " })).not.toEqual(expect.arrayContaining(["web_search"]));
+  expect(names({})).toEqual(defaultTools.map((tool) => tool.name).filter((name) => name !== "web_search" && name !== "web_scrape"));
+
+  const prompt = (tools: string[]) => systemPrompt(undefined, 30, { tools: new Set(tools) });
+  expect(prompt(["web_search", "web_scrape"])).toContain("Use web_search for current or unfamiliar facts, and web_scrape to read a source.");
+  expect(prompt(["web_search"])).toContain("- Use web_search for current or unfamiliar facts.\n");
+  expect(prompt(["web_search"])).not.toContain("web_scrape");
+  expect(prompt(["web_scrape"])).not.toContain("web_search");
+  expect(prompt([])).not.toContain("# Research");
+});
+
+it("only explains skills to a run that has the skill tools", () => {
+  expect(systemPrompt(undefined, 30, { tools: new Set(["load_skill", "list_skills"]) })).toContain("# Skills");
+  expect(systemPrompt(undefined, 30, { tools: new Set(["run_command"]) })).not.toMatch(/# Skills|load_skill|list_skills/);
 });
 
 it("tells the agent how many steps it has", () => {

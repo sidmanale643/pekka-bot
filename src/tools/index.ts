@@ -30,3 +30,16 @@ const namedBotTools = new Set([readMemory.name, writeMemory.name, updateBotConfi
 
 /** Runs without a named bot get every default tool that works without one. */
 export const unnamedTools: Tool[] = defaultTools.filter((tool) => !namedBotTools.has(tool.name));
+
+/** Leaves out tools whose provider key the server doesn't have, since they could only fail. */
+export function withServerKeys(tools: Tool[], env: NodeJS.ProcessEnv = process.env): Tool[] {
+  const missing = new Set<string>();
+  if (!env.TAVILY_API_KEY && !env.EXA_API_KEY) missing.add(webSearch.name);
+  if (!env.SCRAPERAPI_API_KEY?.trim()) missing.add(webScrape.name);
+  return tools.filter((tool) => !missing.has(tool.name));
+}
+
+/** Leaves out the tools of plugins that aren't set up, so a run is only shown tools it can use. */
+export function withPlugins(tools: Tool[], plugins: ReadonlySet<string>): Tool[] {
+  return tools.filter(({ permission }) => !permission?.plugin || plugins.has(permission.plugin));
+}

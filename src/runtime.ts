@@ -5,7 +5,8 @@ import { deleteDaytonaSandbox, openDaytonaComputer } from "./computer/daytona-co
 import { loadConfig, type Config } from "./config.ts";
 import { LOCAL_USER } from "./database/database.ts";
 import { createOpenRouterModel, fetchContextWindow } from "./model/openrouter.ts";
-import { chiefTools, defaultTools, unnamedTools } from "./tools/index.ts";
+import { enabledPlugins } from "./plugins/enabled.ts";
+import { chiefTools, defaultTools, unnamedTools, withPlugins, withServerKeys } from "./tools/index.ts";
 import type { Delegate } from "./tools/tool.ts";
 import type { ApproveAction } from "./permissions/policy.ts";
 
@@ -38,6 +39,7 @@ export async function executeTask(task: string, owner: RunOwner, onEvent?: Event
     owner = { ...owner, bot };
   }
   const config = loadConfig();
+  const plugins = await enabledPlugins(owner.userId);
   const sandboxName = sandboxNameFor(config, owner);
   const { computer, release } = openDaytonaComputer({ apiKey: config.daytonaApiKey, sandboxName, workspace: Boolean(owner.bot) });
   try {
@@ -45,7 +47,7 @@ export async function executeTask(task: string, owner: RunOwner, onEvent?: Event
     const contextWindow = config.contextWindow ?? await fetchContextWindow(config.model);
     const chief = owner.bot?.primary === true;
     return await runAgent(task, {
-      model, computer, tools: chief ? chiefTools : owner.bot ? defaultTools : unnamedTools, maxSteps: config.maxSteps, contextWindow, userId: owner.userId, bot: owner.bot,
+      model, computer, tools: withServerKeys(withPlugins(chief ? chiefTools : owner.bot ? defaultTools : unnamedTools, plugins)), maxSteps: config.maxSteps, contextWindow, userId: owner.userId, bot: owner.bot,
       approveAction: owner.approveAction, conversation: owner.conversation, delegate: chief ? delegateFor(owner, onEvent) : undefined, onEvent,
     });
   } finally {

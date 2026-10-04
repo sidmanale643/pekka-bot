@@ -132,6 +132,9 @@ it("gives only the chief of staff the instructions for running other bots", asyn
   const chief = await ensureChiefOfStaff("alice", database);
   const scout = await createBot("alice", { name: "Scout", role: "Research", job: "" }, database);
   expect(systemPrompt(chief, 30)).toContain("You are the user's chief of staff");
+  // Only a chief with plugins hears that its bots share them.
+  expect(systemPrompt(chief, 30)).not.toContain("same plugins");
+  expect(systemPrompt(chief, 30, { plugins: [{ id: "gmail", name: "Gmail", summary: "", guidance: "", tools: ["gmail_search"] }] })).toContain("Bots you delegate to have the same plugins as you");
   expect(systemPrompt(scout, 30)).not.toContain("delegate_task");
   expect(systemPrompt(undefined, 30)).not.toContain("delegate_task");
 });

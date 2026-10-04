@@ -69,7 +69,7 @@ export function createEmailTools(
   const getEmailAddress = defineTool({
     name: "get_email_address",
     permission: { effect: "write", plugin: "agentmail" },
-    description: "Get this named bot's own email address. The first call creates a permanent AgentMail inbox for the bot, using one inbox slot; later calls return the same address. This is the bot's mailbox, not the user's: use the gmail_* tools to act as the user. Mail sent to this address cannot be read. Needs a named bot and AGENTMAIL_API_KEY on the server.",
+    description: "Get this named bot's own email address. The first call creates a permanent AgentMail inbox for the bot, using one inbox slot; later calls return the same address. This is the bot's mailbox, not the user's. Mail sent to this address cannot be read. Needs a named bot and AGENTMAIL_API_KEY on the server.",
     input: z.object({}),
     async run(_input, { bot }) {
       return JSON.stringify(await inboxFor(bot));
@@ -79,7 +79,7 @@ export function createEmailTools(
   const sendEmail = defineTool({
     name: "send_email",
     permission: { effect: "write", plugin: "agentmail" },
-    description: "Send a plain-text email from this named bot's own mailbox, not the user's Gmail. Creates the mailbox on first use. Send only to recipients the user's task covers. Returns the sending address and message id; that means AgentMail accepted it, not that it was delivered. If the outcome is unknown, do not resend: check the AgentMail console first. Needs a named bot and AGENTMAIL_API_KEY on the server.",
+    description: "Send a plain-text email from this named bot's own mailbox, not the user's. Creates the mailbox on first use. Send only to recipients the user's task covers. Returns the sending address and message id; that means AgentMail accepted it, not that it was delivered. If the outcome is unknown, do not resend: check the AgentMail console first. Needs a named bot and AGENTMAIL_API_KEY on the server.",
     input: z.object({
       to: z.array(z.email()).min(1).max(50).describe("Recipient email addresses, up to 50."),
       subject: z.string().trim().min(1).max(998).regex(/^[^\r\n]+$/).describe("Single-line subject."),

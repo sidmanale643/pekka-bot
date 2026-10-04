@@ -581,6 +581,7 @@ const toolAliases = {
   list_skills: ["Looking through skills", "Looked through skills"],
   load_skill: ["Loading a skill", "Loaded a skill"],
   write_skill: ["Saving a skill", "Saved a skill"],
+  load_plugin: ["Getting a plugin ready", "Got a plugin ready"],
   update_bot_config: ["Updating its setup", "Updated its setup"],
   list_bots: ["Checking the team", "Checked the team"],
   create_bot: ["Creating a bot", "Created a bot"],
