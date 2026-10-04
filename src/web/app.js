@@ -2333,7 +2333,21 @@ function renderProfile() {
   const name = profile.displayName || account?.name || "";
   $("#profile-label").textContent = name || "Profile";
   $("#profile-initial").textContent = (name || "You").slice(0, 1).toUpperCase();
+  $("#profile-avatar").textContent = (name || "You").slice(0, 1).toUpperCase();
+  $("#profile-name").textContent = name || "Your profile";
+  $("#profile-occupation").textContent = profile.occupation || "Add a little about yourself.";
+  $("#profile-bio").textContent = profile.bio;
+  $("#profile-bio").hidden = !profile.bio;
+  updateProfileEditor();
   syncSidebarToggle();
+}
+
+function updateProfileEditor() {
+  const form = $("#profile-form");
+  const changed = Object.keys(profileDefaults).some((key) => form.elements[key].value !== profile[key]);
+  $("#profile-discard").disabled = !changed;
+  $("#profile-bio-count").textContent = `${form.elements.bio.value.length} / 500`;
+  return changed;
 }
 
 /** Reads this account's profile, preferences and cached greetings from browser storage. Chats come from the server. */
@@ -2365,8 +2379,9 @@ function renderAccount() {
   $("#account").hidden = !account;
   $("#account-email").textContent = account?.email || "";
   $("#profile-note").textContent = account
-    ? "Your display name and details only exist in this browser. Google provides your account email."
-    : "There is no account or sign-in. This profile only exists in this browser.";
+    ? "Your profile details are saved in this browser for this account and do not sync between devices. Google provides your account email."
+    : "This profile is saved in this browser and does not sync between devices.";
+  $("#profile-storage").textContent = account ? "Google account · Local details" : "Browser profile";
 }
 
 function applyPreferences() {
@@ -2405,7 +2420,7 @@ function updateNavigation() {
 function openPage(page) {
   currentPage = page;
   const titles = {
-    profile: ["Profile", "Your name appears on the tasks you send. It is stored in this browser and never sent to bots."],
+    profile: ["Profile", "Your identity, personal details and account."],
     settings: ["Settings", "Preferences for this browser. They apply to every bot."],
     activity: ["Activity", "Tasks you sent to your bots, newest first."],
     help: ["Help", "How bots, memory and schedules work."],
@@ -2417,6 +2432,7 @@ function openPage(page) {
   $("#scheduled").hidden = true;
   $("#pages").hidden = false;
   $("#pages").classList.toggle("plugin-page", page === "plugins");
+  $("#pages").classList.toggle("profile-page", page === "profile");
   document.title = `${titles[page][0]} — Pekka`;
   $("#heading").textContent = titles[page][0];
   $("#page-title").textContent = titles[page][0];
@@ -2867,6 +2883,7 @@ $("#profile-form").addEventListener("submit", (event) => {
   }
   if (!saveLocal(scoped(profileKey), value, form)) return;
   profile = value;
+  for (const [key, text] of Object.entries(profile)) form.elements[key].value = text;
   renderProfile();
   if (selected) renderTranscript();
 });
@@ -2897,9 +2914,18 @@ window.addEventListener("storage", (event) => {
   theme = savedTheme();
   applyTheme();
 });
-for (const form of document.querySelectorAll("#profile-form, #settings-form")) {
-  form.addEventListener("input", () => { form.querySelector(".form-status").textContent = "Unsaved changes"; });
-}
+$("#profile-form").addEventListener("input", (event) => {
+  event.currentTarget.querySelector(".form-status").textContent = updateProfileEditor() ? "Unsaved changes" : "";
+});
+$("#profile-discard").addEventListener("click", () => {
+  const form = $("#profile-form");
+  for (const [key, value] of Object.entries(profile)) form.elements[key].value = value;
+  updateProfileEditor();
+  form.querySelector(".form-status").textContent = "Changes discarded.";
+});
+$("#settings-form").addEventListener("input", (event) => {
+  event.currentTarget.querySelector(".form-status").textContent = "Unsaved changes";
+});
 $("#export-history").addEventListener("click", () => {
   const url = URL.createObjectURL(new Blob([JSON.stringify(history, null, 2)], { type: "application/json" }));
   const link = element("a", "");

@@ -180,18 +180,31 @@
             <h1 id="page-title" tabindex="-1"></h1>
             <p id="page-description"></p>
           </div>
-          <div data-panel="profile" hidden>
-            <form id="profile-form" class="panel-section">
-              <label>Display name<input name="displayName" maxlength="80" placeholder="Your name" autocomplete="nickname" required /></label>
-              <label>What you do<input name="occupation" maxlength="120" placeholder="e.g. Designer" /></label>
-              <label>About you<textarea name="bio" maxlength="500" rows="4" placeholder="A few words about your work"></textarea></label>
-              <div class="form-actions"><span class="form-status" role="status"></span><button class="button primary">Save profile</button></div>
-            </form>
-            <p id="profile-note" class="info-note">There is no account or sign-in. This profile only exists in this browser.</p>
-            <div id="account" class="panel-section" hidden>
-              <h2>Account</h2>
-              <p class="muted">Signed in with Google as <strong id="account-email"></strong>.</p>
-              <div class="form-actions"><span id="sign-out-status" class="form-status" role="status"></span><button id="sign-out" class="button secondary">Sign out</button></div>
+          <div data-panel="profile" class="profile-layout" hidden>
+            <aside class="profile-summary" aria-label="Saved profile">
+              <div id="profile-avatar" class="profile-avatar" aria-hidden="true">Y</div>
+              <h2 id="profile-name">Your profile</h2>
+              <p id="profile-occupation" class="muted">Add a little about yourself.</p>
+              <p id="profile-bio" class="profile-bio" hidden></p>
+              <span id="profile-storage" class="profile-badge">Browser profile</span>
+              <p id="profile-note" class="info-note">This profile is saved in this browser and does not sync between devices.</p>
+            </aside>
+            <div class="profile-editor">
+              <form id="profile-form" class="panel-section">
+                <h2>Personal details</h2>
+                <p class="muted">Make this workspace feel like yours.</p>
+                <label>Display name<input name="displayName" maxlength="80" placeholder="Your name" autocomplete="nickname" aria-describedby="profile-name-hint" required /></label>
+                <p id="profile-name-hint" class="field-hint">Shown beside your messages in this browser.</p>
+                <label>What you do<input name="occupation" maxlength="120" placeholder="e.g. Designer, founder, researcher" autocomplete="organization-title" /></label>
+                <label>About you<textarea name="bio" maxlength="500" rows="5" placeholder="A few words about your work and interests" aria-describedby="profile-bio-hint"></textarea></label>
+                <div id="profile-bio-hint" class="profile-field-footer"><span>Optional. These details do not configure bot memory.</span><span id="profile-bio-count">0 / 500</span></div>
+                <div class="form-actions"><span class="form-status" role="status"></span><div class="profile-buttons"><button id="profile-discard" type="button" class="button secondary" disabled>Discard changes</button><button class="button primary">Save profile</button></div></div>
+              </form>
+              <div id="account" class="panel-section" hidden>
+                <h2>Account</h2>
+                <p class="muted">Signed in with Google as <strong id="account-email"></strong>.</p>
+                <div class="form-actions"><span id="sign-out-status" class="form-status" role="status"></span><button id="sign-out" class="button secondary">Sign out</button></div>
+              </div>
             </div>
           </div>
           <div data-panel="settings" hidden>
