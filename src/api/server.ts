@@ -4,6 +4,7 @@ import { z } from "zod";
 import type { AgentResult } from "../agent/loop.ts";
 import type { EventHandler } from "../agent/events.ts";
 import { BotMemory, memoryFiles } from "../bot-memory.ts";
+import { ChatMessageSchema, deleteMessages, listMessages, saveMessages } from "../chat-history.ts";
 import { createBot, deleteBot, updateBot, DuplicateBotError, ensureChiefOfStaff, findBot as findStoredBot, listBots, type Bot } from "../bots.ts";
 import { loadConfig } from "../config.ts";
 import { DatabaseConfigError } from "../database/d1.ts";
@@ -40,6 +41,7 @@ const createBotInput = z.union([
 const conversationInput = z.array(z.object({ role: z.enum(["user", "assistant"]), content: text.max(4000) }).strict()).max(20);
 const runInput = z.object({ task: text.optional(), botName: text.max(200).optional(), conversation: conversationInput.optional(), sessionId: text.max(150).optional() }).strict()
   .refine((value) => value.task || value.botName, "Provide task or botName.");
+const messagesInput = z.object({ messages: z.array(ChatMessageSchema).min(1).max(100) }).strict();
 const jobInput = z.object({
   name: text.max(200), task: text, runAt: z.iso.datetime({ offset: true }),
   intervalSeconds: z.number().int().min(60).max(31_536_000).optional(), botName: text.max(200).optional(),
@@ -198,6 +200,24 @@ export function createApiServer(options: ServerOptions = {}) {
     json(response, 200, { file: memoryFile, content: await store.read(memoryFile) });
   };
 
+  const chat: Handler = async (request, response, [name], userId) => {
+    const bot = await findBot(userId, name!);
+    if (request.method === "GET") {
+      json(response, 200, { messages: await listMessages(userId, bot.id, database()) });
+      return;
+    }
+    if (request.method === "DELETE") {
+      // A running reply keeps saving into the chat, so clearing now would leave half a conversation.
+      if (active.has(`bot:${bot.id}`)) throw new HttpError(409, "Wait for this bot's running task to finish before clearing its chat.");
+      await deleteMessages(userId, bot.id, database());
+      json(response, 200, { cleared: true });
+      return;
+    }
+    const { messages } = await body(request, messagesInput);
+    await saveMessages(userId, bot.id, messages, database());
+    json(response, 200, { saved: messages.length });
+  };
+
   const schedule: Handler = async (request, response, _params, userId) => {
     const { botName, ...input } = await body(request, jobInput);
     const bot = botName ? await findBot(userId, botName) : undefined;
@@ -264,6 +284,9 @@ export function createApiServer(options: ServerOptions = {}) {
     ["DELETE", /^\/api\/bots\/([^/]+)$/, removeBot],
     ["POST", /^\/api\/runs$/, run],
     ["GET", /^\/api\/bots\/([^/]+)\/greeting$/, async (_request, response, [name], userId) => { json(response, 200, await greet(await findBot(userId, name!))); }],
+    ["GET", /^\/api\/bots\/([^/]+)\/messages$/, chat],
+    ["PUT", /^\/api\/bots\/([^/]+)\/messages$/, chat],
+    ["DELETE", /^\/api\/bots\/([^/]+)\/messages$/, chat],
     ["GET", /^\/api\/bots\/([^/]+)\/memory\/([^/]+)$/, memory],
     ["PUT", /^\/api\/bots\/([^/]+)\/memory\/([^/]+)$/, memory],
     ["GET", /^\/api\/bots\/([^/]+)\/skills$/, async (_request, response, [name], userId) => {

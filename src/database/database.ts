@@ -89,6 +89,17 @@ const SCHEMA = [
   `CREATE TABLE IF NOT EXISTS schema_migrations (
     id TEXT PRIMARY KEY
   )`,
+  // Chats are saved per bot ID rather than name, so renaming a bot keeps its chat. data is the message as JSON.
+  `CREATE TABLE IF NOT EXISTS chat_messages (
+    user_id TEXT NOT NULL,
+    bot_id TEXT NOT NULL,
+    id TEXT NOT NULL,
+    time INTEGER NOT NULL,
+    data TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    PRIMARY KEY (user_id, bot_id, id)
+  )`,
+  "CREATE INDEX IF NOT EXISTS chat_messages_by_time ON chat_messages (user_id, bot_id, time)",
   `CREATE TABLE IF NOT EXISTS scheduler_runner (
     id INTEGER PRIMARY KEY CHECK (id = 1),
     token TEXT NOT NULL,

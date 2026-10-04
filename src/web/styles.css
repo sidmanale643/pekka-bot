@@ -1540,6 +1540,9 @@ a.output-card:hover .output-open {
   color: var(--ink);
   background: var(--sunk);
 }
+.context-add.danger:not(:disabled):hover {
+  color: var(--danger);
+}
 .context-list {
   display: grid;
   gap: 2px;

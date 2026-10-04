@@ -1,5 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { z } from "zod";
+import { deleteMessages } from "./chat-history.ts";
 import { ensureSchema, getDatabase, type Database } from "./database/database.ts";
 
 const ProfileSchema = z.object({
@@ -53,7 +54,8 @@ export async function updateBot(userId: string, id: string, input: BotProfile, d
 /** The chief of staff is never deleted. */
 export async function deleteBot(userId: string, id: string, database: Database = getDatabase()): Promise<void> {
   await ensureSchema(database);
-  await database.run("DELETE FROM bot_profiles WHERE id = ? AND user_id = ? AND is_primary = 0", [id, userId]);
+  const { changes } = await database.run("DELETE FROM bot_profiles WHERE id = ? AND user_id = ? AND is_primary = 0", [id, userId]);
+  if (changes) await deleteMessages(userId, id, database);
 }
 
 /** Bot names are unique regardless of case. */

@@ -216,7 +216,7 @@
             </form>
             <div class="panel-section">
               <h2>Data</h2>
-              <p class="muted">Conversation history is stored in this browser and does not sync. Bot memory is stored by the Pekka server, and files live in each bot's sandbox.</p>
+              <p class="muted">Conversation history and bot memory are saved on the Pekka server with your account, so they follow you to any browser. Files live in each bot's sandbox.</p>
               <div class="form-actions"><span id="export-status" class="form-status" role="status"></span><button id="export-history" class="button secondary">Export history as JSON</button></div>
             </div>
           </div>
@@ -333,9 +333,9 @@
               <details open><summary>How do I get started?</summary><p>Start chatting with Chief of Staff, your primary bot. Tell it about yourself and what you want help with, or give it a task straight away. You can also create a bot with a name and description for a particular kind of work.</p></details>
               <details><summary>What does the chief of staff do?</summary><p>Chief of Staff is listed first and manages your other bots. It handles general requests itself and hands work to the bot whose purpose fits, briefing several at once when that helps. It can create a new bot when you ask, change other bots' descriptions and instructions, and schedule work for any of them. You can rename it, but not delete it.</p></details>
               <details data-computer-view><summary>What does the computer view show?</summary><p>Open it with the monitor button above a chat. While the bot works it shows each command it runs on its computer, with the output and exit code, and the files it reads, saves or edits. Sandbox sessions are ephemeral: once a task ends its session is shut down, and the view only shows tasks run while this page is open.</p></details>
-              <details><summary>What does a bot remember?</summary><p>Open Details, then Memory, to read and edit its preferences and knowledge. Conversation history is kept in this browser and is separate from bot memory.</p></details>
+              <details><summary>What does a bot remember?</summary><p>Open the bot panel with the button at the top right of a chat, then Memory, to read and edit its preferences and knowledge. Conversation history is saved with your account and is separate from bot memory. To start a chat over, open the bot panel and choose Clear chat; its memory is kept.</p></details>
               <details><summary>How do scheduled tasks work?</summary><p>Open Scheduled to create a task for a bot, or ask a bot to schedule one. From there you can pause, resume or cancel tasks and read the latest result. The scheduler (<code>pnpm pekka scheduler</code>) must be running for scheduled tasks to execute.</p></details>
-              <details><summary>Where are my settings saved?</summary><p>Your profile, preferences and history stay in this browser and do not sync between devices. Export your history from Settings to keep a copy.</p></details>
+              <details><summary>Where are my settings saved?</summary><p>Your profile and preferences stay in this browser and do not sync between devices. Chat history is saved with your account, so it shows on every device. Export it from Settings to keep a copy.</p></details>
             </div>
             <div class="panel-section">
               <h2>Keyboard</h2>

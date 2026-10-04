@@ -41,7 +41,7 @@ Open **[localhost:3000](http://127.0.0.1:3000)** and give Chief of Staff a task.
 - **Schedules:** create tasks under **Scheduled** and keep `pnpm pekka scheduler` running in another terminal.
 - **CLI:** run a task with `pnpm pekka run "Create hello.txt with a short greeting"`.
 
-Bot files stay in Daytona. Chat history stays in your browser; export it from **Settings** before clearing browser data.
+Bot files stay in Daytona. Chat history is saved in D1 with your account, so it shows in any browser; export a copy from **Settings**, or clear one bot's chat from its bot panel. A browser that used an older Pekka uploads the chats it kept the first time it opens this version.
 
 Actions run without approval prompts by default. Set `PEKKA_REQUIRE_APPROVAL=true` to enable review; scheduled tasks then cannot perform actions requiring approval.
 
