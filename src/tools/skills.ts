@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { skillName } from "../skills.ts";
+import { skillName, updateSkill } from "../skills.ts";
 import { defineTool } from "./tool.ts";
 
 export const listSkills = defineTool({
@@ -38,5 +38,23 @@ export const loadSkill = defineTool({
     const content = await skills.read(name, file);
     const end = Math.min(content.length, offset + limit);
     return JSON.stringify({ name, file, content: content.slice(offset, end), next_offset: end < content.length ? end : null });
+  },
+});
+
+export const writeSkill = defineTool({
+  name: "write_skill",
+  permission: { effect: "write" },
+  description: "Create one of your own skills, or add or replace files in one, so future runs can load it. Load the skill-creator skill first and follow it. Only you see your skills, and one with the same name as a shared or built-in skill replaces it for you. A new skill needs SKILL.md, starting with YAML frontmatter whose name matches the skill and whose description says what it does and when to use it. Files you leave out are kept; files cannot be deleted. Never store secrets. Available only for named bots.",
+  input: z.object({
+    name: skillName.describe("Lowercase letters, digits and single hyphens, up to 64 characters. Must match the name in SKILL.md."),
+    files: z.array(z.object({
+      path: z.string().min(1).max(200).describe("Path inside the skill's folder, such as SKILL.md or examples/weekly.md."),
+      content: z.string().max(100_000).describe("The file's complete text. Replaces any existing file at this path."),
+    }).strict()).min(1).max(20).describe("Files to create or replace."),
+  }).strict(),
+  async run({ name, files }, { bot, database }) {
+    if (!bot) throw new Error("Skills can be saved only by named bots.");
+    const skill = await updateSkill(name, files, { bot, database });
+    return JSON.stringify({ name: skill.name, description: skill.description, saved: files.map((file) => file.path) });
   },
 });

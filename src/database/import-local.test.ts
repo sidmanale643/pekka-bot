@@ -62,8 +62,10 @@ it("copies bots, memory, skills and jobs once, keeping each bot's sandbox key as
   const bots = await listBots(LOCAL_USER, database);
   expect(bots).toEqual([{ ...profiles[0], id: scoutKey }, { ...profiles[1], id: legacyBotKey(profiles[1]!, directory) }]);
   expect(await new BotMemory(bots[0]!, database).read("KNOWLEDGE.md")).toContain("Imported fact");
-  expect((await new SkillStore(bots[0], database).catalog()).skills.map((item) => item.name)).toEqual(["research", "summarize"]);
-  expect((await new SkillStore(bots[1], database).catalog()).skills.map((item) => item.name)).toEqual(["summarize"]);
+  const imported = async (bot: (typeof bots)[number]) =>
+    (await new SkillStore(bot, database).catalog()).skills.filter((item) => item.source !== "base").map((item) => item.name);
+  expect(await imported(bots[0]!)).toEqual(["research", "summarize"]);
+  expect(await imported(bots[1]!)).toEqual(["summarize"]);
   expect(await listScheduledJobs(LOCAL_USER, database)).toEqual([{ ...job, userId: LOCAL_USER, bot: { ...profiles[0], id: scoutKey } }]);
 });
 

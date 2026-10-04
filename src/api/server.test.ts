@@ -123,7 +123,8 @@ describe("HTTP API", () => {
     expect(await new BotMemory(bot, database).read("KNOWLEDGE.md")).toBe("Saved fact");
     expect(await (await fetch(`${base}${path}`)).json()).toEqual({ file: "KNOWLEDGE.md", content: "Saved fact" });
     expect(await (await fetch(`${base}/api/skills`)).json()).toEqual({ skills: [], errors: [] });
-    expect(await (await fetch(`${base}/api/bots/Scout/skills`)).json()).toEqual({ skills: [], errors: [] });
+    // Named bots also get the skills that ship with Pekka.
+    expect(await (await fetch(`${base}/api/bots/Scout/skills`)).json()).toEqual({ skills: [expect.objectContaining({ name: "skill-creator", source: "base" })], errors: [] });
     expect((await fetch(`${base}/api/bots/Scout/memory/other`)).status).toBe(400);
   });
 

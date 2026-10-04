@@ -565,6 +565,7 @@ const toolOutputs = {
   create_bot: ["Team", "Created bot"],
   delegate_task: ["Team", "Delegated task"],
   write_file: ["Sandbox", "Saved file"],
+  write_skill: ["Skills", "Saved skill"],
 };
 
 // What each tool is called in the chat, while it runs and once it's done. Internal names stay out of sight.
@@ -579,6 +580,7 @@ const toolAliases = {
   write_memory: ["Updating memory", "Updated memory"],
   list_skills: ["Looking through skills", "Looked through skills"],
   load_skill: ["Loading a skill", "Loaded a skill"],
+  write_skill: ["Saving a skill", "Saved a skill"],
   update_bot_config: ["Updating its setup", "Updated its setup"],
   list_bots: ["Checking the team", "Checked the team"],
   create_bot: ["Creating a bot", "Created a bot"],
@@ -1847,16 +1849,15 @@ const detailViews = {
         element(
           "p",
           "detail-note",
-          "No skills yet. Add one with pnpm pekka skills add <folder>. Skills are shared by every bot unless added with --bot.",
+          "No skills yet. Ask this bot to save a way of working as a skill, or add one for every bot with pnpm pekka skills add <folder>.",
         ),
       );
     const list = element("div", "detail-list");
     for (const skill of data.skills) {
       const row = element("div", "detail-row");
-      row.append(
-        element("h3", "", skill.name),
-        element("p", "", skill.description),
-      );
+      const name = element("h3", "", skill.name);
+      name.append(element("span", "", skillSources[skill.source] ?? ""));
+      row.append(name, element("p", "", skill.description));
       list.append(row);
     }
     if (data.skills.length) panel.append(list);
@@ -1995,6 +1996,8 @@ function markdownLinks(text) {
     label: match[1] || "",
   }));
 }
+
+const skillSources = { bot: "This bot", shared: "Shared", base: "Built in" };
 
 function panelSection(title, ...children) {
   const section = element("section", "context-section");

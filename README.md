@@ -35,6 +35,7 @@ Open **[localhost:3000](http://127.0.0.1:3000)** and give Chief of Staff a task.
 ## Usage
 
 - **Bots:** create specialists and edit their instructions, memory, and skills in the web app.
+- **Skills:** ask a bot to save a way of working as a skill. It follows the built-in `skill-creator` skill and keeps the result for itself; its **Skills** panel lists what it has. To give every bot a skill, run `pnpm pekka skills add <folder>`.
 - **Computer view:** open it from a bot's chat to watch the commands it runs, their output, and the files it reads or changes. Sessions are ephemeral, so it shows only tasks run while the page is open.
 - **Plugins:** connect Gmail, Calendar, Drive, Contacts, Notion, GitHub, or Telegram, then enable access. Credentials and callback URLs are listed in [.env.example](.env.example).
 - **Schedules:** create tasks under **Scheduled** and keep `pnpm pekka scheduler` running in another terminal.

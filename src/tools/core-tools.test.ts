@@ -62,7 +62,7 @@ it("tells the agent which memory offset to read next", async () => {
 });
 
 it("leaves tools that need a named bot out of unnamed runs", () => {
-  const named = ["read_memory", "write_memory", "update_bot_config", "get_email_address", "send_email"];
+  const named = ["read_memory", "write_memory", "update_bot_config", "write_skill", "get_email_address", "send_email"];
   expect(defaultTools.map((tool) => tool.name)).toEqual(expect.arrayContaining(named));
   expect(unnamedTools.map((tool) => tool.name)).toEqual(defaultTools.map((tool) => tool.name).filter((name) => !named.includes(name)));
 });
