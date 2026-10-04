@@ -12,6 +12,7 @@ import { BotMemory } from "../bot-memory.ts";
 import { SkillStore } from "../skills.ts";
 import { getDatabase, type Database } from "../database/database.ts";
 import type { ApproveAction } from "../permissions/policy.ts";
+import { traceOperation } from "../tracing.ts";
 
 const skillTools = new Set(["list_skills", "load_skill", "write_skill"]);
 
@@ -32,6 +33,7 @@ export interface AgentOptions {
   userId: string;
   bot?: Bot;
   conversation?: ConversationMessage[];
+  sessionId?: string;
   signal?: AbortSignal;
   /** Where memory and skills are read from. Defaults to the configured D1 database. */
   database?: Database;
@@ -55,13 +57,25 @@ export interface AgentResult {
  * give it the results, and repeat until it answers without calling a tool.
  */
 export async function runAgent(task: string, options: AgentOptions): Promise<AgentResult> {
-  try {
-    options.signal?.throwIfAborted();
-    return await runLoop(task, options);
-  } catch (error) {
-    if (!options.signal?.aborted) throw error;
-    return { status: "stopped", answer: "", steps: 0, usage: { promptTokens: 0, completionTokens: 0, costUsd: 0 }, messages: [] };
-  }
+  return traceOperation(options.bot ? `pekka.agent.${options.bot.name}` : "pekka.agent", "agent", {
+    input: task,
+    metadata: { botId: options.bot?.id, botName: options.bot?.name, maxSteps: options.maxSteps },
+  }, async (update) => {
+    let result: AgentResult;
+    try {
+      options.signal?.throwIfAborted();
+      result = await runLoop(task, options);
+    } catch (error) {
+      if (!options.signal?.aborted) throw error;
+      result = { status: "stopped", answer: "", steps: 0, usage: { promptTokens: 0, completionTokens: 0, costUsd: 0 }, messages: [] };
+    }
+    update({
+      output: result.answer,
+      metadata: { botId: options.bot?.id, botName: options.bot?.name, maxSteps: options.maxSteps, status: result.status, steps: result.steps, usage: result.usage },
+      ...(result.status === "step_limit" ? { level: "WARNING", statusMessage: "Agent reached its step limit." } : {}),
+    });
+    return result;
+  }, options.userId, options.sessionId);
 }
 
 async function runLoop(task: string, options: AgentOptions): Promise<AgentResult> {

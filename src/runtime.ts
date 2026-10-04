@@ -19,6 +19,7 @@ export interface RunOwner {
   bot?: Bot;
   approveAction?: ApproveAction;
   conversation?: ConversationMessage[];
+  sessionId?: string;
   signal?: AbortSignal;
   /** Claims a bot's workspace while the chief of staff delegates to it. Defaults to tracking delegations in this process. */
   reserve?: Reserve;
@@ -50,7 +51,7 @@ export async function executeTask(task: string, owner: RunOwner, onEvent?: Event
     const chief = owner.bot?.primary === true;
     return await runAgent(task, {
       model, computer, tools: withServerKeys(withPlugins(chief ? chiefTools : owner.bot ? defaultTools : unnamedTools, plugins)), maxSteps: config.maxSteps, contextWindow, userId: owner.userId, bot: owner.bot,
-      approveAction: owner.approveAction, conversation: owner.conversation, signal: owner.signal, delegate: chief ? delegateFor(owner, onEvent) : undefined, onEvent,
+      approveAction: owner.approveAction, conversation: owner.conversation, sessionId: owner.sessionId, signal: owner.signal, delegate: chief ? delegateFor(owner, onEvent) : undefined, onEvent,
     });
   } finally {
     // Not awaited, so the answer isn't held up while the sandbox stops.

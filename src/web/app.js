@@ -1547,7 +1547,7 @@ async function runTask(bot, task) {
         "Content-Type": "application/json",
         Accept: "text/event-stream",
       },
-      body: JSON.stringify({ botName: bot.name, task: task.trim(), conversation }),
+      body: JSON.stringify({ botName: bot.name, task: task.trim(), conversation, sessionId: `${bot.id}:${history[key][0].time}` }),
     });
     if (response.status === 401) showSignIn("Your session ended. Sign in again to continue.");
     if (!response.ok) {

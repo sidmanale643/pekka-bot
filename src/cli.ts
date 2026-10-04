@@ -12,6 +12,7 @@ import { readSkillFolder, removeSkill, saveSkill, SkillStore } from "./skills.ts
 import { basename, resolve } from "node:path";
 import { createInterface } from "node:readline/promises";
 import type { ApproveAction } from "./permissions/policy.ts";
+import { shutdownTracing } from "./tracing.ts";
 
 const USAGE = 'Usage:\n  pekka run "<task>"\n  pekka bot create --name "<name>" --description "<description>"\n  pekka bot list\n  pekka bot run "<name>"\n  pekka scheduler [--once]\n  pekka jobs list\n  pekka jobs cancel "<id>"\n  pekka skills add "<folder>" [--bot "<name>"]\n  pekka skills list [--bot "<name>"]\n  pekka skills remove "<name>" [--bot "<name>"]\n  pekka db check\n  pekka db import';
 
@@ -262,4 +263,7 @@ function indent(text: string): string {
 main(process.argv.slice(2)).catch((error: unknown) => {
   console.error(error instanceof Error ? error.message : error);
   process.exitCode = 1;
-}).finally(closeDocuments);
+}).finally(async () => {
+  await closeDocuments();
+  await shutdownTracing();
+});

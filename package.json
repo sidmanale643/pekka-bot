@@ -20,7 +20,10 @@
   "type": "module",
   "dependencies": {
     "@daytonaio/sdk": "^0.218.0",
+    "@langfuse/otel": "^5.11.1",
+    "@langfuse/tracing": "^5.11.1",
     "@llamaindex/liteparse": "^2.15.0",
+    "@opentelemetry/sdk-node": "^0.222.0",
     "dompurify": "^3.4.16",
     "marked": "^18.0.14",
     "yaml": "^2.9.1",

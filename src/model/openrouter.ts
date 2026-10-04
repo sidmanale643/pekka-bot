@@ -1,4 +1,5 @@
 import type { ChatMessage, Model, ModelReply, ToolCall, ToolDefinition } from "./model.ts";
+import { traceOperation } from "../tracing.ts";
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 const MODELS_URL = "https://openrouter.ai/api/v1/models";
@@ -35,7 +36,7 @@ interface StreamChunk {
 export function createOpenRouterModel(options: { apiKey: string; model: string; requestTimeoutMs?: number }): Model {
   const timeoutMs = options.requestTimeoutMs ?? REQUEST_TIMEOUT_MS;
   if (!Number.isSafeInteger(timeoutMs) || timeoutMs <= 0) throw new RangeError("requestTimeoutMs must be a positive integer");
-  return {
+  const model: Model = {
     async reply(messages: ChatMessage[], tools: ToolDefinition[], onDelta?: (text: string) => void, signal?: AbortSignal): Promise<ModelReply> {
       const payload = {
         model: options.model,
@@ -61,6 +62,32 @@ export function createOpenRouterModel(options: { apiKey: string; model: string; 
           await sleep(Math.max(retryAfterMs ?? 0, backoffMs * (0.5 + Math.random() * 0.5)), signal);
         }
       }
+    },
+  };
+  return {
+    reply(messages, tools, onDelta, signal) {
+      return traceOperation("openrouter.chat", "generation", {
+        model: options.model, input: messages, metadata: { provider: "openrouter", tools },
+      }, async (update) => {
+        let started = false;
+        const reply = await model.reply(messages, tools, (text) => {
+          if (!started) {
+            started = true;
+            update({ completionStartTime: new Date() });
+          }
+          onDelta?.(text);
+        }, signal);
+        update({
+          output: reply.message,
+          usageDetails: {
+            input: Math.max(0, reply.usage.promptTokens - (reply.usage.cachedTokens ?? 0)),
+            output: reply.usage.completionTokens,
+            ...(reply.usage.cachedTokens == null ? {} : { input_cached_tokens: reply.usage.cachedTokens }),
+          },
+          costDetails: { total: reply.usage.costUsd },
+        });
+        return reply;
+      });
     },
   };
 }

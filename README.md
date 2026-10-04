@@ -45,6 +45,21 @@ Bot files stay in Daytona. Chat history stays in your browser; export it from **
 
 Actions run without approval prompts by default. Set `PEKKA_REQUIRE_APPROVAL=true` to enable review; scheduled tasks then cannot perform actions requiring approval.
 
+## Langfuse traces
+
+Create a [Langfuse](https://langfuse.com) project and copy its API keys from project settings into `.env` (or your deployment's environment):
+
+```dotenv
+LANGFUSE_PUBLIC_KEY=pk-lf-...
+LANGFUSE_SECRET_KEY=sk-lf-...
+LANGFUSE_BASE_URL=https://cloud.langfuse.com
+LANGFUSE_TRACING_ENVIRONMENT=development
+```
+
+Use your project's region URL, such as `https://us.cloud.langfuse.com`, or your self-hosted URL. Restart Pekka, run a task, then open **Tracing** in Langfuse. Each task records an agent observation with nested OpenRouter generations and tool calls, including delegated bots and context summarization. Generations include prompts, replies, token usage, reported cost, and timing; tools include inputs, outputs, and errors. Traces are associated with the Pekka user ID and bot metadata.
+
+Web chat turns are grouped into sessions by user, bot, and chat history. Tracing sends task content, conversation context, memory included in prompts, and tool inputs/outputs to your Langfuse project. Configured server secrets, bearer tokens, and credential fields are masked; other personal or confidential task content remains visible. Tracing is disabled without both keys or when `LANGFUSE_TRACING_ENABLED=false`. Export failures do not fail tasks. Pekka flushes observations when each top-level run finishes and shuts down tracing when the CLI or local API exits. The integration follows Langfuse's [TypeScript instrumentation](https://langfuse.com/docs/observability/sdk/instrumentation).
+
 ## Development
 
 ```bash

@@ -1,6 +1,7 @@
 import { existsSync } from "node:fs";
 import { loadAuthConfig } from "../auth.ts";
 import { createApiServer } from "./server.ts";
+import { shutdownTracing } from "../tracing.ts";
 
 if (existsSync(".env")) process.loadEnvFile(".env");
 const port = Number(process.env.PEKKA_API_PORT ?? 3000);
@@ -16,5 +17,6 @@ server.listen(port, host, () => {
   console.log(auth ? `Sign-in with Google is on. Open Pekka at ${auth.origin}.` : "Sign-in is off: localhost only, single user.");
 });
 const stop = () => { server.close(); };
+server.once("close", () => { void shutdownTracing(); });
 process.once("SIGINT", stop);
 process.once("SIGTERM", stop);

@@ -2,6 +2,7 @@ import type { ToolCall } from "../model/model.ts";
 import type { Tool, ToolContext } from "../tools/tool.ts";
 import { isGatedTool } from "../tools/tool.ts";
 import { authorizeAction } from "../permissions/policy.ts";
+import { traceOperation } from "../tracing.ts";
 
 export interface ToolCallResult {
   output: string;
@@ -18,6 +19,17 @@ export async function executeToolCall(
   tools: Tool[],
   context: ToolContext,
 ): Promise<ToolCallResult> {
+  return traceOperation(call.function.name, "tool", {
+    input: parseJson(call.function.arguments) ?? call.function.arguments,
+    metadata: { toolCallId: call.id },
+  }, async (update) => {
+    const result = await runToolCall(call, tools, context);
+    update({ output: result.output, ...(result.isError ? { level: "ERROR", statusMessage: "Tool execution failed; see output." } : {}) });
+    return result;
+  });
+}
+
+async function runToolCall(call: ToolCall, tools: Tool[], context: ToolContext): Promise<ToolCallResult> {
   const tool = tools.find((candidate) => candidate.name === call.function.name);
   if (!tool) return failure(`unknown tool "${call.function.name}"`);
 

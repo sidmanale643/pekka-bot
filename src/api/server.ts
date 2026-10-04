@@ -38,7 +38,7 @@ const createBotInput = z.union([
   botInput,
 ]);
 const conversationInput = z.array(z.object({ role: z.enum(["user", "assistant"]), content: text.max(4000) }).strict()).max(20);
-const runInput = z.object({ task: text.optional(), botName: text.max(200).optional(), conversation: conversationInput.optional() }).strict()
+const runInput = z.object({ task: text.optional(), botName: text.max(200).optional(), conversation: conversationInput.optional(), sessionId: text.max(150).optional() }).strict()
   .refine((value) => value.task || value.botName, "Provide task or botName.");
 const jobInput = z.object({
   name: text.max(200), task: text, runAt: z.iso.datetime({ offset: true }),
@@ -138,7 +138,7 @@ export function createApiServer(options: ServerOptions = {}) {
     const disconnect = () => permissions.cancelRun(runId);
     response.once("close", disconnect);
     try {
-      await respondToRun(request, response, () => execute(task, { userId, bot, approveAction, conversation: input.conversation, signal: controller.signal, reserve: (target) => {
+      await respondToRun(request, response, () => execute(task, { userId, bot, approveAction, conversation: input.conversation, signal: controller.signal, sessionId: input.sessionId ? `${userId}:${input.sessionId}` : undefined, reserve: (target) => {
         const release = reserve(target);
         if (!release) return undefined;
         const targetKey = `bot:${target.id}`;
