@@ -97,7 +97,7 @@ it("runs a delegation as the other bot with the chief's reviewer, one at a time 
   let finish!: () => void;
   const execute = async (task: string, owner: RunOwner, onEvent?: EventHandler): Promise<AgentResult> => {
     owners.push(owner);
-    onEvent?.({ type: "tool_call", name: "web_search", arguments: "{}" });
+    onEvent?.({ type: "tool_call", id: "call_1", name: "web_search", arguments: "{}" });
     await new Promise<void>((resolve) => { finish = resolve; });
     if (task === "Fail") throw new Error("Sandbox unavailable");
     return { status: "done", answer: "Done", steps: 1, usage: usage(0), messages: [] };
@@ -115,7 +115,7 @@ it("runs a delegation as the other bot with the chief's reviewer, one at a time 
   const who = { id: scout.id, name: "Scout" };
   expect(events).toEqual([
     { type: "delegation_start", bot: who, task: "Find papers" },
-    { type: "delegation_event", bot: who, event: { type: "tool_call", name: "web_search", arguments: "{}" } },
+    { type: "delegation_event", bot: who, event: { type: "tool_call", id: "call_1", name: "web_search", arguments: "{}" } },
     { type: "delegation_end", bot: who, status: "done", answer: "Done" },
   ]);
 

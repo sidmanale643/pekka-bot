@@ -59,6 +59,11 @@ it("starts all tools before waiting and preserves call order despite errors and 
     gates[2]!.reject(new Error("failed"));
     gates[1]!.resolve("second");
     await expect.poll(() => events.filter((event) => event.type === "tool_result").length).toBe(2);
+    // Results arrive in the order they finish, each carrying its own call's ID.
+    expect(events.filter((event) => event.type === "tool_result")).toEqual([
+      { type: "tool_result", id: "call_2", name: "work", output: "Error: failed", isError: true },
+      { type: "tool_result", id: "call_1", name: "work", output: "second", isError: false },
+    ]);
     expect(seen).toHaveLength(1);
     gates[0]!.resolve("first");
 
