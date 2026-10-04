@@ -3,13 +3,17 @@ import type { ChatMessage, Model, ModelReply, ToolCall, ToolDefinition } from ".
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 const MODELS_URL = "https://openrouter.ai/api/v1/models";
 const MAX_ATTEMPTS = 3;
+const REQUEST_TIMEOUT_MS = 120_000;
+const MAX_RETRY_DELAY_MS = 60_000;
 
 export class OpenRouterError extends Error {
   readonly status: number;
+  readonly retryAfterMs?: number;
 
-  constructor(status: number, message: string) {
+  constructor(status: number, message: string, retryAfterMs?: number) {
     super(`OpenRouter request failed (${status}): ${message}`);
     this.status = status;
+    this.retryAfterMs = retryAfterMs;
   }
 }
 
@@ -28,18 +32,33 @@ interface StreamChunk {
   error?: { code?: number; message: string };
 }
 
-export function createOpenRouterModel(options: { apiKey: string; model: string }): Model {
+export function createOpenRouterModel(options: { apiKey: string; model: string; requestTimeoutMs?: number }): Model {
+  const timeoutMs = options.requestTimeoutMs ?? REQUEST_TIMEOUT_MS;
+  if (!Number.isSafeInteger(timeoutMs) || timeoutMs <= 0) throw new RangeError("requestTimeoutMs must be a positive integer");
   return {
     async reply(messages: ChatMessage[], tools: ToolDefinition[], onDelta?: (text: string) => void): Promise<ModelReply> {
-      const response = await postWithRetry(options.apiKey, {
+      const payload = {
         model: options.model,
         messages,
         // Some providers reject an empty tool list.
         ...(tools.length ? { tools } : {}),
         stream: true,
         usage: { include: true },
-      });
-      return readStream(response, onDelta);
+      };
+      for (let attempt = 1; ; attempt++) {
+        let receivedOutput = false;
+        try {
+          const response = await post(options.apiKey, payload, AbortSignal.timeout(timeoutMs));
+          return await readStream(response, onDelta, () => { receivedOutput = true; });
+        } catch (error) {
+          if (receivedOutput || !isRetryable(error) || attempt >= MAX_ATTEMPTS) throw error;
+          const retryAfterMs = error instanceof OpenRouterError ? error.retryAfterMs : undefined;
+          // A long provider cooldown should be surfaced rather than retried early.
+          if (retryAfterMs !== undefined && retryAfterMs > MAX_RETRY_DELAY_MS) throw error;
+          const backoffMs = 1000 * 2 ** (attempt - 1);
+          await sleep(Math.max(retryAfterMs ?? 0, backoffMs * (0.5 + Math.random() * 0.5)));
+        }
+      }
     },
   };
 }
@@ -68,18 +87,7 @@ export async function fetchContextWindow(model: string): Promise<number | undefi
   }
 }
 
-async function postWithRetry(apiKey: string, payload: unknown): Promise<Response> {
-  for (let attempt = 1; ; attempt++) {
-    try {
-      return await post(apiKey, payload);
-    } catch (error) {
-      if (!isRetryable(error) || attempt === MAX_ATTEMPTS) throw error;
-      await sleep(1000 * 2 ** attempt);
-    }
-  }
-}
-
-async function post(apiKey: string, payload: unknown): Promise<Response> {
+async function post(apiKey: string, payload: unknown, signal: AbortSignal): Promise<Response> {
   const response = await fetch(OPENROUTER_URL, {
     method: "POST",
     headers: {
@@ -88,17 +96,18 @@ async function post(apiKey: string, payload: unknown): Promise<Response> {
       "X-Title": "Pekka",
     },
     body: JSON.stringify(payload),
+    signal,
   });
 
   if (!response.ok) {
     const body = (await response.json().catch(() => ({}))) as OpenRouterResponse;
-    throw new OpenRouterError(body.error?.code ?? response.status, body.error?.message ?? response.statusText);
+    throw new OpenRouterError(response.status, body.error?.message ?? response.statusText, parseRetryAfter(response.headers.get("Retry-After")));
   }
   if (!response.body) throw new OpenRouterError(502, "response contained no stream");
   return response;
 }
 
-async function readStream(response: Response, onDelta?: (text: string) => void): Promise<ModelReply> {
+async function readStream(response: Response, onDelta: ((text: string) => void) | undefined, onOutput: () => void): Promise<ModelReply> {
   const reader = response.body!.getReader();
   const decoder = new TextDecoder();
   const calls = new Map<number, ToolCall>();
@@ -122,10 +131,12 @@ async function readStream(response: Response, onDelta?: (text: string) => void):
     for (const choice of chunk.choices ?? []) {
       const delta = choice.delta;
       if (delta?.content) {
+        onOutput();
         content += delta.content;
         onDelta?.(delta.content);
       }
       for (const part of delta?.tool_calls ?? []) {
+        onOutput();
         const call = calls.get(part.index) ?? { id: "", type: "function", function: { name: "", arguments: "" } };
         call.id += part.id ?? "";
         call.function.name += part.function?.name ?? "";
@@ -150,7 +161,7 @@ async function readStream(response: Response, onDelta?: (text: string) => void):
     }
     if (!done) throw new OpenRouterError(502, "stream ended before [DONE]");
   } finally {
-    await reader.cancel();
+    await reader.cancel().catch(() => {});
     reader.releaseLock();
   }
 
@@ -170,8 +181,16 @@ async function readStream(response: Response, onDelta?: (text: string) => void):
 }
 
 function isRetryable(error: unknown): boolean {
-  if (error instanceof OpenRouterError) return error.status === 429 || error.status >= 500;
-  return error instanceof TypeError; // fetch throws TypeError on network failures
+  if (error instanceof OpenRouterError) return error.status === 408 || error.status === 429 || (error.status >= 500 && error.status < 600);
+  return error instanceof TypeError || (error instanceof Error && error.name === "TimeoutError");
+}
+
+function parseRetryAfter(value: string | null): number | undefined {
+  if (value === null || value.trim() === "") return undefined;
+  const seconds = Number(value);
+  if (Number.isFinite(seconds)) return seconds >= 0 ? seconds * 1000 : undefined;
+  const date = Date.parse(value);
+  return Number.isFinite(date) ? Math.max(0, date - Date.now()) : undefined;
 }
 
 function sleep(ms: number): Promise<void> {
