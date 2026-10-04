@@ -1967,8 +1967,8 @@ const sidePanels = {
   context: { panel: "#context-panel", toggle: "#details", name: "bot panel", render: () => renderContext() },
   computer: { panel: "#computer-panel", toggle: "#computer", name: "computer view", render: () => renderComputer() },
 };
-// The computer view is switched off for now. Set this to true to bring back its button and help entry.
-const computerViewEnabled = false;
+// Set this to false to hide the computer view's button and help entry.
+const computerViewEnabled = true;
 for (const node of document.querySelectorAll("[data-computer-view]")) node.hidden = !computerViewEnabled;
 let pinnedPanel = "context";
 let overlayPanel = "";
