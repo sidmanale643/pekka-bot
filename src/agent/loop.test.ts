@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { FakeComputer } from "../computer/fake-computer.ts";
 import { createSqliteDatabase } from "../database/sqlite.ts";
 import type { AssistantMessage, ChatMessage, Model } from "../model/model.ts";
@@ -32,6 +32,8 @@ function answer(text: string): AssistantMessage {
   return { role: "assistant", content: text };
 }
 
+afterEach(() => { vi.useRealTimers(); });
+
 describe("runAgent", () => {
   it("runs tools until the model answers without one", async () => {
     const computer = new FakeComputer({ "/usr/bin/ls": { exitCode: 0, output: "notes.txt" } });
@@ -50,6 +52,23 @@ describe("runAgent", () => {
 
     // The command's output was sent back to the model on the next step.
     expect(seen[1]?.at(-1)).toEqual({ role: "tool", tool_call_id: "call_1", content: "exit code: 0\nnotes.txt" });
+  });
+
+  it("tells the model when the message was sent, without changing the system prompt between runs", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    const { model, seen } = scriptedModel([answer("Sunday"), answer("Monday")]);
+    const options = { model, computer: new FakeComputer(), userId: LOCAL_USER, database: createSqliteDatabase(), tools: defaultTools, maxSteps: 10 };
+
+    vi.setSystemTime(new Date("2026-10-04T08:12:45Z"));
+    await runAgent("What day is it?", options);
+    vi.setSystemTime(new Date("2026-10-05T09:30:00Z"));
+    await runAgent("And now?", { ...options, conversation: [{ role: "user", content: "What day is it?" }, { role: "assistant", content: "Sunday" }] });
+
+    expect(seen[0]?.at(-1)).toEqual({ role: "user", content: "What day is it?\n\n[Pekka: sent Sunday, 2026-10-04 08:12 UTC. The user's own time zone may differ.]" });
+    expect(seen[1]?.at(-1)?.content).toContain("[Pekka: sent Monday, 2026-10-05 09:30 UTC.");
+    // Everything before the new message is identical, so it can be served from the provider's cache.
+    expect(seen[1]?.[0]).toEqual(seen[0]?.[0]);
+    expect(seen[1]?.[1]).toEqual({ role: "user", content: "What day is it?" });
   });
 
   it("stops at the step limit", async () => {

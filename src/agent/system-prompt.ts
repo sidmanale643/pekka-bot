@@ -87,3 +87,9 @@ export function systemPrompt(bot: Bot | undefined, maxSteps: number): string {
     : "You are Pekka, an AI agent with a persistent Linux computer and a set of tools. You complete tasks by acting, not just describing.";
   return [intro, ...(bot?.primary ? [CHIEF_OF_STAFF] : []), HOW_RUNS_WORK(maxSteps), COMPUTER, RESEARCH, ...(bot ? [SETUP, MEMORY] : []), bot ? `${SKILLS}\n${WRITING_SKILLS}` : SKILLS, SCHEDULING, OUTSIDE(Boolean(bot)), SAFETY, ANSWER].join("\n\n");
 }
+
+/** Added to the user's message, not the system prompt, which must stay the same from run to run to stay cached. */
+export function sentAt(now = new Date()): string {
+  const weekday = now.toLocaleDateString("en-US", { weekday: "long", timeZone: "UTC" });
+  return `[Pekka: sent ${weekday}, ${now.toISOString().slice(0, 16).replace("T", " ")} UTC. The user's own time zone may differ.]`;
+}

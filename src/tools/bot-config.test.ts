@@ -29,7 +29,7 @@ it("saves approved configuration and loads it with conversation on the next run"
   } };
   await runAgent("Brief bullet points", { model, computer, database, bot: stored, userId: "alice", tools: [updateBotConfig], maxSteps: 1, conversation });
   expect(received[0]!.content).toContain("Track RAG papers; keep summaries short.");
-  expect(received.slice(1)).toEqual([...conversation, { role: "user", content: "Brief bullet points" }, { role: "assistant", content: "What format do you prefer?" }]);
+  expect(received.slice(1)).toEqual([...conversation, { role: "user", content: expect.stringMatching(/^Brief bullet points\n\n\[Pekka: sent /) }, { role: "assistant", content: "What format do you prefer?" }]);
 });
 
 it("leaves configuration untouched after denial and rejects cross-user updates", async () => {

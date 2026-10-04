@@ -5,7 +5,7 @@ import { toToolDefinition, type Delegate, type Tool } from "../tools/tool.ts";
 import { ContextManager, DEFAULT_CONTEXT_WINDOW } from "./context.ts";
 import type { EventHandler } from "./events.ts";
 import { executeToolCall } from "./execute-tool-call.ts";
-import { systemPrompt } from "./system-prompt.ts";
+import { sentAt, systemPrompt } from "./system-prompt.ts";
 import type { Bot } from "../bots.ts";
 import { BotMemory } from "../bot-memory.ts";
 import { SkillStore } from "../skills.ts";
@@ -68,11 +68,13 @@ export async function runAgent(task: string, options: AgentOptions): Promise<Age
     addUsage(usage, result.usage);
     return result;
   });
+  // The time goes with the new message, so the system prompt and earlier conversation stay identical between runs and stay cached.
+  const request = `${task}\n\n${sentAt()}`;
   const context = new ContextManager([
     { role: "system", content: systemPrompt(options.bot, maxSteps) + savedMemory + skillSummary + persona },
     ...(options.conversation ?? []).slice(-20).map(({ role, content }) => ({ role, content: content.slice(0, 4000) })),
-    { role: "user", content: task },
-  ], { model, tools: toolDefinitions, contextWindow, task });
+    { role: "user", content: request },
+  ], { model, tools: toolDefinitions, contextWindow, task: request });
 
   for (let step = 1; step <= maxSteps; step++) {
     if (context.shouldCompact()) {

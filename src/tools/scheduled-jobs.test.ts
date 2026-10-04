@@ -123,7 +123,7 @@ it("picks up an approved agent-created job but rejects scheduled writes without 
           if (++step === 1) {
             expect(messages).toHaveLength(2);
             expect(messages[0]!.content).toContain("You are Reporter, a bot running on Pekka.");
-            expect(messages[1]!.content).toBe("Write the scheduled report");
+            expect(messages[1]!.content).toMatch(/^Write the scheduled report\n\n\[Pekka: sent /);
           }
           return {
             message: step === 1 ? {
