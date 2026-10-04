@@ -48,5 +48,5 @@ export interface ModelReply {
 }
 
 export interface Model {
-  reply(messages: ChatMessage[], tools: ToolDefinition[], onDelta?: (text: string) => void): Promise<ModelReply>;
+  reply(messages: ChatMessage[], tools: ToolDefinition[], onDelta?: (text: string) => void, signal?: AbortSignal): Promise<ModelReply>;
 }

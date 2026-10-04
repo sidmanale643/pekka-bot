@@ -32,6 +32,8 @@ let bots = [];
 let selected;
 let history = Object.create(null);
 const running = new Set();
+const messageQueues = new Map();
+const stopping = new Set();
 const drafts = new Map();
 const unread = new Set();
 let loaded = false;
@@ -1220,7 +1222,7 @@ function closeOnBackdrop(dialog) {
 // A bot's live reply to a brief from the chief of staff, by bot ID. Each bot takes one brief at a time.
 const delegatedReplies = new Map();
 
-const delegationEndings = { done: "Finished", step_limit: "Ran out of steps before finishing", failed: "Failed" };
+const delegationEndings = { stopped: "Stopped", done: "Finished", step_limit: "Ran out of steps before finishing", failed: "Failed" };
 
 // The chief of staff's delegations play out live in the other bot's own chat,
 // and as a status line under the chief's reply. Returns whether that line changed.
@@ -1289,12 +1291,17 @@ function settleBot(bot) {
   persist();
   renderBots();
   if (selected === bot) updateComposer();
+  drainQueue(bot);
 }
 
 function updateComposer() {
   const busy = running.has(selected.name);
-  $("#send").disabled = busy || !$("#task").value.trim();
-  $("#send").textContent = busy ? "Running" : "Send";
+  $("#send").disabled = !$("#task").value.trim();
+  $("#send").textContent = busy ? "Queue" : "Send";
+  $("#stop").hidden = !busy;
+  $("#stop").disabled = stopping.has(selected.name);
+  $("#stop").textContent = stopping.has(selected.name) ? "Stopping…" : "Stop";
+  renderQueue();
   $("#composer").classList.toggle("running", busy);
   $("#task").style.height = "auto";
   $("#task").style.height = `${Math.min($("#task").scrollHeight, 200)}px`;
@@ -1361,9 +1368,9 @@ function applyEvent(event, data, message) {
     },
     result: () => {
       message.text =
-        data.answer || message.text || "Task finished without a text response.";
+        data.answer || message.text || (data.status === "stopped" ? "" : "Task finished without a text response.");
       message.status =
-        data.status === "done" ? "" : `Run ended: ${data.status}`;
+        data.status === "done" ? "" : data.status === "stopped" ? "Stopped" : `Run ended: ${data.status}`;
       // Token use and cost move to the bot panel instead of trailing every answer.
       if (data.usage) message.usage = data.usage;
     },
@@ -1469,9 +1476,47 @@ function clipForContext(text, limit = 4000) {
   return `${text.slice(0, head)}\n\n[… ${tail - head} characters of this message left out …]\n\n${text.slice(tail)}`;
 }
 
-async function sendTask(task) {
+function renderQueue() {
+  const queue = messageQueues.get(selected.name) ?? [];
+  const panel = $("#message-queue");
+  panel.hidden = !queue.length;
+  panel.replaceChildren();
+  if (!queue.length) return;
+  panel.append(element("strong", "", `${queue.length} message${queue.length === 1 ? "" : "s"} queued`));
+  queue.forEach((task, index) => {
+    const row = element("div", "queue-item");
+    row.append(element("span", "", `${index + 1}. ${task}`));
+    const remove = element("button", "button", "Remove");
+    remove.type = "button";
+    remove.setAttribute("aria-label", `Remove queued message ${index + 1}`);
+    remove.addEventListener("click", () => { queue.splice(index, 1); renderQueue(); });
+    row.append(remove);
+    panel.append(row);
+  });
+}
+
+function drainQueue(bot) {
+  if (running.has(bot.name)) return;
+  const queue = messageQueues.get(bot.name);
+  if (queue?.length) void runTask(bot, queue.shift());
+}
+
+function sendTask(task) {
   const bot = selected;
-  if (!task.trim() || running.has(bot.name)) return;
+  task = task.trim();
+  if (!task) return;
+  $("#task").value = "";
+  drafts.delete(bot.name);
+  if (running.has(bot.name)) {
+    if (!messageQueues.has(bot.name)) messageQueues.set(bot.name, []);
+    messageQueues.get(bot.name).push(task);
+    updateComposer();
+    return;
+  }
+  void runTask(bot, task);
+}
+
+async function runTask(bot, task) {
   const key = bot.name.toLowerCase();
   history[key] ||= [];
   const conversation = history[key]
@@ -1492,12 +1537,9 @@ async function sendTask(task) {
     message,
   );
   running.add(bot.name);
-  $("#task").value = "";
-  drafts.delete(bot.name);
   persist();
-  updateComposer();
   renderBots();
-  renderTranscript(true);
+  if (selected === bot) { updateComposer(); renderTranscript(true); }
   try {
     const response = await fetch("/api/runs", {
       method: "POST",
@@ -1547,6 +1589,7 @@ async function sendTask(task) {
       if (message.tools?.some((tool) => ["create_bot", "update_bot"].includes(tool.name) && !tool.isError)) await refreshBots();
     } catch {}
     running.delete(bot.name);
+    stopping.delete(bot.name);
     if (selected !== bot || currentPage !== "workspace") unread.add(bot.name);
     if (currentPage === "activity") renderActivity();
     persist();
@@ -1556,6 +1599,7 @@ async function sendTask(task) {
       renderTranscript();
       updateComposer();
     }
+    drainQueue(bot);
   }
 }
 
@@ -2112,6 +2156,19 @@ $(".app > main").addEventListener("click", (event) => {
   // The computer view redraws on its own clicks, so the clicked node may already be gone; the event's path still has it.
   const inside = event.composedPath().some((node) => node.matches?.("#context-panel, #computer-panel, .topbar"));
   if (overlayPanel && !inside) setPanel("");
+});
+$("#stop").addEventListener("click", async () => {
+  const bot = selected;
+  stopping.add(bot.name);
+  updateComposer();
+  try {
+    const result = await api(`/api/bots/${encodeURIComponent(bot.name)}/stop`, { method: "POST" });
+    if (!result.stopping) stopping.delete(bot.name);
+  } catch (error) {
+    stopping.delete(bot.name);
+    alert(error.message);
+  }
+  if (selected === bot) updateComposer();
 });
 $("#task").addEventListener("input", updateComposer);
 $("#composer").addEventListener("submit", (event) => {

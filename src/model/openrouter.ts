@@ -36,7 +36,7 @@ export function createOpenRouterModel(options: { apiKey: string; model: string; 
   const timeoutMs = options.requestTimeoutMs ?? REQUEST_TIMEOUT_MS;
   if (!Number.isSafeInteger(timeoutMs) || timeoutMs <= 0) throw new RangeError("requestTimeoutMs must be a positive integer");
   return {
-    async reply(messages: ChatMessage[], tools: ToolDefinition[], onDelta?: (text: string) => void): Promise<ModelReply> {
+    async reply(messages: ChatMessage[], tools: ToolDefinition[], onDelta?: (text: string) => void, signal?: AbortSignal): Promise<ModelReply> {
       const payload = {
         model: options.model,
         messages,
@@ -48,15 +48,17 @@ export function createOpenRouterModel(options: { apiKey: string; model: string; 
       for (let attempt = 1; ; attempt++) {
         let receivedOutput = false;
         try {
-          const response = await post(options.apiKey, payload, AbortSignal.timeout(timeoutMs));
+          signal?.throwIfAborted();
+          const timeout = AbortSignal.timeout(timeoutMs);
+          const response = await post(options.apiKey, payload, signal ? AbortSignal.any([signal, timeout]) : timeout);
           return await readStream(response, onDelta, () => { receivedOutput = true; });
         } catch (error) {
-          if (receivedOutput || !isRetryable(error) || attempt >= MAX_ATTEMPTS) throw error;
+          if (signal?.aborted || receivedOutput || !isRetryable(error) || attempt >= MAX_ATTEMPTS) throw error;
           const retryAfterMs = error instanceof OpenRouterError ? error.retryAfterMs : undefined;
           // A long provider cooldown should be surfaced rather than retried early.
           if (retryAfterMs !== undefined && retryAfterMs > MAX_RETRY_DELAY_MS) throw error;
           const backoffMs = 1000 * 2 ** (attempt - 1);
-          await sleep(Math.max(retryAfterMs ?? 0, backoffMs * (0.5 + Math.random() * 0.5)));
+          await sleep(Math.max(retryAfterMs ?? 0, backoffMs * (0.5 + Math.random() * 0.5)), signal);
         }
       }
     },
@@ -193,6 +195,15 @@ function parseRetryAfter(value: string | null): number | undefined {
   return Number.isFinite(date) ? Math.max(0, date - Date.now()) : undefined;
 }
 
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+function sleep(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    signal?.throwIfAborted();
+    const timer = setTimeout(() => { signal?.removeEventListener("abort", abort); resolve(); }, ms);
+    const abort = () => {
+      clearTimeout(timer);
+      signal?.removeEventListener("abort", abort);
+      reject(signal?.reason);
+    };
+    signal?.addEventListener("abort", abort, { once: true });
+  });
 }

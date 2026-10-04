@@ -11,9 +11,10 @@ import { authorizeAction, type ApproveAction, type ToolPermission } from "../per
 export const MAX_OUTPUT_CHARS = 20_000;
 
 /** Runs a task as another of the user's bots, in its own workspace, and returns its answer. */
-export type Delegate = (bot: Bot, task: string) => Promise<{ status: "done" | "step_limit"; answer: string; steps: number; usage: Usage }>;
+export type Delegate = (bot: Bot, task: string) => Promise<{ status: "done" | "step_limit" | "stopped"; answer: string; steps: number; usage: Usage }>;
 
 export interface ToolContext {
+  signal?: AbortSignal;
   computer: Computer;
   /** Who the run is for. Plugins and scheduled jobs act as this user. */
   userId: string;
@@ -45,7 +46,9 @@ export function isGatedTool(tool: Tool): boolean { return gatedTools.has(tool); 
 export function defineTool<Input>(tool: Tool<Input>): Tool<Input> {
   const guarded: Tool<Input> = { ...tool, async run(input, context) {
     const parsed = tool.input.parse(structuredClone(input));
+    context.signal?.throwIfAborted();
     await authorizeAction(tool.name, tool.permission, parsed, context.approveAction);
+    context.signal?.throwIfAborted();
     return tool.run(parsed, context);
   } };
   gatedTools.add(guarded);

@@ -19,6 +19,7 @@ export interface RunOwner {
   bot?: Bot;
   approveAction?: ApproveAction;
   conversation?: ConversationMessage[];
+  signal?: AbortSignal;
   /** Claims a bot's workspace while the chief of staff delegates to it. Defaults to tracking delegations in this process. */
   reserve?: Reserve;
 }
@@ -38,6 +39,7 @@ export async function executeTask(task: string, owner: RunOwner, onEvent?: Event
     if (!bot) throw new Error("This bot was deleted. Its task cannot run.");
     owner = { ...owner, bot };
   }
+  owner.signal?.throwIfAborted();
   const config = loadConfig();
   const plugins = await enabledPlugins(owner.userId);
   const sandboxName = sandboxNameFor(config, owner);
@@ -48,7 +50,7 @@ export async function executeTask(task: string, owner: RunOwner, onEvent?: Event
     const chief = owner.bot?.primary === true;
     return await runAgent(task, {
       model, computer, tools: withServerKeys(withPlugins(chief ? chiefTools : owner.bot ? defaultTools : unnamedTools, plugins)), maxSteps: config.maxSteps, contextWindow, userId: owner.userId, bot: owner.bot,
-      approveAction: owner.approveAction, conversation: owner.conversation, delegate: chief ? delegateFor(owner, onEvent) : undefined, onEvent,
+      approveAction: owner.approveAction, conversation: owner.conversation, signal: owner.signal, delegate: chief ? delegateFor(owner, onEvent) : undefined, onEvent,
     });
   } finally {
     // Not awaited, so the answer isn't held up while the sandbox stops.
@@ -74,15 +76,16 @@ const reserveInProcess: Reserve = (bot) => {
  * and with its own tools. Approvals go to the same reviewer as the chief's,
  * and the bot's events are reported live through the chief's `onEvent`.
  */
-export function delegateFor({ userId, approveAction, reserve = reserveInProcess }: RunOwner, onEvent?: EventHandler, execute = executeTask): Delegate {
+export function delegateFor({ userId, approveAction, signal, reserve = reserveInProcess }: RunOwner, onEvent?: EventHandler, execute = executeTask): Delegate {
   const emit: EventHandler = onEvent ?? (() => {});
   return async (bot, task) => {
+    signal?.throwIfAborted();
     const release = reserve(bot);
     if (!release) throw new Error(`${bot.name} is busy with another task. Try again after it finishes.`);
     const delegated = { id: bot.id, name: bot.name };
     emit({ type: "delegation_start", bot: delegated, task });
     try {
-      const { messages: _messages, ...result } = await execute(task, { userId, bot, approveAction }, (event) => emit({ type: "delegation_event", bot: delegated, event }));
+      const { messages: _messages, ...result } = await execute(task, { userId, bot, approveAction, signal }, (event) => emit({ type: "delegation_event", bot: delegated, event }));
       emit({ type: "delegation_end", bot: delegated, status: result.status, answer: result.answer });
       return result;
     } catch (error) {

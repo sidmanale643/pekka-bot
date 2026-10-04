@@ -137,6 +137,7 @@
           <div class="chat-column">
             <div id="transcript" role="log" aria-label="Task history"></div>
             <div class="composer-area">
+              <div id="message-queue" class="message-queue" role="status" aria-live="polite" hidden></div>
               <form id="composer">
                 <textarea
                   id="task"
@@ -146,7 +147,7 @@
                   maxlength="100000"
                   required
                 ></textarea
-                ><button id="send" class="button primary" type="submit">Send</button>
+                ><button id="stop" class="button" type="button" hidden>Stop</button><button id="send" class="button primary" type="submit">Send</button>
               </form>
               <div class="composer-note">
                 <span id="send-hint"></span>

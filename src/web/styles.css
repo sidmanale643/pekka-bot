@@ -3080,3 +3080,18 @@ a.schedule-link:hover {
   font-size: 12px;
 }
 .permission-actions { display: flex; gap: 12px; }
+
+.message-queue {
+  max-height: 200px;
+  overflow-y: auto;
+  margin-bottom: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius-soft);
+  background: var(--sheet);
+  font-size: 13px;
+}
+.queue-item { display: flex; align-items: center; gap: 12px; margin-top: 6px; }
+.queue-item span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.queue-item .button { padding: 4px 8px; font-size: 12px; }
+#stop { flex-shrink: 0; }

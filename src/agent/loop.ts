@@ -32,6 +32,7 @@ export interface AgentOptions {
   userId: string;
   bot?: Bot;
   conversation?: ConversationMessage[];
+  signal?: AbortSignal;
   /** Where memory and skills are read from. Defaults to the configured D1 database. */
   database?: Database;
   onEvent?: EventHandler;
@@ -42,7 +43,7 @@ export interface AgentOptions {
 
 export interface AgentResult {
   /** "done" when the model gave a final answer, "step_limit" when it ran out of steps. */
-  status: "done" | "step_limit";
+  status: "done" | "step_limit" | "stopped";
   answer: string;
   steps: number;
   usage: Usage;
@@ -54,6 +55,16 @@ export interface AgentResult {
  * give it the results, and repeat until it answers without calling a tool.
  */
 export async function runAgent(task: string, options: AgentOptions): Promise<AgentResult> {
+  try {
+    options.signal?.throwIfAborted();
+    return await runLoop(task, options);
+  } catch (error) {
+    if (!options.signal?.aborted) throw error;
+    return { status: "stopped", answer: "", steps: 0, usage: { promptTokens: 0, completionTokens: 0, costUsd: 0 }, messages: [] };
+  }
+}
+
+async function runLoop(task: string, options: AgentOptions): Promise<AgentResult> {
   const { model, computer, tools, maxSteps, contextWindow = DEFAULT_CONTEXT_WINDOW } = options;
   const emit = options.onEvent ?? (() => {});
   const usage: Usage = { promptTokens: 0, completionTokens: 0, cachedTokens: 0, cacheHitRate: null, costUsd: 0 };
@@ -84,40 +95,51 @@ export async function runAgent(task: string, options: AgentOptions): Promise<Age
     { role: "user", content: request },
   ], { model, tools: plugins.definitions(), contextWindow, task: request });
 
-  for (let step = 1; step <= maxSteps; step++) {
-    // load_plugin adds tools, so each step is shown the tools loaded so far.
-    const active = plugins.tools();
-    const toolDefinitions = plugins.definitions();
-    context.setTools(toolDefinitions);
-    if (context.shouldCompact()) {
-      emit({ type: "compaction", tokens: context.tokens(), contextWindow });
-      addUsage(usage, await context.compact());
+  let steps = 0;
+  try {
+    for (let step = 1; step <= maxSteps; step++) {
+      steps = step;
+      options.signal?.throwIfAborted();
+      // load_plugin adds tools, so each step is shown the tools loaded so far.
+      const active = plugins.tools();
+      const toolDefinitions = plugins.definitions();
+      context.setTools(toolDefinitions);
+      if (context.shouldCompact()) {
+        emit({ type: "compaction", tokens: context.tokens(), contextWindow });
+        addUsage(usage, await context.compact(options.signal));
+      }
+      emit({ type: "step", step });
+
+      const reply = await model.reply(context.messages, toolDefinitions, (text) => emit({ type: "message_delta", text }), options.signal);
+      addUsage(usage, reply.usage);
+      context.addReply(reply.message, reply.usage);
+      options.signal?.throwIfAborted();
+
+      const text = reply.message.content ?? "";
+      if (text) emit({ type: "message", text });
+
+      const calls = reply.message.tool_calls ?? [];
+      if (calls.length === 0) {
+        return { status: "done", answer: text, steps: step, usage, messages: context.messages };
+      }
+
+      const results = await Promise.all(calls.map(async (call): Promise<ChatMessage> => {
+        options.signal?.throwIfAborted();
+        emit({ type: "tool_call", id: call.id, name: call.function.name, arguments: call.function.arguments });
+        // Checked against this step's tools, so a load_plugin in the same reply doesn't race it.
+        const unloaded = active.some((tool) => tool.name === call.function.name) ? undefined : plugins.pluginOf(call.function.name);
+        const result = unloaded
+          ? { output: `Error: ${call.function.name} is not loaded. Call load_plugin with plugin "${unloaded}", then call ${call.function.name} again in your next reply.`, isError: true }
+          : await executeToolCall(call, active, { computer, database, userId: options.userId, bot: options.bot, memory, skills, approveAction: options.approveAction, delegate, signal: options.signal });
+        emit({ type: "tool_result", id: call.id, name: call.function.name, ...result });
+        return { role: "tool", tool_call_id: call.id, content: result.output };
+      }));
+      context.add(...results);
+      options.signal?.throwIfAborted();
     }
-    emit({ type: "step", step });
-
-    const reply = await model.reply(context.messages, toolDefinitions, (text) => emit({ type: "message_delta", text }));
-    addUsage(usage, reply.usage);
-    context.addReply(reply.message, reply.usage);
-
-    const text = reply.message.content ?? "";
-    if (text) emit({ type: "message", text });
-
-    const calls = reply.message.tool_calls ?? [];
-    if (calls.length === 0) {
-      return { status: "done", answer: text, steps: step, usage, messages: context.messages };
-    }
-
-    const results = await Promise.all(calls.map(async (call): Promise<ChatMessage> => {
-      emit({ type: "tool_call", id: call.id, name: call.function.name, arguments: call.function.arguments });
-      // Checked against this step's tools, so a load_plugin in the same reply doesn't race it.
-      const unloaded = active.some((tool) => tool.name === call.function.name) ? undefined : plugins.pluginOf(call.function.name);
-      const result = unloaded
-        ? { output: `Error: ${call.function.name} is not loaded. Call load_plugin with plugin "${unloaded}", then call ${call.function.name} again in your next reply.`, isError: true }
-        : await executeToolCall(call, active, { computer, database, userId: options.userId, bot: options.bot, memory, skills, approveAction: options.approveAction, delegate });
-      emit({ type: "tool_result", id: call.id, name: call.function.name, ...result });
-      return { role: "tool", tool_call_id: call.id, content: result.output };
-    }));
-    context.add(...results);
+  } catch (error) {
+    if (!options.signal?.aborted) throw error;
+    return { status: "stopped", answer: "", steps, usage, messages: context.messages };
   }
 
   return { status: "step_limit", answer: "", steps: maxSteps, usage, messages: context.messages };

@@ -29,6 +29,7 @@ export async function executeToolCall(
 
   try {
     if (!isGatedTool(tool)) await authorizeAction(tool.name, tool.permission, input.data, context.approveAction);
+    context.signal?.throwIfAborted();
     return { output: await tool.run(input.data, context), isError: false };
   } catch (error) {
     return failure(error instanceof Error ? error.message : String(error));

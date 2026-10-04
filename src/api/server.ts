@@ -83,6 +83,7 @@ export function createApiServer(options: ServerOptions = {}) {
     return deleteBotSandbox(userId, bot);
   });
   const active = new Set<string>();
+  const cancellations = new Map<string, { controller: AbortController; runId: string }>();
   const permissions = new PermissionManager();
   /** The chief of staff's delegations take the other bot's workspace, so it can't also run from the web interface. */
   const reserve: Reserve = (bot) => {
@@ -124,6 +125,8 @@ export function createApiServer(options: ServerOptions = {}) {
     if (!task) throw new HttpError(400, "Send a message to tell this bot what you need.");
     active.add(key);
     const runId = randomUUID();
+    const controller = new AbortController();
+    cancellations.set(key, { controller, runId });
     const emit: EventHandler = (event) => {
       if (!response.destroyed && response.headersSent) response.write(`event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`);
     };
@@ -135,10 +138,20 @@ export function createApiServer(options: ServerOptions = {}) {
     const disconnect = () => permissions.cancelRun(runId);
     response.once("close", disconnect);
     try {
-      await respondToRun(request, response, () => execute(task, { userId, bot, approveAction, conversation: input.conversation, reserve }, emit));
+      await respondToRun(request, response, () => execute(task, { userId, bot, approveAction, conversation: input.conversation, signal: controller.signal, reserve: (target) => {
+        const release = reserve(target);
+        if (!release) return undefined;
+        const targetKey = `bot:${target.id}`;
+        cancellations.set(targetKey, { controller, runId });
+        return () => { cancellations.delete(targetKey); release(); };
+      } }, emit).catch((error) => {
+        if (!controller.signal.aborted) throw error;
+        return { status: "stopped" as const, answer: "", steps: 0, usage: { promptTokens: 0, completionTokens: 0, costUsd: 0 }, messages: [] };
+      }));
     } finally {
       response.off("close", disconnect);
       permissions.cancelRun(runId);
+      cancellations.delete(key);
       active.delete(key);
     }
   };
@@ -214,6 +227,15 @@ export function createApiServer(options: ServerOptions = {}) {
   };
 
   const routes: Route[] = [
+    ["POST", /^\/api\/bots\/([^/]+)\/stop$/, async (_request, response, [name], userId) => {
+      const bot = await findBot(userId, name!);
+      const run = cancellations.get(`bot:${bot.id}`);
+      if (run) {
+        run.controller.abort();
+        permissions.cancelRun(run.runId);
+      }
+      json(response, 200, { stopping: Boolean(run) });
+    }],
     ["GET", /^\/api\/permissions$/, async (_request, response, _params, userId) => {
       json(response, 200, { requests: permissions.list(userId) });
     }],

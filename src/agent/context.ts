@@ -81,10 +81,10 @@ export class ContextManager {
    * Asks the model to summarize everything before the latest step, then replaces
    * those messages with the summary. Returns the summary request's usage.
    */
-  async compact(): Promise<Usage> {
+  async compact(signal?: AbortSignal): Promise<Usage> {
     const { model, tools, task } = this.options;
     const keepFrom = this.keepFrom();
-    const reply = await model.reply([...this.messages.slice(0, keepFrom), { role: "user", content: SUMMARY_REQUEST }], tools);
+    const reply = await model.reply([...this.messages.slice(0, keepFrom), { role: "user", content: SUMMARY_REQUEST }], tools, undefined, signal);
     const summary = reply.message.content?.trim();
     // Without a summary the messages stay as they are, and the next step tries again.
     if (summary) {

@@ -232,7 +232,7 @@ function printEvent(event: AgentEvent): void {
       printDelegatedEvent(event.bot.name, event.event);
       break;
     case "delegation_end":
-      console.log(`⇠ ${event.bot.name} ${{ done: "finished", step_limit: "ran out of steps", failed: "failed" }[event.status]}`);
+      console.log(`⇠ ${event.bot.name} ${{ done: "finished", stopped: "stopped", step_limit: "ran out of steps", failed: "failed" }[event.status]}`);
       break;
   }
 }

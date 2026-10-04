@@ -23,6 +23,6 @@ export type AgentEvent =
   // A delegated bot's run, reported live inside the chief of staff's run.
   | { type: "delegation_start"; bot: DelegatedBot; task: string }
   | { type: "delegation_event"; bot: DelegatedBot; event: AgentEvent }
-  | { type: "delegation_end"; bot: DelegatedBot; status: "done" | "step_limit" | "failed"; answer: string };
+  | { type: "delegation_end"; bot: DelegatedBot; status: "done" | "step_limit" | "stopped" | "failed"; answer: string };
 
 export type EventHandler = (event: AgentEvent) => void;
