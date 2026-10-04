@@ -1,10 +1,37 @@
+# Dependencies and build output
 node_modules/
 dist/
+coverage/
+*.tsbuildinfo
+
+# Secrets and local environment
 .env
 .env.*
 !.env.example
-.pekka/
+.vercel
 
 # Local planning notes, not part of the published repo
+.pekka/
 docs/
-.vercel
+
+# Local caches, scratch space and generated files
+/.local/
+/.pnpm-store/
+/tmp/
+/temp/
+/output/
+
+# Marketing videos: large media and screen recordings of private data
+/videos/
+
+# Coding-agent config and personal skills
+/.claude/
+/.agents/
+/.codex/
+
+# OS and editor files
+.DS_Store
+Thumbs.db
+*.log
+.vscode/
+.idea/

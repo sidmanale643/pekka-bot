@@ -1,15 +1,35 @@
+# Vercel deploys only the API: server.ts, src/, the package files and vercel.json.
+# Paths starting with / match the repo root only, so nothing inside src/ is dropped by accident.
+
+# Secrets and local environment
 .env
 .env.*
-.local
-.claude
-.codex
-.pekka
-site
-skills
-docs
-tmp
-temp
-references
+
+# Tests
 **/*.test.ts
-AGENTS.md
-CLAUDE.md
+
+# Not part of the API deployment
+/site
+/skills
+/docs
+/references
+/videos
+/output
+
+# Local notes, caches and scratch space
+/.local
+/.pekka
+/.pnpm-store
+/tmp
+/temp
+
+# Coding-agent config
+/.claude
+/.agents
+/.codex
+/AGENTS.md
+/CLAUDE.md
+
+# OS and editor files
+.DS_Store
+*.log
