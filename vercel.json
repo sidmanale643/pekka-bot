@@ -5,7 +5,7 @@
   "functions": {
     "server.ts": {
       "maxDuration": 300,
-      "includeFiles": "{src/web/**,src/base-skills/**,node_modules/{marked,dompurify}/**,node_modules/.pnpm/{marked@*,dompurify@*}/node_modules/{marked,dompurify}/**,node_modules/.pnpm/@llamaindex+liteparse@*/node_modules/@llamaindex/liteparse/{dist/**,package.json,*.node,*.so*}}"
+      "includeFiles": "{src/{web,base-skills}/**,node_modules/{marked,dompurify}/**,node_modules/.pnpm/{marked@*,dompurify@*}/node_modules/{marked,dompurify}/**,node_modules/.pnpm/@llamaindex+liteparse@*/node_modules/@llamaindex/liteparse/{dist/**,package.json,*.node,*.so*}}"
     }
   },
   "buildCommand": "cp node_modules/.pnpm/@llamaindex+liteparse-linux-x64-gnu@*/node_modules/@llamaindex/liteparse-linux-x64-gnu/*.[ns]o* node_modules/@llamaindex/liteparse/"
