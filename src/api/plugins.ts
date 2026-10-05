@@ -6,6 +6,7 @@ import type { ContactsService } from "../plugins/contacts.ts";
 import type { DriveService } from "../plugins/drive.ts";
 import type { GmailService } from "../plugins/gmail.ts";
 import type { GitHubService } from "../plugins/github.ts";
+import type { LinearService } from "../plugins/linear.ts";
 import type { NotionService } from "../plugins/notion.ts";
 import type { TelegramService } from "../plugins/telegram.ts";
 import type { Route } from "./auth.ts";
@@ -110,16 +111,17 @@ export interface PluginServices {
   contacts: ContactsService;
   telegram: TelegramService;
   github: GitHubService;
+  linear: LinearService;
 }
 
-export function pluginRoutes({ notion, gmail, calendar, drive, contacts, telegram, github }: PluginServices, origin: (request: IncomingMessage) => string): Route[] {
+export function pluginRoutes({ notion, gmail, calendar, drive, contacts, telegram, github, linear }: PluginServices, origin: (request: IncomingMessage) => string): Route[] {
   const oauth: [string, string, OAuthPlugin][] = [
     ["notion", "Notion", notion], ["gmail", "Gmail", gmail], ["calendar", "Google Calendar", calendar],
-    ["drive", "Google Drive", drive], ["contacts", "Google Contacts", contacts], ["github", "GitHub", github],
+    ["drive", "Google Drive", drive], ["contacts", "Google Contacts", contacts], ["github", "GitHub", github], ["linear", "Linear", linear],
   ];
   return [
     ["GET", /^\/api\/plugins$/, async (_request, response, _params, userId) => {
-      json(response, 200, { plugins: await Promise.all([notion, gmail, calendar, drive, contacts, telegram, github].map((plugin) => plugin.status(userId))) });
+      json(response, 200, { plugins: await Promise.all([notion, gmail, calendar, drive, contacts, telegram, github, linear].map((plugin) => plugin.status(userId))) });
     }],
     ...oauth.flatMap(([id, name, plugin]) => oauthRoutes(id, name, plugin, origin)),
     ["POST", /^\/api\/plugins\/telegram\/connect$/, async (request, response, _params, userId) => {

@@ -39,6 +39,7 @@ const unread = new Set();
 let loaded = false;
 let notionPlugin;
 let githubPlugin;
+let linearPlugin;
 // Google plugins share one sign-in flow and card layout; each keeps its own connection and access switch.
 const googlePlugins = {
   gmail: { name: "Gmail", grant: "Gmail access", enabled: "Gmail access enabled. Bots can now read and send your email." },
@@ -642,6 +643,9 @@ const toolOutputs = {
   github_create_issue: ["GitHub", "Opened issue"],
   github_create_pull_request: ["GitHub", "Opened pull request"],
   github_add_comment: ["GitHub", "Commented"],
+  linear_create_issue: ["Linear", "Created issue"],
+  linear_update_issue: ["Linear", "Updated issue"],
+  linear_add_comment: ["Linear", "Commented"],
   gmail_send: ["Gmail", "Sent email"],
   gmail_create_draft: ["Gmail", "Saved draft"],
   calendar_create_event: ["Calendar", "Created event"],
@@ -732,6 +736,13 @@ const toolAliases = {
   github_create_issue: ["Opening an issue", "Opened an issue"],
   github_add_comment: ["Commenting", "Commented"],
   github_create_pull_request: ["Opening a pull request", "Opened a pull request"],
+  linear_list_teams: ["Checking Linear teams", "Checked Linear teams"],
+  linear_list_issues: ["Checking Linear issues", "Checked Linear issues"],
+  linear_search_issues: ["Searching Linear", "Searched Linear"],
+  linear_get_issue: ["Reading a Linear issue", "Read a Linear issue"],
+  linear_create_issue: ["Creating a Linear issue", "Created a Linear issue"],
+  linear_update_issue: ["Updating a Linear issue", "Updated a Linear issue"],
+  linear_add_comment: ["Commenting in Linear", "Commented in Linear"],
   telegram_send_message: ["Sending a Telegram message", "Sent a Telegram message"],
 };
 
@@ -766,7 +777,9 @@ function toolOutput(name, args, output) {
   if (!kind) return;
   const input = parseJson(args) ?? {};
   const result = parseJson(output) ?? {};
-  const url = [result.html_url, result.url].find((value) => /^https:\/\//.test(value ?? ""));
+  // Linear nests what a write created or changed under the mutation's name.
+  const linear = result.issueCreate?.issue ?? result.issueUpdate?.issue ?? result.commentCreate?.comment;
+  const url = [result.html_url, result.url, linear?.url].find((value) => /^https:\/\//.test(value ?? ""));
   const repository = input.owner && input.repo ? `${input.owner}/${input.repo}` : "";
   const title =
     input.title ||
@@ -774,6 +787,7 @@ function toolOutput(name, args, output) {
     input.name ||
     input.bot_name ||
     input.path ||
+    input.issue ||
     (input.issue_number ? `${repository}#${input.issue_number}` : "") ||
     (input.text ? input.text.slice(0, 80) : "") ||
     kind[1];
@@ -2499,6 +2513,7 @@ function renderPlugins() {
   for (const id of Object.keys(googlePlugins)) renderGoogle(id);
   renderTelegram();
   renderGithub();
+  renderLinear();
   renderPluginCatalog();
 }
 
@@ -2508,7 +2523,7 @@ function renderPluginCatalog() {
   const query = $("#plugin-search").value.trim().toLowerCase();
   const installed = $("#plugin-installed");
   installed.replaceChildren();
-  const connections = { notion: notionPlugin, ...googleStatus, telegram: telegramPlugin, github: githubPlugin };
+  const connections = { notion: notionPlugin, ...googleStatus, telegram: telegramPlugin, github: githubPlugin, linear: linearPlugin };
   $("#plugin-count").textContent = document.querySelectorAll("[data-plugin]").length;
   let connectedCount = 0;
   let visibleCount = 0;
@@ -2620,6 +2635,7 @@ async function loadPlugins() {
       error: `${name} could not be connected. Make sure you allowed ${grant} on Google's consent screen, or check the server's OAuth setup.`,
     }])),
     github: { connected: "GitHub connected. Choose whether to allow Pekka access below.", denied: "GitHub connection was cancelled. You can try again whenever you're ready.", error: "GitHub could not be connected. Try again or check the server's OAuth setup." },
+    linear: { connected: "Linear connected. Choose whether to allow Pekka access below.", denied: "Linear connection was cancelled. You can try again whenever you're ready.", error: "Linear could not be connected. Try again or check the server's OAuth setup." },
   };
   for (const [id, messages] of Object.entries(outcomes)) {
     const outcome = callback.searchParams.get(id);
@@ -2643,11 +2659,13 @@ async function loadPlugins() {
       telegramPoll = setTimeout(checkTelegramLink, 3000);
     }
     githubPlugin = data.plugins.find((plugin) => plugin.id === "github");
+    linearPlugin = data.plugins.find((plugin) => plugin.id === "linear");
   } catch (error) {
     notionPlugin = undefined;
     googleStatus = {};
     telegramPlugin = undefined;
     githubPlugin = undefined;
+    linearPlugin = undefined;
     $("#plugin-status").textContent = `Could not load plugins: ${error.message}`;
   } finally {
     pluginsBusy = false;
@@ -2704,6 +2722,56 @@ async function changeGithub(action) {
 $("#github-connect").addEventListener("click", () => changeGithub("connect"));
 $("#github-disconnect").addEventListener("click", () => changeGithub("disconnect"));
 $("#github-enabled").addEventListener("change", () => changeGithub("permission"));
+
+function renderLinear() {
+  const connected = Boolean(linearPlugin?.connected);
+  const configured = Boolean(linearPlugin?.configured);
+  $("#linear-card").setAttribute("aria-busy", String(pluginsBusy));
+  $("#linear-state").textContent = !linearPlugin ? (pluginsBusy ? "Loading…" : "Unavailable") : connected ? (linearPlugin.enabled ? "Access enabled" : "Access off") : configured ? "Not connected" : "Setup required";
+  $("#linear-state").classList.toggle("enabled", connected && linearPlugin.enabled);
+  $("#linear-setup").hidden = !linearPlugin || configured;
+  $("#linear-workspace").hidden = !connected;
+  $("#linear-workspace").textContent = connected ? `Connected to ${linearPlugin.workspaceName || "your Linear workspace"}` : "";
+  $("#linear-permission").hidden = !connected;
+  if (!pluginsBusy) $("#linear-enabled").checked = connected && linearPlugin.enabled;
+  $("#linear-enabled").disabled = pluginsBusy || !connected;
+  $("#linear-connect").textContent = connected ? "Reconnect Linear" : "Add Linear";
+  $("#linear-connect").disabled = pluginsBusy || !configured;
+  $("#linear-disconnect").hidden = !connected;
+  $("#linear-disconnect").disabled = pluginsBusy;
+  $("#linear-use").hidden = !connected;
+}
+
+async function changeLinear(action) {
+  if (pluginsBusy) return;
+  pluginsBusy = true;
+  const enabled = $("#linear-enabled").checked;
+  renderPlugins();
+  $("#plugin-status").textContent = action === "connect" ? "Opening Linear…" : "Saving…";
+  try {
+    if (action === "connect") {
+      const result = await api("/api/plugins/linear/connect", { method: "POST", body: "{}" });
+      const target = new URL(result.url);
+      if (target.protocol !== "https:" || target.hostname !== "linear.app" || target.pathname !== "/oauth/authorize") throw new Error("Invalid Linear authorization URL.");
+      location.assign(target.href);
+      return;
+    }
+    linearPlugin = await api("/api/plugins/linear", action === "disconnect" ? { method: "DELETE" } : { method: "PUT", body: JSON.stringify({ enabled }) });
+    $("#plugin-status").textContent = action === "disconnect" ? "Linear disconnected. Pekka no longer has access." : enabled ? "Linear access enabled for all bots." : "Linear access turned off.";
+  } catch (error) {
+    const message = `Could not update Linear: ${error.message}`;
+    pluginsBusy = false;
+    await loadPlugins();
+    $("#plugin-status").textContent = linearPlugin ? message : `${message} Refresh to check the current connection state.`;
+  } finally {
+    pluginsBusy = false;
+    renderPlugins();
+  }
+}
+
+$("#linear-connect").addEventListener("click", () => changeLinear("connect"));
+$("#linear-disconnect").addEventListener("click", () => changeLinear("disconnect"));
+$("#linear-enabled").addEventListener("change", () => changeLinear("permission"));
 
 async function changeNotion(action) {
   if (pluginsBusy) return;

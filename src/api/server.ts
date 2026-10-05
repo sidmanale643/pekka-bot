@@ -27,6 +27,7 @@ import { getDriveService, type DriveService } from "../plugins/drive.ts";
 import { getGmailService, type GmailService } from "../plugins/gmail.ts";
 import { GoogleError } from "../plugins/google.ts";
 import { getGitHubService, GitHubError, type GitHubService } from "../plugins/github.ts";
+import { getLinearService, LinearError, type LinearService } from "../plugins/linear.ts";
 import { getNotionService, NotionError, type NotionService } from "../plugins/notion.ts";
 import { getTelegramService, TelegramError, type TelegramService } from "../plugins/telegram.ts";
 import { randomUUID } from "node:crypto";
@@ -64,6 +65,7 @@ interface ServerOptions {
   drive?: DriveService;
   contacts?: ContactsService;
   github?: GitHubService;
+  linear?: LinearService;
   /** Sign-in settings. Defaults to the environment; null turns sign-in off. */
   auth?: AuthConfig | null;
   publicOrigin?: string;
@@ -268,7 +270,7 @@ export function createApiServer(options: ServerOptions = {}) {
     ...pluginRoutes({
       notion: options.notion ?? getNotionService(), gmail: options.gmail ?? getGmailService(), calendar: options.calendar ?? getCalendarService(),
       drive: options.drive ?? getDriveService(), contacts: options.contacts ?? getContactsService(),
-      telegram: options.telegram ?? getTelegramService(), github: options.github ?? getGitHubService(),
+      telegram: options.telegram ?? getTelegramService(), github: options.github ?? getGitHubService(), linear: options.linear ?? getLinearService(),
     }, access.origin),
     ["GET", /^\/api\/characters$/, async (_request, response) => { json(response, 200, { characters: characters.map(({ style, ...item }) => item) }); }],
     ["GET", /^\/api\/bots\/([^/]+)\/character$/, character],
@@ -306,7 +308,7 @@ export function createApiServer(options: ServerOptions = {}) {
     response.setHeader("X-Content-Type-Options", "nosniff");
     response.setHeader("X-Frame-Options", "DENY");
     dispatch(request, response, routes, access).catch((error: unknown) => {
-      if (error instanceof NotionError || error instanceof GoogleError || error instanceof TelegramError || error instanceof GitHubError) { fail(response, new HttpError(400, error.message)); return; }
+      if (error instanceof NotionError || error instanceof GoogleError || error instanceof TelegramError || error instanceof GitHubError || error instanceof LinearError) { fail(response, new HttpError(400, error.message)); return; }
       fail(response, error instanceof DatabaseConfigError ? new HttpError(503, "Storage requires Cloudflare D1 configuration.") : error);
     });
   });
