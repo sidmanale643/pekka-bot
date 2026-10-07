@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="src/web/logo.svg" alt="Pekka logo" width="120" />
+  <a href="https://pekkabot.xyz"><img src="site/head.svg" alt="Pekka" width="96" /></a>
 </p>
 
 <h1 align="center">Pekka</h1>
@@ -16,6 +16,7 @@
 </p>
 
 <p align="center">
+  <a href="https://pekkabot.xyz">Website</a> ·
   <a href="#quick-start">Quick start</a> ·
   <a href="#features">Features</a> ·
   <a href="#usage">Usage</a> ·
@@ -40,7 +41,7 @@ Chief of Staff: Acme still wants a three-year price lock and SSO in the base pla
                 and it raised a Series C in August. You're free 9:30–10:00 Thursday.
 ```
 
-Pekka is a self-hosted Node.js app. Models run through [OpenRouter](https://openrouter.ai), sandboxes through [Daytona](https://daytona.io), and data is stored in [Cloudflare D1](https://developers.cloudflare.com/d1/). You bring the API keys, and every credential stays on your server.
+Pekka is a self-hosted Node.js app. Models run through [OpenRouter](https://openrouter.ai), or OpenAI and Anthropic directly with a key of your own, sandboxes through [Daytona](https://daytona.io), and data is stored in [Cloudflare D1](https://developers.cloudflare.com/d1/). You bring the API keys, and every credential stays on your server.
 
 ## Features
 
@@ -54,7 +55,7 @@ Pekka is a self-hosted Node.js app. Models run through [OpenRouter](https://open
 - **Computer view.** Watch a bot's commands, their output and exit codes, and every file it reads or edits, live beside the chat.
 - **Long tasks.** When a prompt fills half of the model's context window, older steps are summarized. Your request and the latest step are kept word for word.
 - **Guardrails.** Deletions, destructive Git commands, `sudo`, and piping a download into a shell are always blocked. Changes that shape future runs, such as a bot's instructions, skills and scheduled jobs, always wait for your approval. You can also turn on approval of every write and send.
-- **Any model.** Use any OpenRouter model that supports tool calling.
+- **Any model.** Use any OpenRouter model that supports tool calling. Each person can also save their own OpenRouter, OpenAI, or Anthropic key in **Settings**, and their runs use it and bill them directly.
 - **Three interfaces.** A web app, a CLI, and an HTTP API that streams events over SSE.
 - **Teams.** Turn on Google sign-in to share one server. Each person gets their own bots, memory, schedules, and plugin connections.
 - **Tracing.** Optional [Langfuse](https://langfuse.com) traces of every model call, tool call, and delegation.
@@ -62,25 +63,40 @@ Pekka is a self-hosted Node.js app. Models run through [OpenRouter](https://open
 ## How it works
 
 ```mermaid
-flowchart LR
-  subgraph Clients
-    W[Web app]
-    C[CLI]
-    H[HTTP API + SSE]
+flowchart TB
+  subgraph You
+    direction LR
+    W[Web app] ~~~ C[CLI] ~~~ H[HTTP API]
   end
-  subgraph Pekka["Pekka (your server)"]
-    L[Agent loop and delegation]
-    P[Permission gate]
+
+  subgraph Pekka["Pekka, on your server"]
     S[Scheduler]
-    D[PDF parsing and OCR]
-    K[Encrypted plugin tokens]
+    A[API server<br/>sign-in, live SSE events]
+    L[Agent loop<br/>Chief of Staff delegates to bots]
+    M[Model router<br/>server key or your own]
+    G{Permission<br/>gate}
+    T[Tools<br/>shell, files, web, memory, skills,<br/>documents with OCR]
   end
-  W & C & H --> L
-  L --> P
-  L <--> OR[OpenRouter<br/>any tool-calling model]
-  P --> DT[Daytona<br/>one sandbox per bot]
-  P --> PL[Plugins<br/>Google, GitHub, Linear, Notion,<br/>Granola, Todoist, Telegram]
-  Pekka <--> DB[(Cloudflare D1<br/>bots, chats, memory, skills, jobs)]
+
+  subgraph Services["Outside services"]
+    direction LR
+    LLM[OpenRouter, OpenAI<br/>or Anthropic]
+    DT[Daytona<br/>one sandbox per bot]
+    PL[Plugins<br/>Google, GitHub, Linear, Notion,<br/>Granola, Todoist, Telegram]
+    DB[(Cloudflare D1<br/>bots, chats, memory,<br/>skills, jobs, keys)]
+  end
+
+  You --> A
+  S -- due job --> L
+  A -- task --> L
+  L <--> M
+  L -- tool call --> G
+  G -. asks you first .-> A
+  G --> T
+  M --> LLM
+  T --> DT
+  T --> PL
+  Pekka <--> DB
 ```
 
 The agent loop sends the task and the available tools to the model, runs each tool call through the permission gate, and feeds the results back until the job is done or `PEKKA_MAX_STEPS` is reached. At the start of a run, plugin tools are listed by name only. A bot loads a plugin's full tool definitions when it needs them, which keeps prompts small.
@@ -130,10 +146,11 @@ Open **[http://127.0.0.1:3000](http://127.0.0.1:3000)** and give Chief of Staff 
 The web app is where you do most of your work:
 
 - **Bots.** Create specialists, then edit their instructions, memory, skills, and character (the voice a bot uses with you). Clear one bot's chat from its bot panel.
-- **Chat.** Chat history is saved in D1 with your account, so it is the same in every browser. Export a copy from **Settings**. A browser that used an older version of Pekka uploads the chats it kept the first time it opens this version.
+- **Chat.** The server saves each chat in D1 as the run goes, so a reply keeps coming even if you close the tab, and the chat is the same in every browser. Export a copy from **Settings**.
 - **Computer view.** Open it from a bot's chat to watch that bot's sandbox. Sessions are ephemeral, so it shows only tasks that run while the page is open.
 - **Plugins.** Connect an app, then enable access. Access stays off until you turn it on.
 - **Scheduled.** Create, pause, resume, and cancel recurring tasks.
+- **Settings.** Pick which model runs use: the server's default, or your own OpenRouter, OpenAI, or Anthropic key. Keys are checked with the provider and stored encrypted with `PEKKA_PLUGIN_KEY`.
 
 ### CLI
 
@@ -227,7 +244,7 @@ All settings are environment variables. They are read from `.env` and documented
 
 | Variable | Default | Description |
 | --- | --- | --- |
-| `OPENROUTER_API_KEY` | *required* | OpenRouter API key. |
+| `OPENROUTER_API_KEY` | *required* | OpenRouter API key, used by every run that doesn't have its own saved key. |
 | `DAYTONA_API_KEY` | *required* | Daytona API key. |
 | `CLOUDFLARE_API_TOKEN` | *required* | Token with D1 Edit permission. |
 | `CLOUDFLARE_ACCOUNT_ID` | *required* | Cloudflare account ID. |
@@ -290,7 +307,7 @@ LANGFUSE_TRACING_ENVIRONMENT=development
 
 Use your project's region URL, such as `https://us.cloud.langfuse.com`, or your self-hosted URL. Then restart Pekka.
 
-Each task records an agent observation. It contains nested OpenRouter generations, with prompts, replies, token usage, cost, and timing, as well as tool calls, delegated bots, and context summaries. Traces carry the Pekka user ID and bot metadata. Web chat turns are grouped into sessions by user, bot, and chat history.
+Each task records an agent observation. It contains nested model generations, with prompts, replies, token usage, cost, and timing, as well as tool calls, delegated bots, and context summaries. Traces carry the Pekka user ID and bot metadata. Web chat turns are grouped into sessions by user, bot, and chat history.
 
 > [!NOTE]
 > Tracing sends task content, conversation context, the memory included in prompts, and tool inputs and outputs to your Langfuse project. Server secrets, bearer tokens, and credential fields are masked. Other personal or confidential content is not.
@@ -305,7 +322,7 @@ src/
 ├── api/            HTTP server, auth, plugin OAuth, SSE runs
 ├── computer/       Computer interface, with Daytona and fake implementations
 ├── database/       Cloudflare D1 client, with SQLite for tests
-├── model/          OpenRouter client and usage accounting
+├── model/          OpenRouter, OpenAI, and Anthropic clients, and usage accounting
 ├── permissions/    Hard blocks and the approval policy
 ├── plugins/        OAuth and API clients for each plugin
 ├── tools/          One file per tool, all with the same shape
