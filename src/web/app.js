@@ -2332,6 +2332,7 @@ function openPage(page) {
   closeDrawer();
   if (page === "activity") renderActivity();
   if (page === "plugins") loadPlugins();
+  if (page === "settings") loadModelKey();
 }
 
 function route() {
@@ -2940,6 +2941,113 @@ $("#export-history").addEventListener("click", () => {
   $("#export-status").textContent = "Export downloaded.";
 });
 window.addEventListener("hashchange", route);
+
+// Settings › Model: the user's own API key for each of OpenRouter, OpenAI and Anthropic, and which one runs use.
+const modelProviders = {
+  openrouter: { name: "OpenRouter", key: "sk-or-…" },
+  openai: { name: "OpenAI", key: "sk-…" },
+  anthropic: { name: "Anthropic", key: "sk-ant-…", model: "claude-opus-5-5" },
+};
+let modelKeys = null;
+
+const defaultModel = (provider) => provider === "openrouter" ? modelKeys?.serverModel || "" : modelProviders[provider].model || "";
+const providerForm = (provider) => $(`.model-provider[data-provider="${provider}"] form`);
+
+function renderModelKeys() {
+  const { available, active, keys, serverModel } = modelKeys;
+  const used = active && keys[active];
+  $("#model-current").textContent = used
+    ? `Your runs use your ${modelProviders[active].name} key ending ${used.hint}, with ${used.model}.`
+    : `Your runs use Pekka's default model${serverModel ? `, ${serverModel},` : ""} on the server's OpenRouter key. Add your own key to choose the provider and model and pay for usage yourself.`;
+  $("#model-setup").hidden = available;
+  for (const radio of $("#model-use").querySelectorAll("input")) {
+    radio.checked = radio.value === (active || "");
+    radio.disabled = !available || (radio.value !== "" && !keys[radio.value]);
+  }
+  for (const [provider, { name, key }] of Object.entries(modelProviders)) {
+    const saved = keys[provider];
+    const form = providerForm(provider);
+    form.closest("details").querySelector(".model-provider-state").textContent =
+      saved ? `${provider === active ? "In use · " : ""}key ending ${saved.hint}` : "No key saved";
+    form.elements.model.value = saved?.model || defaultModel(provider);
+    form.elements.model.placeholder = defaultModel(provider) || "Model ID";
+    form.elements.apiKey.value = "";
+    form.elements.apiKey.placeholder = saved ? `Saved key ending ${saved.hint}. Leave blank to keep it.` : `Your ${name} key, ${key}`;
+    for (const field of form.querySelectorAll("input, button.primary")) field.disabled = !available;
+    form.querySelector("[data-remove]").hidden = !saved;
+  }
+}
+
+async function loadModelKey() {
+  const section = $("#model-keys");
+  section.setAttribute("aria-busy", "true");
+  try {
+    modelKeys = await api("/api/model-keys");
+    renderModelKeys();
+  } catch (error) {
+    $("#model-current").textContent = error.message;
+  } finally {
+    section.setAttribute("aria-busy", "false");
+  }
+}
+
+$("#model-use").addEventListener("change", async (event) => {
+  const provider = event.target.value || null;
+  const status = $("#model-use-status");
+  try {
+    modelKeys = await api("/api/model-keys/active", { method: "PUT", body: JSON.stringify({ provider }) });
+    status.textContent = provider ? `Your runs now use ${modelProviders[provider].name}.` : "Your runs now use Pekka's default model.";
+  } catch (error) {
+    status.textContent = error.message;
+  }
+  renderModelKeys();
+});
+
+for (const provider of Object.keys(modelProviders)) {
+  const form = providerForm(provider);
+  const { name } = modelProviders[provider];
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const status = form.querySelector(".form-status");
+    const button = form.querySelector("button.primary");
+    const model = form.elements.model.value.trim();
+    const apiKey = form.elements.apiKey.value.trim();
+    if (!model) {
+      status.textContent = "Enter a model ID.";
+      form.elements.model.focus();
+      return;
+    }
+    if (!apiKey && !modelKeys?.keys[provider]) {
+      status.textContent = `Enter your ${name} API key.`;
+      form.elements.apiKey.focus();
+      return;
+    }
+    status.textContent = `Checking with ${name}…`;
+    button.disabled = true;
+    form.setAttribute("aria-busy", "true");
+    try {
+      modelKeys = await api(`/api/model-keys/${provider}`, { method: "PUT", body: JSON.stringify({ model, ...(apiKey ? { apiKey } : {}) }) });
+      renderModelKeys();
+      status.textContent = `Saved. Your runs now use ${name}.`;
+    } catch (error) {
+      status.textContent = error.message;
+    } finally {
+      button.disabled = !modelKeys?.available;
+      form.setAttribute("aria-busy", "false");
+    }
+  });
+  form.querySelector("[data-remove]").addEventListener("click", async () => {
+    const status = form.querySelector(".form-status");
+    const wasActive = modelKeys?.active === provider;
+    try {
+      modelKeys = await api(`/api/model-keys/${provider}`, { method: "DELETE" });
+      renderModelKeys();
+      status.textContent = wasActive ? "Key removed. Your runs use Pekka's default model." : "Key removed.";
+    } catch (error) {
+      status.textContent = error.message;
+    }
+  });
+}
 
 const scheduleTemplates = [
   {

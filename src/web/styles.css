@@ -2427,6 +2427,23 @@ a.output-card:hover .output-open {
   line-height: 1.65;
   color: var(--ink-2);
 }
+/* Settings › Model: one collapsible card per provider's key. */
+#model-setup { margin-bottom: 8px; }
+.segmented input:disabled { cursor: not-allowed; }
+.segmented input:disabled + span { opacity: 0.45; }
+#model-keys .model-provider:first-of-type { margin-top: 0; border-top: 0; }
+.model-provider summary small {
+  margin-left: auto;
+  font: 12px var(--mono);
+  color: var(--ink-3);
+}
+.model-provider form { padding: 4px 0 20px; }
+.model-provider label + label, .model-provider .field-hint + label { margin-top: 16px; }
+.model-provider .form-actions { flex-wrap: wrap; margin-top: 18px; }
+#model-keys > .field-hint { margin-top: 14px; }
+@media (max-width: 600px) {
+  .model-use-row { flex-wrap: wrap; gap: 10px; }
+}
 .shortcut {
   display: flex;
   justify-content: space-between;

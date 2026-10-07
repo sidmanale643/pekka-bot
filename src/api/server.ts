@@ -11,7 +11,7 @@ import { loadConfig } from "../config.ts";
 import { DatabaseConfigError } from "../database/d1.ts";
 import { getDatabase, type Database } from "../database/database.ts";
 import { createGreeting, type Greeting } from "../greeting.ts";
-import { createOpenRouterModel } from "../model/openrouter.ts";
+import { modelFor, ModelKeyService } from "../model-keys.ts";
 import { deleteBotSandbox, executeTask, type Reserve, type RunOwner } from "../runtime.ts";
 import {
   cancelScheduledJob, createScheduledJob, getScheduledJob, getSchedulerStatus, JobStateError, listScheduledJobs, pauseScheduledJob, resumeScheduledJob,
@@ -21,6 +21,7 @@ import { loadAuthConfig, type AuthConfig } from "../auth.ts";
 import { createAccess, type Access, type Route } from "./auth.ts";
 import { body, fail, HttpError, json } from "./http.ts";
 import { serveAsset } from "./static.ts";
+import { modelKeyRoutes } from "./model-key.ts";
 import { pluginRoutes } from "./plugins.ts";
 import { getCalendarService, type CalendarService } from "../plugins/calendar.ts";
 import { getContactsService, type ContactsService } from "../plugins/contacts.ts";
@@ -57,7 +58,7 @@ const jobInput = z.object({
 }).strict();
 
 type Execute = (task: string, owner: RunOwner, onEvent?: EventHandler) => Promise<AgentResult>;
-type Greet = (bot: Bot) => Promise<Greeting>;
+type Greet = (bot: Bot, userId: string) => Promise<Greeting>;
 type DeleteSandbox = (userId: string, bot: Bot) => Promise<void>;
 type Handler = Route[2];
 
@@ -76,6 +77,7 @@ interface ServerOptions {
   linear?: LinearService;
   granola?: GranolaService;
   todoist?: TodoistService;
+  modelKeys?: ModelKeyService;
   /** Sign-in settings. Defaults to the environment; null turns sign-in off. */
   auth?: AuthConfig | null;
   publicOrigin?: string;
@@ -87,10 +89,11 @@ export function createApiServer(options: ServerOptions = {}) {
   const execute = options.execute ?? executeTask;
   const database = () => options.database ?? getDatabase();
   const access = createAccess(options.auth === undefined ? loadAuthConfig() : options.auth ?? undefined, database, { fetch: options.fetch, publicOrigin: options.publicOrigin });
-  const greet: Greet = options.greet ?? ((bot) => {
+  const modelKeys = options.modelKeys ?? new ModelKeyService({ database });
+  const greet: Greet = options.greet ?? (async (bot, userId) => {
     let config;
     try { config = loadConfig(); } catch { throw new HttpError(503, "Greetings require valid provider configuration."); }
-    return createGreeting(bot, createOpenRouterModel({ apiKey: config.openRouterApiKey, model: config.model }), database());
+    return createGreeting(bot, (await modelFor(userId, config, modelKeys)).model, database());
   });
   const deleteSandbox: DeleteSandbox = options.deleteSandbox ?? ((userId, bot) => {
     try { loadConfig(); } catch { throw new HttpError(503, "Deleting a bot's sandbox requires valid provider configuration."); }
@@ -295,6 +298,7 @@ export function createApiServer(options: ServerOptions = {}) {
       telegram: options.telegram ?? getTelegramService(), github: options.github ?? getGitHubService(), linear: options.linear ?? getLinearService(),
       granola: options.granola ?? createGranolaService({ database }), todoist: options.todoist ?? createTodoistService({ database }),
     }, access.origin),
+    ...modelKeyRoutes(modelKeys, () => { try { return loadConfig().model; } catch { return undefined; } }),
     ["GET", /^\/api\/characters$/, async (_request, response) => { json(response, 200, { characters: characters.map(({ style, ...item }) => item) }); }],
     ["GET", /^\/api\/bots\/([^/]+)\/character$/, character],
     ["PUT", /^\/api\/bots\/([^/]+)\/character$/, character],
@@ -308,7 +312,7 @@ export function createApiServer(options: ServerOptions = {}) {
     ["PUT", /^\/api\/bots\/([^/]+)$/, editBot],
     ["DELETE", /^\/api\/bots\/([^/]+)$/, removeBot],
     ["POST", /^\/api\/runs$/, run],
-    ["GET", /^\/api\/bots\/([^/]+)\/greeting$/, async (_request, response, [name], userId) => { json(response, 200, await greet(await findBot(userId, name!))); }],
+    ["GET", /^\/api\/bots\/([^/]+)\/greeting$/, async (_request, response, [name], userId) => { json(response, 200, await greet(await findBot(userId, name!), userId)); }],
     ["GET", /^\/api\/bots\/([^/]+)\/messages$/, chat],
     ["DELETE", /^\/api\/bots\/([^/]+)\/messages$/, chat],
     ["GET", /^\/api\/bots\/([^/]+)\/memory\/([^/]+)$/, memory],

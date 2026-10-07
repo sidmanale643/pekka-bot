@@ -227,6 +227,46 @@
               <label class="preference-row"><span><strong>Reduce motion</strong><small>No smooth scrolling, transitions or activity animation.</small></span><input type="checkbox" name="reduceMotion" role="switch" /></label>
               <div class="form-actions"><span class="form-status" role="status"></span><button class="button primary">Save preferences</button></div>
             </form>
+            <section id="model-keys" class="panel-section" aria-busy="true" aria-labelledby="model-title">
+              <h2 id="model-title">Model</h2>
+              <p id="model-current" class="muted">Loading…</p>
+              <div id="model-setup" class="plugin-setup" hidden><strong>Server setup required</strong><p>Configure a 64-character hex <code>PEKKA_PLUGIN_KEY</code> on the Pekka server to use your own API key, then refresh.</p></div>
+              <div class="preference-row model-use-row" role="radiogroup" aria-labelledby="model-use-label">
+                <span><strong id="model-use-label">Runs use</strong><small>Save a provider's key below to pick it.</small></span>
+                <span class="segmented" id="model-use"
+                  ><label><input type="radio" name="model-use" value="" /><span>Pekka</span></label
+                  ><label><input type="radio" name="model-use" value="openrouter" disabled /><span>OpenRouter</span></label
+                  ><label><input type="radio" name="model-use" value="openai" disabled /><span>OpenAI</span></label
+                  ><label><input type="radio" name="model-use" value="anthropic" disabled /><span>Anthropic</span></label
+                ></span>
+              </div>
+              <p id="model-use-status" class="form-status" role="status"></p>
+              <details class="model-provider" data-provider="openrouter"><summary><span>OpenRouter</span><small class="model-provider-state">No key saved</small></summary>
+                <form novalidate>
+                  <label>Model<input name="model" maxlength="200" autocomplete="off" spellcheck="false" aria-describedby="model-hint-openrouter" required /></label>
+                  <p id="model-hint-openrouter" class="field-hint">Any model ID from openrouter.ai/models, such as anthropic/claude-opus-5.5.</p>
+                  <label>API key<input name="apiKey" type="password" maxlength="500" autocomplete="off" spellcheck="false" /></label>
+                  <div class="form-actions"><span class="form-status" role="status"></span><div class="profile-buttons"><button type="button" class="button secondary" data-remove hidden>Remove key</button><button class="button primary" disabled>Save and use</button></div></div>
+                </form>
+              </details>
+              <details class="model-provider" data-provider="openai"><summary><span>OpenAI</span><small class="model-provider-state">No key saved</small></summary>
+                <form novalidate>
+                  <label>Model<input name="model" maxlength="200" autocomplete="off" spellcheck="false" aria-describedby="model-hint-openai" required /></label>
+                  <p id="model-hint-openai" class="field-hint">A model ID from your OpenAI account, called directly on api.openai.com.</p>
+                  <label>API key<input name="apiKey" type="password" maxlength="500" autocomplete="off" spellcheck="false" /></label>
+                  <div class="form-actions"><span class="form-status" role="status"></span><div class="profile-buttons"><button type="button" class="button secondary" data-remove hidden>Remove key</button><button class="button primary" disabled>Save and use</button></div></div>
+                </form>
+              </details>
+              <details class="model-provider" data-provider="anthropic"><summary><span>Anthropic</span><small class="model-provider-state">No key saved</small></summary>
+                <form novalidate>
+                  <label>Model<input name="model" maxlength="200" autocomplete="off" spellcheck="false" aria-describedby="model-hint-anthropic" required /></label>
+                  <p id="model-hint-anthropic" class="field-hint">A Claude model ID, such as claude-opus-5-5 or claude-sonnet-5-5, called directly on api.anthropic.com.</p>
+                  <label>API key<input name="apiKey" type="password" maxlength="500" autocomplete="off" spellcheck="false" /></label>
+                  <div class="form-actions"><span class="form-status" role="status"></span><div class="profile-buttons"><button type="button" class="button secondary" data-remove hidden>Remove key</button><button class="button primary" disabled>Save and use</button></div></div>
+                </form>
+              </details>
+              <p class="field-hint">Keys are checked with the provider, then stored encrypted on the Pekka server. Every run uses the picked one, including scheduled tasks, and the provider bills you directly.</p>
+            </section>
             <div class="panel-section">
               <h2>Data</h2>
               <p class="muted">Conversation history and bot memory are saved on the Pekka server with your account, so they follow you to any browser. Files live in each bot's sandbox.</p>

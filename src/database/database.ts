@@ -40,6 +40,21 @@ const SCHEMA = [
     enabled INTEGER NOT NULL DEFAULT 0,
     PRIMARY KEY (user_id, plugin)
   )`,
+  // API keys a user brought for model providers, one row per provider. The row with active = 1
+  // is the one their runs use instead of the server's; with none active they use the server's.
+  // credentials is the key sealed with PEKKA_PLUGIN_KEY; hint is its last four characters, for display.
+  // context_window is 0 when the provider doesn't say.
+  `CREATE TABLE IF NOT EXISTS provider_keys (
+    user_id TEXT NOT NULL,
+    provider TEXT NOT NULL,
+    model TEXT NOT NULL,
+    credentials TEXT NOT NULL,
+    hint TEXT NOT NULL,
+    context_window INTEGER NOT NULL DEFAULT 0,
+    active INTEGER NOT NULL DEFAULT 0,
+    updated_at TEXT NOT NULL,
+    PRIMARY KEY (user_id, provider)
+  )`,
   `CREATE TABLE IF NOT EXISTS bot_email (
     bot_id TEXT PRIMARY KEY,
     inbox_id TEXT NOT NULL UNIQUE,
