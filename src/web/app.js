@@ -3592,7 +3592,7 @@ async function start() {
     return;
   }
   account = session.user;
-  if (session.shared) $("#host").textContent = `${location.host} · Public shared workspace`;
+  if (session.shared) $("#profile-workspace").textContent = "Public shared workspace";
   $("#app").hidden = false;
   loadBrowserState();
   renderAccount();
@@ -3603,7 +3603,6 @@ async function start() {
   loadJobs();
 }
 
-$("#host").textContent = location.host;
 theme = savedTheme();
 applyTheme();
 start();
