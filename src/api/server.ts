@@ -28,6 +28,9 @@ import { getGmailService, type GmailService } from "../plugins/gmail.ts";
 import { GoogleError } from "../plugins/google.ts";
 import { getGitHubService, GitHubError, type GitHubService } from "../plugins/github.ts";
 import { getLinearService, LinearError, type LinearService } from "../plugins/linear.ts";
+import { ApiKeyPluginError } from "../plugins/api-key.ts";
+import { createGranolaService, type GranolaService } from "../plugins/granola.ts";
+import { createTodoistService, type TodoistService } from "../plugins/todoist.ts";
 import { getNotionService, NotionError, type NotionService } from "../plugins/notion.ts";
 import { getTelegramService, TelegramError, type TelegramService } from "../plugins/telegram.ts";
 import { randomUUID } from "node:crypto";
@@ -66,6 +69,8 @@ interface ServerOptions {
   contacts?: ContactsService;
   github?: GitHubService;
   linear?: LinearService;
+  granola?: GranolaService;
+  todoist?: TodoistService;
   /** Sign-in settings. Defaults to the environment; null turns sign-in off. */
   auth?: AuthConfig | null;
   publicOrigin?: string;
@@ -276,6 +281,7 @@ export function createApiServer(options: ServerOptions = {}) {
       notion: options.notion ?? getNotionService(), gmail: options.gmail ?? getGmailService(), calendar: options.calendar ?? getCalendarService(),
       drive: options.drive ?? getDriveService(), contacts: options.contacts ?? getContactsService(),
       telegram: options.telegram ?? getTelegramService(), github: options.github ?? getGitHubService(), linear: options.linear ?? getLinearService(),
+      granola: options.granola ?? createGranolaService({ database }), todoist: options.todoist ?? createTodoistService({ database }),
     }, access.origin),
     ["GET", /^\/api\/characters$/, async (_request, response) => { json(response, 200, { characters: characters.map(({ style, ...item }) => item) }); }],
     ["GET", /^\/api\/bots\/([^/]+)\/character$/, character],
@@ -313,7 +319,7 @@ export function createApiServer(options: ServerOptions = {}) {
     response.setHeader("X-Content-Type-Options", "nosniff");
     response.setHeader("X-Frame-Options", "DENY");
     dispatch(request, response, routes, access).catch((error: unknown) => {
-      if (error instanceof NotionError || error instanceof GoogleError || error instanceof TelegramError || error instanceof GitHubError || error instanceof LinearError) { fail(response, new HttpError(400, error.message)); return; }
+      if (error instanceof NotionError || error instanceof GoogleError || error instanceof TelegramError || error instanceof GitHubError || error instanceof LinearError || error instanceof ApiKeyPluginError) { fail(response, new HttpError(400, error.message)); return; }
       fail(response, error instanceof DatabaseConfigError ? new HttpError(503, "Storage requires Cloudflare D1 configuration.") : error);
     });
   });

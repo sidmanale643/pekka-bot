@@ -3259,6 +3259,8 @@ dialog::backdrop {
 .plugin-detail-body .preference-row { gap: 16px; }
 .plugin-detail-body .plugin-setup { border-radius: 8px; background: var(--sheet); }
 .plugin-detail-body .plugin-actions { margin-top: 18px; }
+.plugin-key-form { margin-top: 18px; }
+.plugin-key-form .field-hint { margin-top: 8px; }
 .plugin-catalog-note { margin-top: 64px; padding-top: 20px; border-top: 1px solid var(--rule); color: var(--ink-3); font-size: 12px; }
 .plugin-empty { padding: 64px 16px; text-align: center; }
 .plugin-empty h2 { font-size: 18px; font-weight: 500; }

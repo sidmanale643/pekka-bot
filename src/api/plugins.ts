@@ -6,6 +6,7 @@ import type { ContactsService } from "../plugins/contacts.ts";
 import type { DriveService } from "../plugins/drive.ts";
 import type { GmailService } from "../plugins/gmail.ts";
 import type { GitHubService } from "../plugins/github.ts";
+import type { ApiKeyPlugin } from "../plugins/api-key.ts";
 import type { LinearService } from "../plugins/linear.ts";
 import type { NotionService } from "../plugins/notion.ts";
 import type { TelegramService } from "../plugins/telegram.ts";
@@ -18,6 +19,27 @@ interface OAuthPlugin {
   exchange(userId: string, code: string, state?: string): Promise<void>;
   setEnabled(userId: string, enabled: boolean): Promise<void>;
   disconnect(userId: string): Promise<void>;
+}
+
+/** Save-key, enable and disconnect routes for a plugin the user connects with their own API key. */
+function apiKeyRoutes(plugin: ApiKeyPlugin): Route[] {
+  const path = new RegExp(`^/api/plugins/${plugin.id}$`);
+  return [
+    ["POST", new RegExp(`^/api/plugins/${plugin.id}/connect$`), async (request, response, _params, userId) => {
+      const { apiKey } = await body(request, z.object({ apiKey: z.string().trim().min(8, "That API key looks too short.").max(1000) }).strict());
+      await plugin.connect(userId, apiKey);
+      json(response, 200, await plugin.status(userId));
+    }],
+    ["PUT", path, async (request, response, _params, userId) => {
+      const { enabled } = await body(request, z.object({ enabled: z.boolean() }).strict());
+      await plugin.setEnabled(userId, enabled);
+      json(response, 200, await plugin.status(userId));
+    }],
+    ["DELETE", path, async (_request, response, _params, userId) => {
+      await plugin.disconnect(userId);
+      json(response, 200, await plugin.status(userId));
+    }],
+  ];
 }
 
 /**
@@ -112,18 +134,21 @@ export interface PluginServices {
   telegram: TelegramService;
   github: GitHubService;
   linear: LinearService;
+  granola: ApiKeyPlugin;
+  todoist: ApiKeyPlugin;
 }
 
-export function pluginRoutes({ notion, gmail, calendar, drive, contacts, telegram, github, linear }: PluginServices, origin: (request: IncomingMessage) => string): Route[] {
+export function pluginRoutes({ notion, gmail, calendar, drive, contacts, telegram, github, linear, granola, todoist }: PluginServices, origin: (request: IncomingMessage) => string): Route[] {
   const oauth: [string, string, OAuthPlugin][] = [
     ["notion", "Notion", notion], ["gmail", "Gmail", gmail], ["calendar", "Google Calendar", calendar],
     ["drive", "Google Drive", drive], ["contacts", "Google Contacts", contacts], ["github", "GitHub", github], ["linear", "Linear", linear],
   ];
   return [
     ["GET", /^\/api\/plugins$/, async (_request, response, _params, userId) => {
-      json(response, 200, { plugins: await Promise.all([notion, gmail, calendar, drive, contacts, telegram, github, linear].map((plugin) => plugin.status(userId))) });
+      json(response, 200, { plugins: await Promise.all([notion, gmail, calendar, drive, contacts, telegram, github, linear, granola, todoist].map((plugin) => plugin.status(userId))) });
     }],
     ...oauth.flatMap(([id, name, plugin]) => oauthRoutes(id, name, plugin, origin)),
+    ...[granola, todoist].flatMap(apiKeyRoutes),
     ["POST", /^\/api\/plugins\/telegram\/connect$/, async (request, response, _params, userId) => {
       await body(request, z.object({}).strict());
       json(response, 200, await telegram.startLink(userId));

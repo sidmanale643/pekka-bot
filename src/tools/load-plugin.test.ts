@@ -49,7 +49,7 @@ it("leaves out load_plugin when no plugin is set up", () => {
 it("keeps a plugin that isn't enabled out of everything the agent sees", async () => {
   const mentions: Record<string, RegExp> = {
     agentmail: /agentmail|get_email_address|send_email|own mailbox/i, gmail: /gmail/i, calendar: /calendar|tasks_|google tasks|reminder/i,
-    drive: /\bdrive\b|docs_|sheets_|google docs|spreadsheet/i, contacts: /contacts/i, notion: /notion/i, github: /github|pull request/i, linear: /linear/i, telegram: /telegram/i,
+    drive: /\bdrive\b|docs_|sheets_|google docs|spreadsheet/i, contacts: /contacts/i, notion: /notion/i, github: /github|pull request/i, linear: /linear/i, granola: /granola|transcript/i, todoist: /todoist/i, telegram: /telegram/i,
   };
   expect(Object.keys(mentions).sort()).toEqual(PLUGINS.map(({ id }) => id).sort());
   const chief = { id: "b", name: "Scout", role: "Helps with research", job: "", primary: true } as never;

@@ -49,7 +49,7 @@ Pekka is a self-hosted Node.js app. Models run through [OpenRouter](https://open
 - **Memory you can read.** Each bot has two Markdown files, `PREFERENCES.md` and `KNOWLEDGE.md`. The bot fills them in as you chat, and you can edit them at any time.
 - **Skills.** Reusable instructions in `SKILL.md` folders. Bots see a short catalog and load the full instructions only when a task needs them, and they can write new skills for themselves.
 - **Schedules.** Say "every Monday at 9" and the bot schedules itself. You can pause, resume, or cancel jobs from the **Scheduled** page.
-- **Plugins.** Gmail, Google Calendar, Drive, Contacts, Notion, GitHub, Linear, and Telegram. Tokens are encrypted in your database and never shown to the model or the sandbox.
+- **Plugins.** Gmail, Google Calendar, Drive, Contacts, Notion, GitHub, Linear, Granola, Todoist, and Telegram. Tokens are encrypted in your database and never shown to the model or the sandbox.
 - **Documents.** PDFs, scans, and images from Drive and Gmail are converted to Markdown on your server, using [LiteParse](https://github.com/run-llama/liteparse) with local OCR.
 - **Computer view.** Watch a bot's commands, their output and exit codes, and every file it reads or edits, live beside the chat.
 - **Long tasks.** When a prompt fills half of the model's context window, older steps are summarized. Your request and the latest step are kept word for word.
@@ -79,7 +79,7 @@ flowchart LR
   L --> P
   L <--> OR[OpenRouter<br/>any tool-calling model]
   P --> DT[Daytona<br/>one sandbox per bot]
-  P --> PL[Plugins<br/>Google, GitHub, Linear, Notion, Telegram]
+  P --> PL[Plugins<br/>Google, GitHub, Linear, Notion,<br/>Granola, Todoist, Telegram]
   Pekka <--> DB[(Cloudflare D1<br/>bots, chats, memory, skills, jobs)]
 ```
 
@@ -207,9 +207,11 @@ Connect a plugin on the **Plugins** page, then enable access. Reading is always 
 | Notion | Search, read, and add to pages you share with Pekka | Notion public OAuth connection |
 | GitHub | Read repos, issues, and PRs, and open issues, comments, and draft PRs | GitHub OAuth app, plus `gh` on the server |
 | Linear | Find, read, create, and update issues, and post comments | Linear OAuth application |
+| Granola | Read meeting notes, summaries, and transcripts | Personal API key, pasted on the Plugins page |
+| Todoist | Read projects and tasks, and add, update, complete, and comment on tasks | Personal API token, pasted on the Plugins page |
 | Telegram | Message your own linked chat | Bot token from [@BotFather](https://t.me/BotFather) |
 
-OAuth plugins need `PEKKA_PLUGIN_KEY`, which encrypts saved tokens. Generate it once with `openssl rand -hex 32` and keep it stable. The client IDs and exact callback URLs for each plugin are listed in [`.env.example`](.env.example).
+OAuth and API-key plugins need `PEKKA_PLUGIN_KEY`, which encrypts saved tokens. Generate it once with `openssl rand -hex 32` and keep it stable. The client IDs and exact callback URLs for each plugin are listed in [`.env.example`](.env.example).
 
 Bots also get these optional built-in tools when their keys are set:
 

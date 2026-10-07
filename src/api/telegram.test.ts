@@ -69,7 +69,7 @@ it("links only the private chat that sends the current code, with access off unt
   await post("/api/plugins/telegram/check");
   expect(calls.filter((call) => call.method === "getUpdates").at(-1)!.data.offset).toBe(4);
   const plugins = await (await fetch(`${base}/api/plugins`)).json() as { plugins: { id: string }[] };
-  expect(plugins.plugins.map((plugin) => plugin.id)).toEqual(["notion", "gmail", "calendar", "drive", "contacts", "telegram", "github", "linear"]);
+  expect(plugins.plugins.map((plugin) => plugin.id)).toEqual(["notion", "gmail", "calendar", "drive", "contacts", "telegram", "github", "linear", "granola", "todoist"]);
   expect(JSON.stringify(plugins)).not.toContain(token);
 });
 

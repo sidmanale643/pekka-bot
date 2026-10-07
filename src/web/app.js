@@ -48,6 +48,9 @@ const googlePlugins = {
   contacts: { name: "Google Contacts", grant: "contacts access", enabled: "Google Contacts access enabled. Bots can now look up your contacts." },
 };
 let googleStatus = {};
+// Plugins connected by pasting the user's own API key share one card layout.
+const apiKeyPlugins = { granola: { name: "Granola", key: "API key" }, todoist: { name: "Todoist", key: "API token" } };
+let apiKeyStatus = {};
 let telegramPlugin;
 let telegramLink;
 let telegramPoll;
@@ -743,6 +746,17 @@ const toolAliases = {
   linear_create_issue: ["Creating a Linear issue", "Created a Linear issue"],
   linear_update_issue: ["Updating a Linear issue", "Updated a Linear issue"],
   linear_add_comment: ["Commenting in Linear", "Commented in Linear"],
+  granola_list_notes: ["Checking Granola notes", "Checked Granola notes"],
+  granola_get_note: ["Reading a meeting note", "Read a meeting note"],
+  granola_get_transcript: ["Reading a transcript", "Read a transcript"],
+  todoist_list_projects: ["Checking Todoist projects", "Checked Todoist projects"],
+  todoist_list_tasks: ["Checking Todoist tasks", "Checked Todoist tasks"],
+  todoist_get_task: ["Reading a Todoist task", "Read a Todoist task"],
+  todoist_create_task: ["Adding a Todoist task", "Added a Todoist task"],
+  todoist_update_task: ["Updating a Todoist task", "Updated a Todoist task"],
+  todoist_complete_task: ["Completing a Todoist task", "Completed a Todoist task"],
+  todoist_reopen_task: ["Reopening a Todoist task", "Reopened a Todoist task"],
+  todoist_add_comment: ["Commenting in Todoist", "Commented in Todoist"],
   telegram_send_message: ["Sending a Telegram message", "Sent a Telegram message"],
 };
 
@@ -2514,6 +2528,7 @@ function renderPlugins() {
   renderTelegram();
   renderGithub();
   renderLinear();
+  for (const id of Object.keys(apiKeyPlugins)) renderApiKeyPlugin(id);
   renderPluginCatalog();
 }
 
@@ -2523,7 +2538,7 @@ function renderPluginCatalog() {
   const query = $("#plugin-search").value.trim().toLowerCase();
   const installed = $("#plugin-installed");
   installed.replaceChildren();
-  const connections = { notion: notionPlugin, ...googleStatus, telegram: telegramPlugin, github: githubPlugin, linear: linearPlugin };
+  const connections = { notion: notionPlugin, ...googleStatus, telegram: telegramPlugin, github: githubPlugin, linear: linearPlugin, ...apiKeyStatus };
   $("#plugin-count").textContent = document.querySelectorAll("[data-plugin]").length;
   let connectedCount = 0;
   let visibleCount = 0;
@@ -2660,12 +2675,14 @@ async function loadPlugins() {
     }
     githubPlugin = data.plugins.find((plugin) => plugin.id === "github");
     linearPlugin = data.plugins.find((plugin) => plugin.id === "linear");
+    apiKeyStatus = Object.fromEntries(Object.keys(apiKeyPlugins).map((id) => [id, data.plugins.find((plugin) => plugin.id === id)]));
   } catch (error) {
     notionPlugin = undefined;
     googleStatus = {};
     telegramPlugin = undefined;
     githubPlugin = undefined;
     linearPlugin = undefined;
+    apiKeyStatus = {};
     $("#plugin-status").textContent = `Could not load plugins: ${error.message}`;
   } finally {
     pluginsBusy = false;
@@ -2772,6 +2789,66 @@ async function changeLinear(action) {
 $("#linear-connect").addEventListener("click", () => changeLinear("connect"));
 $("#linear-disconnect").addEventListener("click", () => changeLinear("disconnect"));
 $("#linear-enabled").addEventListener("change", () => changeLinear("permission"));
+
+function renderApiKeyPlugin(id) {
+  const plugin = apiKeyStatus[id];
+  const { name, key } = apiKeyPlugins[id];
+  const connected = Boolean(plugin?.connected);
+  const configured = Boolean(plugin?.configured);
+  $(`#${id}-card`).setAttribute("aria-busy", String(pluginsBusy));
+  $(`#${id}-state`).textContent = !plugin ? (pluginsBusy ? "Loading…" : "Unavailable") : connected ? (plugin.enabled ? "Access enabled" : "Access off") : configured ? "Not connected" : "Setup required";
+  $(`#${id}-state`).classList.toggle("enabled", connected && plugin.enabled);
+  $(`#${id}-setup`).hidden = !plugin || configured;
+  $(`#${id}-account`).hidden = !connected;
+  $(`#${id}-account`).textContent = connected ? `Connected to ${plugin.workspaceName || `your ${name} account`}` : "";
+  $(`#${id}-key-form`).hidden = !configured;
+  $(`#${id}-key-form input`).placeholder = connected ? `Paste a new ${key} to replace the saved one` : "";
+  $(`#${id}-permission`).hidden = !connected;
+  if (!pluginsBusy) $(`#${id}-enabled`).checked = connected && plugin.enabled;
+  $(`#${id}-enabled`).disabled = pluginsBusy || !connected;
+  $(`#${id}-connect`).textContent = connected ? `Replace ${key}` : `Save ${key}`;
+  $(`#${id}-connect`).disabled = pluginsBusy || !configured;
+  $(`#${id}-disconnect`).hidden = !connected;
+  $(`#${id}-disconnect`).disabled = pluginsBusy;
+  $(`#${id}-use`).hidden = !connected;
+}
+
+async function changeApiKeyPlugin(id, action) {
+  if (pluginsBusy) return;
+  const { name, key } = apiKeyPlugins[id];
+  const input = $(`#${id}-key-form input`);
+  const apiKey = input.value.trim();
+  if (action === "connect" && !apiKey) {
+    $("#plugin-status").textContent = `Paste your ${name} ${key} first.`;
+    input.focus();
+    return;
+  }
+  pluginsBusy = true;
+  const enabled = $(`#${id}-enabled`).checked;
+  renderPlugins();
+  $("#plugin-status").textContent = action === "connect" ? `Checking your ${name} ${key}…` : "Saving…";
+  try {
+    const request = { connect: [`/api/plugins/${id}/connect`, { method: "POST", body: JSON.stringify({ apiKey }) }], disconnect: [`/api/plugins/${id}`, { method: "DELETE" }], permission: [`/api/plugins/${id}`, { method: "PUT", body: JSON.stringify({ enabled }) }] }[action];
+    apiKeyStatus[id] = await api(...request);
+    if (action === "connect") input.value = "";
+    $("#plugin-status").textContent = {
+      connect: `${name} connected. Bots can now use it.`,
+      disconnect: `${name} disconnected. Pekka no longer has your ${key}.`,
+      permission: enabled ? `${name} access enabled for all bots.` : `${name} access turned off.`,
+    }[action];
+  } catch (error) {
+    $("#plugin-status").textContent = `Could not update ${name}: ${error.message}`;
+  } finally {
+    pluginsBusy = false;
+    renderPlugins();
+  }
+}
+
+for (const id of Object.keys(apiKeyPlugins)) {
+  $(`#${id}-key-form`).addEventListener("submit", (event) => { event.preventDefault(); changeApiKeyPlugin(id, "connect"); });
+  $(`#${id}-disconnect`).addEventListener("click", () => changeApiKeyPlugin(id, "disconnect"));
+  $(`#${id}-enabled`).addEventListener("change", () => changeApiKeyPlugin(id, "permission"));
+}
 
 async function changeNotion(action) {
   if (pluginsBusy) return;
