@@ -205,7 +205,7 @@ code { font-family: var(--mono); font-size: 0.88em; }
 .helm-tilt { position: relative; will-change: transform; }
 .helm { width: 100%; height: auto; overflow: visible; animation: bob 6s ease-in-out infinite; }
 /* The dithered knight drawn over the SVG one, which stays in place, hidden, to drive its eyes. */
-.helm-dither { position: absolute; left: 50%; top: 50%; translate: -50% -50%; pointer-events: none; animation: bob 6s ease-in-out infinite; }
+.helm-dither { position: absolute; inset: 0; margin: auto; pointer-events: none; animation: bob 6s ease-in-out infinite; }
 .helm-dither canvas { position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; }
 .stage.dithered .helm { visibility: hidden; }
 @keyframes bob { 0%, 100% { transform: translateY(0) rotate(0); } 30% { transform: translateY(-14px) rotate(-1.2deg); } 70% { transform: translateY(-5px) rotate(0.8deg); } }
