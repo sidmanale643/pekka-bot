@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Pekka — It does the work. You sign off.</title>
-<meta name="description" content="Pekka is an open-source AI agent you can give real work to. A chief of staff hands tasks to your bots, each with its own cloud computer, memory and skills. They read your documents, work across GitHub, Gmail, Google Calendar, Drive, Notion and Telegram, and ask before they change anything.">
+<meta name="description" content="Pekka is an open-source AI agent you can give real work to. A chief of staff hands tasks to your bots, each with its own cloud computer, memory and skills. They read your documents, work across GitHub, Linear, Gmail, Google Calendar, Drive, Notion, Todoist, Granola and Wispr Flow, and ask before they change anything.">
 <meta name="theme-color" content="#080a11">
 <link rel="canonical" href="https://pekkabot.xyz/">
 <meta property="og:type" content="website">
@@ -824,6 +824,10 @@ footer .brand img { width: 30px; height: 30px; border-radius: 8px; }
   <symbol id="i-calendar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/></symbol>
   <symbol id="i-folder" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 3h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/></symbol>
   <symbol id="i-contacts" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M5.5 16a3.5 3.5 0 0 1 7 0M15 9h3M15 13h3"/></symbol>
+  <symbol id="i-issue" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/></symbol>
+  <symbol id="i-todo" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="m9 12 2 2 4-4"/></symbol>
+  <symbol id="i-notes" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"/><path d="M14 2v6h6M16 13H8M16 17H8M10 9H8"/></symbol>
+  <symbol id="i-mic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M19 10v1a7 7 0 0 1-14 0v-1M12 18v4"/></symbol>
   <symbol id="i-user" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></symbol>
   <symbol id="i-cpu" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="5" width="14" height="14" rx="2"/><path d="M9 9h6v6H9zM9 1v4M15 1v4M9 19v4M15 19v4M1 9h4M1 15h4M19 9h4M19 15h4"/></symbol>
 </svg>
@@ -1229,7 +1233,7 @@ footer .brand img { width: 30px; height: 30px; border-radius: 8px; }
           <div class="node"><h3>OpenRouter</h3><p>The model, any one with tool calling</p></div>
           <div class="node"><h3>Daytona</h3><p>One persistent sandbox per bot</p></div>
           <div class="node"><h3>Cloudflare D1</h3><p>Bots, memory, skills and schedules</p></div>
-          <div class="node"><h3>Plugins</h3><p>GitHub, Google, Notion, Telegram, AgentMail</p></div>
+          <div class="node"><h3>Plugins</h3><p>GitHub, Linear, Google, Notion, Todoist, Granola, Wispr Flow and more</p></div>
         </div>
       </div>
       <p class="note reveal"><svg><use href="#i-lock"/></svg>Turn on Google sign-in to share one server with your team. Everyone gets their own bots, memory, schedules and plugin connections, and nobody can see anyone else's.</p>
@@ -1246,7 +1250,7 @@ footer .brand img { width: 30px; height: 30px; border-radius: 8px; }
         <ul class="perks">
           <li><strong>Chief of staff</strong><span>Takes your requests and hands the work to your bots</span></li>
           <li><strong>Your own bots</strong><span>Each with its own cloud computer, memory and skills</span></li>
-          <li><strong>Your tools</strong><span>GitHub, Gmail, Calendar, Drive, Notion and Telegram</span></li>
+          <li><strong>Your tools</strong><span>GitHub, Linear, Google, Notion, Todoist, Granola and Wispr Flow</span></li>
           <li><strong>Approvals</strong><span>Nothing is written or sent without your yes</span></li>
         </ul>
       </div>
@@ -2123,6 +2127,17 @@ const plugins = [
       ["github_add_comment", "Comment on an issue or pull request", 1],
       ["github_create_pull_request", "Open a draft pull request from an existing branch", 1],
     ] },
+  { name: "Linear", icon: "i-issue", blurb: "Issues across your teams", desc: "Find and read issues, file new ones, move them along and comment as you.", access: "Connect with Linear",
+    note: "Can't delete or archive issues.",
+    tools: [
+      ["linear_list_teams", "List your teams, their states and members", 0],
+      ["linear_list_issues", "List recent issues, or just yours", 0],
+      ["linear_search_issues", "Search issue titles and descriptions", 0],
+      ["linear_get_issue", "Read an issue and its latest comments", 0],
+      ["linear_create_issue", "File a new issue in a team", 1],
+      ["linear_update_issue", "Change an issue or move it to Done", 1],
+      ["linear_add_comment", "Comment on an issue", 1],
+    ] },
   { name: "Gmail", icon: "i-inbox", blurb: "Your own inbox", desc: "Search and read your mail and attachments, tidy labels, and draft or send replies.", access: "Connect with Google",
     note: "Can't permanently delete mail. Scheduled runs can't send without you there to approve.",
     tools: [
@@ -2173,6 +2188,26 @@ const plugins = [
       ["notion_list_blocks", "Read a page's content", 0],
       ["notion_create_page", "Create a page under a shared page", 1],
       ["notion_append_text", "Add text to a page", 1],
+    ] },
+  { name: "Todoist", icon: "i-todo", blurb: "Your tasks and projects", desc: "See what's due, add and update tasks, tick them off and leave comments, through Todoist's own MCP server.", access: "Connect with Todoist",
+    note: "Only tools Todoist marks read-only run as reads. Everything else goes through the write tool.",
+    tools: [
+      ["todoist_list_tools", "See what Todoist can do", 0],
+      ["todoist_read_tool", "Look up projects, tasks and comments", 0],
+      ["todoist_write_tool", "Add, update, complete or comment on tasks", 1],
+    ] },
+  { name: "Granola", icon: "i-notes", blurb: "Your meeting notes", desc: "Read your Granola meeting notes, summaries and transcripts.", access: "Paste your Granola API key",
+    note: "Read-only. Granola's API can't change notes.",
+    tools: [
+      ["granola_list_notes", "List meeting notes, newest first", 0],
+      ["granola_get_note", "Read a note's summary and attendees", 0],
+      ["granola_get_transcript", "Read what was said, word for word", 0],
+    ] },
+  { name: "Wispr Flow", icon: "i-mic", blurb: "Notes and meeting context", desc: "Read your Wispr Flow meeting notes, transcripts, scratchpad and calendar context.", access: "Connect with Wispr Flow",
+    note: "Read-only. Notes and transcripts are treated as data, never as instructions.",
+    tools: [
+      ["wispr_list_tools", "See what Wispr Flow can look up", 0],
+      ["wispr_call_tool", "Look up notes, transcripts or calendar context", 0],
     ] },
   { name: "Telegram", icon: "i-send", blurb: "Alerts in your chat", desc: "Get results and alerts from your bots in a private Telegram chat.", access: "Link your chat with a one-time code",
     note: "Only messages your own linked chat, prefixed with the bot's name.",
