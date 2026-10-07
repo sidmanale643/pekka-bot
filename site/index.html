@@ -78,6 +78,8 @@
   /* Film grain: dark specks for paper, light specks for night. */
   --noise-ink: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .5 -.2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   --noise-moon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .42 -.17'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  /* A 4×4 Bayer fade from paper into night, 3px cells, for where the two meet. */
+  --dither-seam: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='48' shape-rendering='crispEdges' fill='%23efeee9'%3E%3Crect x='0' y='0' width='12' height='3'/%3E%3Crect x='0' y='3' width='6' height='3'/%3E%3Crect x='9' y='3' width='3' height='3'/%3E%3Crect x='0' y='6' width='12' height='3'/%3E%3Crect x='3' y='9' width='3' height='3'/%3E%3Crect x='9' y='9' width='3' height='3'/%3E%3Crect x='0' y='12' width='9' height='3'/%3E%3Crect x='3' y='15' width='3' height='3'/%3E%3Crect x='9' y='15' width='3' height='3'/%3E%3Crect x='0' y='18' width='3' height='3'/%3E%3Crect x='6' y='18' width='3' height='3'/%3E%3Crect x='9' y='21' width='3' height='3'/%3E%3Crect x='0' y='24' width='3' height='3'/%3E%3Crect x='6' y='24' width='3' height='3'/%3E%3Crect x='3' y='27' width='3' height='3'/%3E%3Crect x='0' y='30' width='3' height='3'/%3E%3Crect x='6' y='30' width='3' height='3'/%3E%3Crect x='0' y='36' width='3' height='3'/%3E%3C/svg%3E");
   --noise-stamp: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -1.25 1.5'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 
   color-scheme: light;
@@ -199,6 +201,9 @@ code { font-family: var(--mono); font-size: 0.88em; }
 .stage { grid-column: 7 / 13; grid-row: 1; position: relative; z-index: 2; padding-bottom: 22%; }
 .halo { position: absolute; left: 50%; top: 40%; width: 125%; aspect-ratio: 1; translate: -50% -50%; pointer-events: none;
   background: radial-gradient(closest-side, rgba(63, 208, 255, 0.24), rgba(42, 60, 240, 0.13) 46%, transparent 74%); }
+/* Once the script has painted it, the halo is dithered like the knight in front of it. */
+.halo.dithered { background: none; }
+.halo canvas { width: 100%; height: 100%; image-rendering: pixelated; }
 .floor { position: absolute; left: 50%; top: 74%; width: 62%; height: 7%; translate: -50% 0; border-radius: 50%; pointer-events: none;
   background: radial-gradient(closest-side, rgba(63, 208, 255, 0.32), rgba(42, 60, 240, 0.1) 60%, transparent); animation: floor 6s ease-in-out infinite; }
 @keyframes floor { 50% { transform: scaleX(0.84); opacity: 0.7; } }
@@ -652,7 +657,8 @@ h2 .mute { display: block; }
 /* Final call: Pekka and its crew as a dithered lockup in place of the headline, which stays for
    screen readers once the lockup has drawn. Dithered knights are a low-res canvas scaled up
    pixelated, with a blurred additive copy on top for the glow. */
-.final { padding: 130px 0 0; text-align: center; overflow: clip; }
+.final { position: relative; padding: 130px 0 0; text-align: center; overflow: clip; }
+.final::before { content: ""; position: absolute; inset: 0 0 auto; height: 48px; background: var(--dither-seam) 0 0 / 12px 48px repeat-x; pointer-events: none; }
 .mark { position: relative; height: clamp(240px, 36vw, 440px); overflow: hidden; }
 .mark canvas { position: absolute; left: 50%; bottom: 0; translate: -50% 0; image-rendering: pixelated; pointer-events: none; }
 .mark canvas.dither-bloom, .helm-dither canvas.dither-bloom { image-rendering: auto; filter: blur(6px) brightness(1.5) saturate(1.5); opacity: 0.5; mix-blend-mode: plus-lighter; }
@@ -1769,6 +1775,37 @@ new ResizeObserver(() => {
   clearTimeout(heroResize);
   heroResize = setTimeout(buildHero, hero.ready ? 150 : 0);
 }).observe(hero.helm.tilt);
+
+// The glow behind the hero's knight, dithered like the halo behind the final call's chief: cyan at
+// its heart, cobalt further out, and gone before the edges so the square canvas never shows.
+const halo = document.querySelector(".hero .halo");
+function paintHalo() {
+  const cell = halo.clientWidth < 560 ? 2 : 3;
+  const n = Math.round(halo.clientWidth / cell);
+  if (!n) return;
+  const canvas = halo.querySelector("canvas") ?? halo.appendChild(document.createElement("canvas"));
+  Object.assign(canvas, { width: n, height: n });
+  const image = new ImageData(n, n);
+  const [heart, rim] = [hexRgb("#3fd0ff"), hexRgb("#2a3cf0")];
+  for (let y = 0; y < n; y++) {
+    for (let x = 0; x < n; x++) {
+      const reach = Math.hypot(x + 0.5 - n / 2, y + 0.5 - n / 2) / (n / 2) / 0.74;
+      const density = clamp01(1 - reach) ** 1.5;
+      if (density <= 0) continue;
+      const threshold = BAYER[y & 3][x & 3];
+      const alpha = (density > threshold ? 0.3 + 0.7 * density : 0.1 * density) * 0.55;
+      image.data.set([...(reach + (threshold - 0.5) * 0.25 < 0.55 ? heart : rim), alpha * 255], (y * n + x) * 4);
+    }
+  }
+  canvas.getContext("2d").putImageData(image, 0, 0);
+  halo.classList.add("dithered");
+}
+let haloWidth = 0;
+new ResizeObserver(() => {
+  if (halo.clientWidth === haloWidth) return;
+  haloWidth = halo.clientWidth;
+  paintHalo();
+}).observe(halo);
 
 function track(now) {
   const pointing = pointer && now - pointerAt < 5000;
