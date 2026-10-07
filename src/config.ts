@@ -5,7 +5,7 @@ const required = z.string({ error: "is required" }).min(1, "is required");
 const ConfigSchema = z.object({
   OPENROUTER_API_KEY: required,
   DAYTONA_API_KEY: required,
-  PEKKA_MODEL: z.string().default("stealth/space-bunny-alpha"),
+  PEKKA_MODEL: z.string().default("deepseek/deepseek-v4.1-flash"),
   PEKKA_SANDBOX_NAME: z.string().default("pekka-computer"),
   PEKKA_MAX_STEPS: z.coerce.number().int().positive().default(30),
   PEKKA_CONTEXT_WINDOW: z.coerce.number().int().positive().optional(),
