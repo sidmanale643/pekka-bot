@@ -18,6 +18,9 @@ export interface AuthConfig {
   redirectUri: string;
   /** The account that takes over data created before sign-in existed. */
   ownerEmail?: string;
+  /** Whether an account may sign in. A domain entry admits only Google Workspace accounts of that domain. */
+  admits(identity: Identity): boolean;
+  /** Re-checks a saved session's address on each request, so removing someone from the list signs them out. */
   allowed(email: string): boolean;
 }
 
@@ -72,7 +75,14 @@ export function loadAuthConfig(env: NodeJS.ProcessEnv = process.env): AuthConfig
     clientSecret,
     redirectUri: `${url.origin}/api/auth/google/callback`,
     ownerEmail,
-    // An "@example.com" entry admits every verified address at that domain.
+    // Anyone can make a personal Google account for an address at a domain whose mail Google
+    // doesn't host, and it stays verified after they lose the mailbox. So an "@example.com"
+    // entry also needs Google's hosted-domain claim, which only that domain's Workspace sets.
+    admits: ({ email, hostedDomain }) => {
+      const address = email.toLowerCase();
+      const domain = address.slice(address.lastIndexOf("@"));
+      return allowedEmails.has(address) || (allowedEmails.has(domain) && !!hostedDomain && `@${hostedDomain.toLowerCase()}` === domain);
+    },
     allowed: (email) => {
       const address = email.toLowerCase();
       return allowedEmails.has(address) || allowedEmails.has(address.slice(address.lastIndexOf("@")));
@@ -85,6 +95,8 @@ export interface Identity {
   sub: string;
   email: string;
   name: string;
+  /** The Google Workspace domain that manages the account, if any. */
+  hostedDomain?: string;
 }
 
 /** What one sign-in attempt must remember between leaving for Google and coming back. */
@@ -106,6 +118,7 @@ const Claims = z.object({
   email: z.string().optional(),
   email_verified: z.boolean().optional(),
   name: z.string().optional(),
+  hd: z.string().optional(),
 });
 
 const random = () => randomBytes(32).toString("base64url");
@@ -153,6 +166,6 @@ export class GoogleSignIn {
       throw new SignInError("Google returned an ID token for a different sign-in.");
     }
     if (!claims.email || claims.email_verified !== true) throw new SignInError("The Google account has no verified email address.");
-    return { sub: claims.sub, email: claims.email.toLowerCase(), name: claims.name?.trim() || claims.email };
+    return { sub: claims.sub, email: claims.email.toLowerCase(), name: claims.name?.trim() || claims.email, ...(claims.hd ? { hostedDomain: claims.hd } : {}) };
   }
 }

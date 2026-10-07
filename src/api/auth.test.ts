@@ -15,7 +15,7 @@ let base: string;
 let config: AuthConfig;
 let google: ReturnType<typeof vi.fn<typeof fetch>>;
 /** The account Google signs in next. */
-let account: { sub: string; email: string; name?: string; email_verified?: boolean; aud?: string; nonce?: string };
+let account: { sub: string; email: string; name?: string; email_verified?: boolean; hd?: string; aud?: string; nonce?: string };
 let notionEnv: NodeJS.ProcessEnv;
 
 const idToken = (claims: Record<string, unknown>) =>
@@ -30,7 +30,7 @@ beforeEach(async () => {
     // The nonce comes back from the authorization step through the test's `signIn` helper.
     return Response.json({ id_token: idToken({
       iss: "https://accounts.google.com", aud: aud ?? "client", exp: Math.floor(Date.now() / 1000) + 600,
-      email_verified: true, nonce: nonce ?? pendingNonce, verifier: form.get("code_verifier"), ...rest,
+      email_verified: true, hd: "example.com", nonce: nonce ?? pendingNonce, verifier: form.get("code_verifier"), ...rest,
     }) });
   });
   config = loadAuthConfig({
@@ -115,6 +115,9 @@ it("signs in with Google using PKCE, state and nonce, then signs out", async () 
 it("refuses accounts outside the allowlist, unverified emails and tokens for another client or sign-in", async () => {
   for (const [next, reason] of [
     [{ sub: "s1", email: "stranger@elsewhere.example" }, "forbidden"],
+    // A domain entry admits only that domain's Google Workspace accounts, not a personal account made with a company address.
+    [{ sub: "s5", email: "former@example.com", hd: undefined }, "forbidden"],
+    [{ sub: "s6", email: "former@example.com", hd: "elsewhere.example" }, "forbidden"],
     [{ sub: "s2", email: "new@example.com", email_verified: false }, "error"],
     [{ sub: "s3", email: "new@example.com", aud: "another-client" }, "error"],
     [{ sub: "s4", email: "new@example.com", nonce: "replayed" }, "error"],

@@ -79,7 +79,7 @@ function signedInAccess(config: AuthConfig, database: () => Database, google: Go
     if (!code || code.length > 4096) { fail("error"); return; }
     let identity;
     try { identity = await google.finish(code, pending); } catch { fail("error"); return; }
-    if (!config.allowed(identity.email)) { fail("forbidden"); return; }
+    if (!config.admits(identity)) { fail("forbidden"); return; }
     const account = await signIn(identity, config.ownerEmail, database());
     const token = await createSession(account.id, database());
     redirect(response, "/", [cleared, `${sessionCookie}=${token}; ${attributes}; Max-Age=${SESSION_SECONDS}`]);

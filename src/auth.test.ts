@@ -31,6 +31,17 @@ describe("sign-in configuration", () => {
     expect(["bob@example.com", "bob@sub.team.example", "team.example@evil.example"].map(config.allowed)).toEqual([false, false, false]);
   });
 
+  it("signs in a domain entry only for that domain's Google Workspace accounts", () => {
+    const config = loadAuthConfig({ ...google, PEKKA_URL: "https://pekka.example.com", PEKKA_ALLOWED_EMAILS: "alice@example.com, @team.example" })!;
+    const account = (email: string, hostedDomain?: string) => ({ sub: "s", email, name: "N", ...(hostedDomain ? { hostedDomain } : {}) });
+    expect(config.admits(account("bob@team.example", "Team.example"))).toBe(true);
+    // A personal Google account made with a company address has no hosted domain, or another one.
+    expect(config.admits(account("bob@team.example"))).toBe(false);
+    expect(config.admits(account("bob@team.example", "evil.example"))).toBe(false);
+    // Listed addresses don't need one.
+    expect(config.admits(account("alice@example.com"))).toBe(true);
+  });
+
   it("accepts plugin callbacks on localhost or at PEKKA_URL only", () => {
     const path = "/api/plugins/gmail/callback";
     const env = { PEKKA_URL: "https://pekka.example.com" };

@@ -267,7 +267,7 @@ GOOGLE_CLIENT_ID=...
 GOOGLE_CLIENT_SECRET=...
 ```
 
-Register `<PEKKA_URL>/api/auth/google/callback` as a redirect URI on the Google OAuth client. `PEKKA_URL` must use `https://` unless it is a localhost address. `PEKKA_OWNER_EMAIL` keeps the bots and jobs you created before you turned on sign-in. Keep `PEKKA_API_HOST=127.0.0.1` behind a reverse proxy that handles HTTPS.
+Register `<PEKKA_URL>/api/auth/google/callback` as a redirect URI on the Google OAuth client. An `@yourcompany.com` entry admits only Google Workspace accounts of that domain, not personal Google accounts made with a company address. `PEKKA_URL` must use `https://` unless it is a localhost address. `PEKKA_OWNER_EMAIL` keeps the bots and jobs you created before you turned on sign-in. Keep `PEKKA_API_HOST=127.0.0.1` behind a reverse proxy that handles HTTPS.
 
 `PEKKA_PUBLIC_ACCESS=true` turns sign-in off and shares a single workspace with anyone who can open `PEKKA_URL`. Use it only for demos.
 
