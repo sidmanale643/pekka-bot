@@ -29,6 +29,7 @@ import { getDriveService, type DriveService } from "../plugins/drive.ts";
 import { getGmailService, type GmailService } from "../plugins/gmail.ts";
 import { GoogleError } from "../plugins/google.ts";
 import { getGitHubService, GitHubError, type GitHubService } from "../plugins/github.ts";
+import { WisprService, WisprError } from "../plugins/wispr.ts";
 import { getLinearService, LinearError, type LinearService } from "../plugins/linear.ts";
 import { ApiKeyPluginError } from "../plugins/api-key.ts";
 import { createGranolaService, type GranolaService } from "../plugins/granola.ts";
@@ -87,6 +88,7 @@ interface ServerOptions {
   drive?: DriveService;
   contacts?: ContactsService;
   github?: GitHubService;
+  wispr?: WisprService;
   linear?: LinearService;
   granola?: GranolaService;
   todoist?: TodoistService;
@@ -312,7 +314,7 @@ export function createApiServer(options: ServerOptions = {}) {
       ...pluginRoutes({
         notion: options.notion ?? getNotionService(), gmail: options.gmail ?? getGmailService(), calendar: options.calendar ?? getCalendarService(),
         drive: options.drive ?? getDriveService(), contacts: options.contacts ?? getContactsService(),
-        telegram: options.telegram ?? getTelegramService(), github: options.github ?? getGitHubService(), linear: options.linear ?? getLinearService(),
+        telegram: options.telegram ?? getTelegramService(), github: options.github ?? getGitHubService(), linear: options.linear ?? getLinearService(), wispr: options.wispr ?? new WisprService({ database }),
         granola: options.granola ?? createGranolaService({ database }), todoist: options.todoist ?? createTodoistService({ database }),
       }, access.origin),
       ...modelKeyRoutes(modelKeys, () => { try { return loadConfig().model; } catch { return undefined; } }),
@@ -352,7 +354,7 @@ export function createApiServer(options: ServerOptions = {}) {
     response.setHeader("X-Content-Type-Options", "nosniff");
     response.setHeader("X-Frame-Options", "DENY");
     dispatch(request, response, routes, access).catch((error: unknown) => {
-      if (error instanceof NotionError || error instanceof GoogleError || error instanceof TelegramError || error instanceof GitHubError || error instanceof LinearError || error instanceof ApiKeyPluginError) { fail(response, new HttpError(400, error.message)); return; }
+      if (error instanceof NotionError || error instanceof GoogleError || error instanceof TelegramError || error instanceof GitHubError || error instanceof LinearError || error instanceof WisprError || error instanceof ApiKeyPluginError) { fail(response, new HttpError(400, error.message)); return; }
       fail(response, error instanceof DatabaseConfigError ? new HttpError(503, "Storage requires Cloudflare D1 configuration.") : error);
     });
   });

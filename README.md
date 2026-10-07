@@ -224,6 +224,7 @@ Connect a plugin on the **Plugins** page, then enable access. Reading is always 
 | Notion | Search, read, and add to pages you share with Pekka | Notion public OAuth connection |
 | GitHub | Read repos, issues, and PRs, and open issues, comments, and draft PRs | GitHub OAuth app, plus `gh` on the server |
 | Linear | Find, read, create, and update issues, and post comments | Linear OAuth application |
+| [Wispr Flow](https://github.com/Wispr-AI/wispr-flow-plugin) | Read meeting notes, transcripts, scratchpad notes and calendar context | Sign in with Wispr Flow; automatic OAuth client registration |
 | Granola | Read meeting notes, summaries, and transcripts | Personal API key, pasted on the Plugins page |
 | Todoist | Read projects and tasks, and add, update, complete, and comment on tasks | Personal API token, pasted on the Plugins page |
 | Telegram | Message your own linked chat | Bot token from [@BotFather](https://t.me/BotFather) |

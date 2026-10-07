@@ -13,9 +13,11 @@ import type { TelegramService } from "../plugins/telegram.ts";
 import type { Route } from "./auth.ts";
 import { body, HttpError, json, readCookie } from "./http.ts";
 
+import type { WisprService } from "../plugins/wispr.ts";
+
 interface OAuthPlugin {
   status(userId: string): Promise<unknown>;
-  authorize(state: string): string;
+  authorize(state: string): string | Promise<string>;
   exchange(userId: string, code: string, state?: string): Promise<void>;
   setEnabled(userId: string, enabled: boolean): Promise<void>;
   disconnect(userId: string): Promise<void>;
@@ -69,7 +71,7 @@ function oauthRoutes(id: string, name: string, plugin: OAuthPlugin, origin: (req
   const connect: Route[2] = async (request, response, _params, userId) => {
     await body(request, z.object({}).strict());
     const state = randomBytes(32).toString("hex");
-    const url = plugin.authorize(state);
+    const url = await plugin.authorize(state);
     const callback = new URL(new URL(url).searchParams.get("redirect_uri")!);
     if (callback.origin !== origin(request)) {
       throw new HttpError(400, `Open Pekka at ${callback.origin} to connect ${name}.`);
@@ -126,6 +128,7 @@ function oauthRoutes(id: string, name: string, plugin: OAuthPlugin, origin: (req
 }
 
 export interface PluginServices {
+  wispr: WisprService;
   notion: NotionService;
   gmail: GmailService;
   calendar: CalendarService;
@@ -138,14 +141,14 @@ export interface PluginServices {
   todoist: ApiKeyPlugin;
 }
 
-export function pluginRoutes({ notion, gmail, calendar, drive, contacts, telegram, github, linear, granola, todoist }: PluginServices, origin: (request: IncomingMessage) => string): Route[] {
+export function pluginRoutes({ wispr, notion, gmail, calendar, drive, contacts, telegram, github, linear, granola, todoist }: PluginServices, origin: (request: IncomingMessage) => string): Route[] {
   const oauth: [string, string, OAuthPlugin][] = [
-    ["notion", "Notion", notion], ["gmail", "Gmail", gmail], ["calendar", "Google Calendar", calendar],
+    ["wispr", "Wispr Flow", wispr], ["notion", "Notion", notion], ["gmail", "Gmail", gmail], ["calendar", "Google Calendar", calendar],
     ["drive", "Google Drive", drive], ["contacts", "Google Contacts", contacts], ["github", "GitHub", github], ["linear", "Linear", linear],
   ];
   return [
     ["GET", /^\/api\/plugins$/, async (_request, response, _params, userId) => {
-      json(response, 200, { plugins: await Promise.all([notion, gmail, calendar, drive, contacts, telegram, github, linear, granola, todoist].map((plugin) => plugin.status(userId))) });
+      json(response, 200, { plugins: await Promise.all([wispr, notion, gmail, calendar, drive, contacts, telegram, github, linear, granola, todoist].map((plugin) => plugin.status(userId))) });
     }],
     ...oauth.flatMap(([id, name, plugin]) => oauthRoutes(id, name, plugin, origin)),
     ...[granola, todoist].flatMap(apiKeyRoutes),

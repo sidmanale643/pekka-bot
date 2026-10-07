@@ -39,6 +39,7 @@ let loaded = false;
 let notionPlugin;
 let githubPlugin;
 let linearPlugin;
+let wisprPlugin;
 // Google plugins share one sign-in flow and card layout; each keeps its own connection and access switch.
 const googlePlugins = {
   gmail: { name: "Gmail", grant: "Gmail access", enabled: "Gmail access enabled. Bots can now read and send your email." },
@@ -2388,6 +2389,7 @@ function renderPlugins() {
   renderTelegram();
   renderGithub();
   renderLinear();
+  renderWispr();
   for (const id of Object.keys(apiKeyPlugins)) renderApiKeyPlugin(id);
   renderPluginCatalog();
 }
@@ -2398,7 +2400,7 @@ function renderPluginCatalog() {
   const query = $("#plugin-search").value.trim().toLowerCase();
   const installed = $("#plugin-installed");
   installed.replaceChildren();
-  const connections = { notion: notionPlugin, ...googleStatus, telegram: telegramPlugin, github: githubPlugin, linear: linearPlugin, ...apiKeyStatus };
+  const connections = { notion: notionPlugin, ...googleStatus, telegram: telegramPlugin, github: githubPlugin, linear: linearPlugin, wispr: wisprPlugin, ...apiKeyStatus };
   $("#plugin-count").textContent = document.querySelectorAll("[data-plugin]").length;
   let connectedCount = 0;
   let visibleCount = 0;
@@ -2510,6 +2512,7 @@ async function loadPlugins() {
       error: `${name} could not be connected. Make sure you allowed ${grant} on Google's consent screen, or check the server's OAuth setup.`,
     }])),
     github: { connected: "GitHub connected. Choose whether to allow Pekka access below.", denied: "GitHub connection was cancelled. You can try again whenever you're ready.", error: "GitHub could not be connected. Try again or check the server's OAuth setup." },
+    wispr: { connected: "Wispr Flow connected. Choose whether to allow Pekka access below.", denied: "Wispr Flow connection was cancelled.", error: "Wispr Flow could not be connected. Try again or check the server setup." },
     linear: { connected: "Linear connected. Choose whether to allow Pekka access below.", denied: "Linear connection was cancelled. You can try again whenever you're ready.", error: "Linear could not be connected. Try again or check the server's OAuth setup." },
   };
   for (const [id, messages] of Object.entries(outcomes)) {
@@ -2535,6 +2538,7 @@ async function loadPlugins() {
     }
     githubPlugin = data.plugins.find((plugin) => plugin.id === "github");
     linearPlugin = data.plugins.find((plugin) => plugin.id === "linear");
+    wisprPlugin = data.plugins.find((plugin) => plugin.id === "wispr");
     apiKeyStatus = Object.fromEntries(Object.keys(apiKeyPlugins).map((id) => [id, data.plugins.find((plugin) => plugin.id === id)]));
   } catch (error) {
     notionPlugin = undefined;
@@ -2542,6 +2546,7 @@ async function loadPlugins() {
     telegramPlugin = undefined;
     githubPlugin = undefined;
     linearPlugin = undefined;
+    wisprPlugin = undefined;
     apiKeyStatus = {};
     $("#plugin-status").textContent = `Could not load plugins: ${error.message}`;
   } finally {
@@ -2649,6 +2654,56 @@ async function changeLinear(action) {
 $("#linear-connect").addEventListener("click", () => changeLinear("connect"));
 $("#linear-disconnect").addEventListener("click", () => changeLinear("disconnect"));
 $("#linear-enabled").addEventListener("change", () => changeLinear("permission"));
+
+function renderWispr() {
+  const connected = Boolean(wisprPlugin?.connected);
+  const configured = Boolean(wisprPlugin?.configured);
+  $("#wispr-card").setAttribute("aria-busy", String(pluginsBusy));
+  $("#wispr-state").textContent = !wisprPlugin ? (pluginsBusy ? "Loading…" : "Unavailable") : connected ? (wisprPlugin.enabled ? "Access enabled" : "Access off") : configured ? "Not connected" : "Setup required";
+  $("#wispr-state").classList.toggle("enabled", connected && wisprPlugin.enabled);
+  $("#wispr-setup").hidden = !wisprPlugin || configured;
+  $("#wispr-workspace").hidden = !connected;
+  $("#wispr-workspace").textContent = connected ? `Connected to ${wisprPlugin.workspaceName || "your Wispr Flow account"}` : "";
+  $("#wispr-permission").hidden = !connected;
+  if (!pluginsBusy) $("#wispr-enabled").checked = connected && wisprPlugin.enabled;
+  $("#wispr-enabled").disabled = pluginsBusy || !connected;
+  $("#wispr-connect").textContent = connected ? "Reconnect Wispr Flow" : "Add Wispr Flow";
+  $("#wispr-connect").disabled = pluginsBusy || !configured;
+  $("#wispr-disconnect").hidden = !connected;
+  $("#wispr-disconnect").disabled = pluginsBusy;
+  $("#wispr-use").hidden = !connected;
+}
+
+async function changeWispr(action) {
+  if (pluginsBusy) return;
+  pluginsBusy = true;
+  const enabled = $("#wispr-enabled").checked;
+  renderPlugins();
+  $("#plugin-status").textContent = action === "connect" ? "Opening Wispr Flow…" : "Saving…";
+  try {
+    if (action === "connect") {
+      const result = await api("/api/plugins/wispr/connect", { method: "POST", body: "{}" });
+      const target = new URL(result.url);
+      if (target.protocol !== "https:" || target.hostname !== "mcp-auth.wisprflow.com" || target.pathname !== "/oauth2/authorize") throw new Error("Invalid Wispr Flow authorization URL.");
+      location.assign(target.href);
+      return;
+    }
+    wisprPlugin = await api("/api/plugins/wispr", action === "disconnect" ? { method: "DELETE" } : { method: "PUT", body: JSON.stringify({ enabled }) });
+    $("#plugin-status").textContent = action === "disconnect" ? "Wispr Flow disconnected. Pekka no longer has access." : enabled ? "Wispr Flow access enabled for all bots." : "Wispr Flow access turned off.";
+  } catch (error) {
+    const message = `Could not update Wispr Flow: ${error.message}`;
+    pluginsBusy = false;
+    await loadPlugins();
+    $("#plugin-status").textContent = wisprPlugin ? message : `${message} Refresh to check the current connection state.`;
+  } finally {
+    pluginsBusy = false;
+    renderPlugins();
+  }
+}
+
+$("#wispr-connect").addEventListener("click", () => changeWispr("connect"));
+$("#wispr-disconnect").addEventListener("click", () => changeWispr("disconnect"));
+$("#wispr-enabled").addEventListener("change", () => changeWispr("permission"));
 
 function renderApiKeyPlugin(id) {
   const plugin = apiKeyStatus[id];
