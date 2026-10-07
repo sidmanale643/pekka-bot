@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Pekka — It does the work. You sign off.</title>
-<meta name="description" content="Pekka is an open-source AI agent you can give real work to. A chief of staff hands tasks to your bots, each with its own cloud computer, memory and skills. They read your documents, work across GitHub, Linear, Gmail, Google Calendar, Drive, Notion, Todoist, Granola and Wispr Flow, and ask before they change anything.">
+<meta name="description" content="Pekka is an open-source AI agent you can give real work to. A chief of staff hands tasks to your bots, each with its own cloud computer, memory and skills. They read your documents, work across GitHub, Linear, Gmail, Google Calendar, Drive, Notion, Todoist, Granola and Wispr Flow, and you decide what needs your yes.">
 <meta name="theme-color" content="#080a11">
 <link rel="canonical" href="https://pekkabot.xyz/">
 <meta property="og:type" content="website">
@@ -860,7 +860,7 @@ footer .brand img { width: 30px; height: 30px; border-radius: 8px; }
             <span class="big"><span class="ln"><span style="--d:200">It does</span></span><span class="ln"><span style="--d:300">the work.</span></span></span>
             <span class="small"><span class="ln"><span style="--d:520">You</span></span> <span class="seal">sign off.</span></span>
           </h1>
-          <p class="hero-sub fade" style="--d:800">Tell your <b>chief of staff</b> what you need. It hands the work to your bots, each in <b>its own cloud computer</b>, and they <b>ask before making changes.</b></p>
+          <p class="hero-sub fade" style="--d:800">Tell your <b>chief of staff</b> what you need. It hands the work to your bots, each in <b>its own cloud computer</b>, and <b>you decide what needs your yes.</b></p>
           <form class="wl fade" style="--d:920" action="https://formspree.io/f/meaobnzv" method="POST" data-waitlist>
             <input type="hidden" name="source" value="hero">
             <input type="hidden" name="_subject" value="New Pekka waitlist signup">
@@ -976,7 +976,7 @@ footer .brand img { width: 30px; height: 30px; border-radius: 8px; }
         <div class="step" style="--i:2">
           <span class="n">03</span>
           <h3>Approve, then done</h3>
-          <p>Say yes to the changes you want. It comes back with the result and can save what it learned.</p>
+          <p>With approvals on, say yes to the changes you want. It comes back with the result and can save what it learned.</p>
           <div class="vis">
             <div class="approval">
               <div class="top"><svg><use href="#i-shield"/></svg>Permission required</div>
@@ -1107,8 +1107,8 @@ footer .brand img { width: 30px; height: 30px; border-radius: 8px; }
           <div class="vis"><div class="mini-term"><span style="--k:0"><b>~/workspace $</b> ls</span><span style="--k:1">reports/  edge-kit/  notes.md</span><span style="--k:2"><b>~/workspace $</b> pnpm test</span><span class="g" style="--k:3">✓ 148 passed</span></div></div>
         </div>
         <div class="cell" data-n="02">
-          <h3>Nothing changes without a yes</h3>
-          <p>Reads run on their own. Writes, sends and risky commands wait for one-time approval of the exact arguments, and expire after five minutes.</p>
+          <h3>You decide what needs a yes</h3>
+          <p>Reads run on their own. Changes that shape future runs, like instructions, skills and schedules, always ask. Turn on approvals and every write, send and risky command waits too, for the exact arguments.</p>
           <div class="vis"><div class="approval">
             <div class="top"><svg><use href="#i-shield"/></svg>Permission required</div>
             <code>gmail_send · to dana@acme.com</code>
@@ -1193,7 +1193,7 @@ footer .brand img { width: 30px; height: 30px; border-radius: 8px; }
     <div class="wrap">
       <div class="head reveal">
         <p class="kicker"><b>06</b>Plugins</p>
-        <h2>Works with your tools. <span class="mute">Asks before it changes them.</span></h2>
+        <h2>Works with your tools. <span class="mute">On your terms.</span></h2>
         <p class="lede">Connect a tool once and all your bots can use it. Pick one to see exactly what bots can do with it.</p>
       </div>
       <div class="px reveal">
@@ -1203,7 +1203,7 @@ footer .brand img { width: 30px; height: 30px; border-radius: 8px; }
       <div class="trust reveal">
         <div><svg><use href="#i-shield"/></svg><p><strong>Off until you say so</strong>Connecting a tool leaves access off. Turn it on, or off again, any time.</p></div>
         <div><svg><use href="#i-lock"/></svg><p><strong>Tokens stay on the server</strong>Encrypted in your database, never shown to the model or the bot's computer.</p></div>
-        <div><svg><use href="#i-check"/></svg><p><strong>Reads run, changes ask</strong>Looking things up is automatic. Anything that writes or sends waits for your yes.</p></div>
+        <div><svg><use href="#i-check"/></svg><p><strong>Reads run, changes can ask</strong>Looking things up is automatic. Turn on approvals and anything that writes or sends waits for your yes.</p></div>
       </div>
     </div>
   </section>
@@ -1251,7 +1251,7 @@ footer .brand img { width: 30px; height: 30px; border-radius: 8px; }
           <li><strong>Chief of staff</strong><span>Takes your requests and hands the work to your bots</span></li>
           <li><strong>Your own bots</strong><span>Each with its own cloud computer, memory and skills</span></li>
           <li><strong>Your tools</strong><span>GitHub, Linear, Google, Notion, Todoist, Granola and Wispr Flow</span></li>
-          <li><strong>Approvals</strong><span>Nothing is written or sent without your yes</span></li>
+          <li><strong>Approvals</strong><span>Sign off on every write and send, or just the changes that matter</span></li>
         </ul>
       </div>
       <form class="slip reveal" action="https://formspree.io/f/meaobnzv" method="POST" data-waitlist>
@@ -2110,7 +2110,7 @@ if (!reduceMotion) {
   handWatcher.observe(hand);
 }
 
-// Plugins: pick one to see its tools and what needs approval.
+// Plugins: pick one to see its tools and which of them make changes.
 const plugins = [
   { name: "GitHub", icon: "i-github", blurb: "Repositories, issues and pull requests", desc: "Explore repositories, read issues and pull requests, and post as you.", access: "Connect with a GitHub OAuth app",
     note: "Can't merge pull requests, push commits or delete repositories.",
@@ -2139,7 +2139,7 @@ const plugins = [
       ["linear_add_comment", "Comment on an issue", 1],
     ] },
   { name: "Gmail", icon: "i-inbox", blurb: "Your own inbox", desc: "Search and read your mail and attachments, tidy labels, and draft or send replies.", access: "Connect with Google",
-    note: "Can't permanently delete mail. Scheduled runs can't send without you there to approve.",
+    note: "Can't permanently delete mail.",
     tools: [
       ["gmail_search", "Search with Gmail search syntax", 0],
       ["gmail_read_thread", "Read a whole conversation", 0],
@@ -2240,7 +2240,7 @@ function renderPlugin(index) {
     ? `<div class="px-access"><div>Turns on with an API key on the server<small>Available to every bot once it's set.</small></div><span class="keypill">${plugin.key}</span></div>`
     : `<div class="px-access"><div>Allow Pekka to access ${plugin.name}<small>${plugin.access}. Off until you switch it on.</small></div><button class="switch" type="button" role="switch" aria-checked="${on}" aria-label="Allow Pekka to access ${plugin.name}"></button></div>`;
   const tools = plugin.tools.map(([name, what, asks], i) =>
-    `<div class="px-tool" style="--i:${i}"><code>${name}</code><span>${what}</span><em class="${asks ? "ask" : "auto"}">${asks ? "Asks first" : "Automatic"}</em></div>`).join("");
+    `<div class="px-tool" style="--i:${i}"><code>${name}</code><span>${what}</span><em class="${asks ? "ask" : "auto"}">${asks ? "Can ask first" : "Automatic"}</em></div>`).join("");
   pxPanel.innerHTML = `
     <div class="px-top"><span class="ic"><svg><use href="#${plugin.icon}"/></svg></span><div><h3>${plugin.name}</h3><p>${plugin.desc}</p></div></div>
     ${access}
