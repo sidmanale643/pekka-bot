@@ -180,7 +180,7 @@ it("gives named bots the skills that ship with Pekka, below their own and shared
 it("lets a named bot write its own skills, keeping files it doesn't pass", async () => {
   const writer = await createBot(LOCAL_USER, { name: "Writer", role: "Author", job: "Write" }, database);
   const scout = new SkillStore(bot, database);
-  const context = { computer: new FakeComputer(), userId: LOCAL_USER, bot, database, skills: scout };
+  const context = { computer: new FakeComputer(), userId: LOCAL_USER, bot, database, skills: scout, approveAction: async () => true };
 
   const created = JSON.parse(await writeSkill.run({ name: "weekly-update", files: [
     { path: "SKILL.md", content: skillDocument("weekly-update", "Use template.md.", "Draft the weekly update.") },

@@ -49,7 +49,7 @@ export const listTeam = defineTool({
 
 export const createTeammate = defineTool({
   name: "create_bot",
-  permission: { effect: "write" },
+  permission: { effect: "write", confirm: true },
   description: "Create a new bot for the user. It gets its own workspace and memory. Only create one when the user asks for it or agrees to your suggestion. Give it a clear description and, if known, working instructions; it learns the rest when the user chats with it.",
   input: z.object({
     name: z.string().trim().min(1).max(200).describe("Short name, unique among the user's bots, e.g. \"Researcher\"."),
@@ -65,7 +65,7 @@ export const createTeammate = defineTool({
 
 export const updateTeammate = defineTool({
   name: "update_bot",
-  permission: { effect: "write" },
+  permission: { effect: "write", confirm: true },
   description: "Change another bot's description or working instructions when the user asks. Applies from that bot's next run, including scheduled runs. Preserve useful existing instructions. Use update_bot_config for your own configuration.",
   input: z.object({
     name: z.string().trim().min(1).describe("The bot's name, from list_bots."),

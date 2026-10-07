@@ -4,7 +4,7 @@ import { defineTool } from "./tool.ts";
 
 export const updateBotConfig = defineTool({
   name: "update_bot_config",
-  permission: { effect: "write" },
+  permission: { effect: "write", confirm: true },
   description: "Update your own saved description and working instructions from the user's explicit requests. Applies to future chats and scheduled runs. Each field you pass replaces the saved value, so include the existing text you want to keep. This cannot change your name, permissions, credentials or another bot. Save user context and preferences with write_memory instead.",
   input: z.object({
     description: z.string().trim().min(1).max(100_000).optional().describe("What you are for. Replaces your saved description; omit to keep it."),

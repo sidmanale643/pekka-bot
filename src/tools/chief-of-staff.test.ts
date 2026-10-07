@@ -40,7 +40,7 @@ it("promotes a bot the user already named Chief of Staff instead of duplicating 
 it("lets only the chief list, create and reconfigure the user's other bots", async () => {
   const chief = await ensureChiefOfStaff("alice", database);
   const scout = await createBot("alice", { name: "Scout", role: "Research", job: "Find papers" }, database);
-  const context: ToolContext = { computer, database, userId: "alice", bot: chief };
+  const context: ToolContext = { computer, database, userId: "alice", bot: chief, approveAction: async () => true };
 
   expect(JSON.parse(await listTeam.run({}, context))).toEqual({ bots: [
     { name: chief.name, description: chief.role, instructions: "", you: true },

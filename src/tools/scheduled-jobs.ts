@@ -7,7 +7,7 @@ import { defineTool } from "./tool.ts";
 export function createSchedulingTools(database?: Database) {
   const scheduleJob = defineTool({
     name: "schedule_job",
-    permission: { effect: "write" },
+    permission: { effect: "write", confirm: true },
     description:
       "Schedule a future agent task, once or at a fixed interval. Only schedule work the user requested. " +
       "Jobs are saved in Pekka's database and run only while a Pekka scheduler process is running; the result says whether one is. " +

@@ -1,6 +1,11 @@
 export interface ToolPermission {
   effect: "read" | "write" | "command";
   plugin?: string;
+  /**
+   * Ask even when approval review is off. For changes that shape later runs, such as
+   * instructions, skills and scheduled jobs, so text injected into one run can't persist.
+   */
+  confirm?: boolean;
 }
 
 export interface PermissionAction {
@@ -57,11 +62,13 @@ export async function authorizeAction(
     if (blocked) throw new Error(`Permission blocked: ${blocked} Do not bypass this gate with another tool or encoding.`);
   }
   // Every action that is not hard-blocked above runs without asking unless
-  // approval review is turned on.
-  if (!approvalRequired()) return;
+  // approval review is turned on or the tool always confirms.
+  if (!approvalRequired() && !permission?.confirm) return;
   const reason = permission?.plugin
     ? `This action changes ${permission.plugin} or sends information outside Pekka.`
-    : "This action can change files, run code or alter state.";
+    : permission?.confirm
+      ? "This change is saved and shapes future runs, including scheduled ones."
+      : "This action can change files, run code or alter state.";
   if (!approve) throw new Error(`Permission required for ${tool}. No interactive reviewer is available; the action was not executed. Report this limitation and do not retry or bypass it.`);
   const accepted = await approve({ tool, plugin: permission?.plugin, reason, arguments: structuredClone(input) });
   if (!accepted) throw new Error(`Permission denied for ${tool}. The action was not executed. Do not retry or bypass the user's decision.`);

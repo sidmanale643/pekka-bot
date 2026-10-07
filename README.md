@@ -53,7 +53,7 @@ Pekka is a self-hosted Node.js app. Models run through [OpenRouter](https://open
 - **Documents.** PDFs, scans, and images from Drive and Gmail are converted to Markdown on your server, using [LiteParse](https://github.com/run-llama/liteparse) with local OCR.
 - **Computer view.** Watch a bot's commands, their output and exit codes, and every file it reads or edits, live beside the chat.
 - **Long tasks.** When a prompt fills half of the model's context window, older steps are summarized. Your request and the latest step are kept word for word.
-- **Guardrails.** Deletions, destructive Git commands, `sudo`, and piping a download into a shell are always blocked. You can also turn on approval of every write and send.
+- **Guardrails.** Deletions, destructive Git commands, `sudo`, and piping a download into a shell are always blocked. Changes that shape future runs, such as a bot's instructions, skills and scheduled jobs, always wait for your approval. You can also turn on approval of every write and send.
 - **Any model.** Use any OpenRouter model that supports tool calling.
 - **Three interfaces.** A web app, a CLI, and an HTTP API that streams events over SSE.
 - **Teams.** Turn on Google sign-in to share one server. Each person gets their own bots, memory, schedules, and plugin connections.
@@ -246,7 +246,7 @@ The variables for sign-in, plugins, and tracing are covered in the sections belo
 ## Security model
 
 - **Hard blocks.** Some shell commands are refused whatever the settings: `rm`, `rmdir`, `shred`, `mkfs`, and `dd`; `git reset --hard`, `git clean`, and force-pushes; `sudo`, `su`, `chmod`, `chown`, and shutdown or reboot; and `curl … | sh`.
-- **Approvals.** By default, everything else runs without asking. Set `PEKKA_REQUIRE_APPROVAL=true` to review each write, command, and plugin action, with the exact arguments, before it runs. Read-only tools and a short list of safe commands, such as `ls` and `cat`, never ask. When approvals are on, scheduled tasks can't take actions that need approval.
+- **Approvals.** By default, everything else runs without asking. Set `PEKKA_REQUIRE_APPROVAL=true` to review each write, command, and plugin action, with the exact arguments, before it runs. Read-only tools and a short list of safe commands, such as `ls` and `cat`, never ask. Whatever this is set to, Pekka always asks before a bot changes its own or another bot's instructions, creates a bot, saves a skill or schedules a job, so text injected into one run can't take hold of later ones. Scheduled tasks have nobody to ask, so they can't take actions that need approval. Each user can have up to 50 active scheduled jobs.
 - **Credentials.** Plugin tokens are encrypted with `PEKKA_PLUGIN_KEY` and stored in D1. They are never placed in the model's context or the bot's sandbox.
 - **Untrusted content.** Bots are told to treat web pages, emails, issues, and repository files as data, not as instructions.
 - **Localhost by default.** Without sign-in, Pekka listens on `127.0.0.1` and serves one user.

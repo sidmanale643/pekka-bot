@@ -43,7 +43,7 @@ export const loadSkill = defineTool({
 
 export const writeSkill = defineTool({
   name: "write_skill",
-  permission: { effect: "write" },
+  permission: { effect: "write", confirm: true },
   description: "Create one of your own skills, or add or replace files in one, so future runs can load it. Load the skill-creator skill first and follow it. Only you see your skills, and one with the same name as a shared or built-in skill replaces it for you. A new skill needs SKILL.md, starting with YAML frontmatter whose name matches the skill and whose description says what it does and when to use it. Files you leave out are kept; files cannot be deleted. Never store secrets. Available only for named bots.",
   input: z.object({
     name: skillName.describe("Lowercase letters, digits and single hyphens, up to 64 characters. Must match the name in SKILL.md."),
