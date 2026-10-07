@@ -1,7 +1,6 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { createSqliteDatabase } from "../database/sqlite.ts";
 import { createGranolaService } from "./granola.ts";
-import { createTodoistService } from "./todoist.ts";
 
 let database: ReturnType<typeof createSqliteDatabase>;
 let upstream: ReturnType<typeof vi.fn<typeof fetch>>;
@@ -19,14 +18,14 @@ beforeEach(() => {
 afterEach(() => { database.close(); });
 
 it("checks a pasted key, stores it sealed and sends it as a bearer token", async () => {
-  const todoist = createTodoistService({ database: () => database, env, fetch: upstream });
-  await todoist.connect("alice", "private-token-123");
-  expect(String(upstream.mock.calls[0]![0])).toBe("https://api.todoist.com/api/v1/user");
-  expect(await todoist.status("alice")).toMatchObject({ id: "todoist", configured: true, connected: true, enabled: true, workspaceName: "ada@example.com" });
+  const granola = createGranolaService({ database: () => database, env, fetch: upstream });
+  await granola.connect("alice", "private-token-123");
+  expect(String(upstream.mock.calls[0]![0])).toBe("https://public-api.granola.ai/v1/notes?page_size=1");
+  expect(await granola.status("alice")).toMatchObject({ id: "granola", configured: true, connected: true, enabled: true, workspaceName: "ada@example.com" });
   expect(JSON.stringify(await database.query("SELECT * FROM plugin_accounts"))).not.toContain("private-token");
-  await todoist.request("alice", "/tasks?limit=5");
+  await granola.request("alice", "/tasks?limit=5");
   expect(upstream.mock.calls[1]![1]).toMatchObject({ method: "GET", headers: { Authorization: "Bearer private-token-123" } });
-  await todoist.request("alice", "/tasks", { method: "POST", body: { content: "Buy milk" } });
+  await granola.request("alice", "/tasks", { method: "POST", body: { content: "Buy milk" } });
   expect(upstream.mock.calls[2]![1]).toMatchObject({ method: "POST", body: JSON.stringify({ content: "Buy milk" }) });
 });
 
@@ -46,17 +45,17 @@ it("refuses requests while access is off or no key is saved, and forgets the key
 });
 
 it("doesn't save a key the service rejects, and explains failed requests", async () => {
-  const todoist = createTodoistService({ database: () => database, env, fetch: upstream });
+  const granola = createGranolaService({ database: () => database, env, fetch: upstream });
   upstream.mockResolvedValueOnce(new Response("Forbidden", { status: 401 }));
-  await expect(todoist.connect("alice", "wrong-token")).rejects.toThrow("rejected the API key");
-  expect(await todoist.status("alice")).toMatchObject({ connected: false });
-  await todoist.connect("alice", "private-token-123");
+  await expect(granola.connect("alice", "wrong-token")).rejects.toThrow("rejected the API key");
+  expect(await granola.status("alice")).toMatchObject({ connected: false });
+  await granola.connect("alice", "private-token-123");
   upstream.mockResolvedValueOnce(new Response("Task not found", { status: 404 }));
-  await expect(todoist.request("alice", "/tasks/x")).rejects.toThrow("HTTP 404: Task not found");
+  await expect(granola.request("alice", "/tasks/x")).rejects.toThrow("HTTP 404: Task not found");
   upstream.mockRejectedValueOnce(new TypeError("fetch failed"));
-  await expect(todoist.request("alice", "/tasks")).rejects.toThrow("Could not reach Todoist");
+  await expect(granola.request("alice", "/tasks")).rejects.toThrow("Could not reach Granola");
   upstream.mockResolvedValueOnce(new Response(null, { status: 204 }));
-  expect(await todoist.request("alice", "/tasks/x/close", { method: "POST" })).toEqual({ ok: true });
+  expect(await granola.request("alice", "/tasks/x/close", { method: "POST" })).toEqual({ ok: true });
 });
 
 it("reports setup required without PEKKA_PLUGIN_KEY", async () => {

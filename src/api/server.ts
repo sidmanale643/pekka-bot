@@ -33,7 +33,7 @@ import { WisprService, WisprError } from "../plugins/wispr.ts";
 import { getLinearService, LinearError, type LinearService } from "../plugins/linear.ts";
 import { ApiKeyPluginError } from "../plugins/api-key.ts";
 import { createGranolaService, type GranolaService } from "../plugins/granola.ts";
-import { createTodoistService, type TodoistService } from "../plugins/todoist.ts";
+import { TodoistError, createTodoistService, type TodoistService } from "../plugins/todoist.ts";
 import { getNotionService, NotionError, type NotionService } from "../plugins/notion.ts";
 import { getTelegramService, TelegramError, type TelegramService } from "../plugins/telegram.ts";
 import { randomUUID } from "node:crypto";
@@ -353,7 +353,7 @@ export function createApiServer(options: ServerOptions = {}) {
     response.setHeader("X-Content-Type-Options", "nosniff");
     response.setHeader("X-Frame-Options", "DENY");
     dispatch(request, response, routes, access).catch((error: unknown) => {
-      if (error instanceof NotionError || error instanceof GoogleError || error instanceof TelegramError || error instanceof GitHubError || error instanceof LinearError || error instanceof WisprError || error instanceof ApiKeyPluginError) { fail(response, new HttpError(400, error.message)); return; }
+      if (error instanceof NotionError || error instanceof GoogleError || error instanceof TelegramError || error instanceof GitHubError || error instanceof LinearError || error instanceof WisprError || error instanceof TodoistError || error instanceof ApiKeyPluginError) { fail(response, new HttpError(400, error.message)); return; }
       fail(response, error instanceof DatabaseConfigError ? new HttpError(503, "Storage requires Cloudflare D1 configuration.") : error);
     });
   });

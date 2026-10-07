@@ -24,6 +24,7 @@ const TOOL_CARDS: Record<string, [plugin: string, done: string]> = {
   linear_create_issue: ["Linear", "Created issue"],
   linear_update_issue: ["Linear", "Updated issue"],
   linear_add_comment: ["Linear", "Commented"],
+  todoist_write_tool: ["Todoist", "Updated Todoist"],
   todoist_create_task: ["Todoist", "Added task"],
   todoist_update_task: ["Todoist", "Updated task"],
   todoist_complete_task: ["Todoist", "Completed task"],

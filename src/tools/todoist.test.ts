@@ -26,40 +26,7 @@ it("registers every Todoist and Granola tool under its plugin, with only Todoist
   expect(defaultTools.filter((tool) => /^(todoist|granola)_/.test(tool.name)).map((tool) => tool.name)).toEqual(names);
   expect(tools.every((tool) => tool.permission?.plugin === tool.name.split("_")[0])).toBe(true);
   expect(tools.filter((tool) => tool.permission?.effect === "write").map((tool) => tool.name))
-    .toEqual(["todoist_create_task", "todoist_update_task", "todoist_complete_task", "todoist_reopen_task", "todoist_add_comment"]);
-});
-
-it("lists Todoist tasks by filter or by scope", async () => {
-  const { sent, call } = setup();
-  await call("todoist_list_tasks", { filter: "today | overdue" });
-  await call("todoist_list_tasks", { project_id: "6Jf8VQXxpwv56VQ7", label: "work", limit: 10 });
-  expect(sent.map(({ path }) => path)).toEqual(["/tasks/filter?query=today+%7C+overdue&limit=50", "/tasks?project_id=6Jf8VQXxpwv56VQ7&label=work&limit=10"]);
-});
-
-it("sends Todoist writes with only the fields given, and links to the task", async () => {
-  const { sent, call } = setup();
-  const created = await call("todoist_create_task", { content: "Buy milk", due_string: "tomorrow 5pm", priority: 4 });
-  expect(created.json()).toMatchObject({ url: "https://app.todoist.com/app/task/6X7rM8997g3RQmvh" });
-  await call("todoist_update_task", { task_id: "6X7rM8997g3RQmvh", labels: ["errands"] });
-  await call("todoist_complete_task", { task_id: "6X7rM8997g3RQmvh" });
-  expect(sent).toEqual([
-    { path: "/tasks", init: { method: "POST", body: { content: "Buy milk", due_string: "tomorrow 5pm", priority: 4 } } },
-    { path: "/tasks/6X7rM8997g3RQmvh", init: { method: "POST", body: { labels: ["errands"] } } },
-    { path: "/tasks/6X7rM8997g3RQmvh/close", init: { method: "POST" } },
-  ]);
-});
-
-it("rejects bad ids and empty updates before calling the service", async () => {
-  const { sent, call } = setup();
-  for (const [name, args] of [
-    ["todoist_update_task", { task_id: "6X7rM8997g3RQmvh" }],
-    ["todoist_complete_task", { task_id: "../projects" }],
-    ["todoist_create_task", { content: "x", priority: 5 }],
-    ["granola_get_note", { note_id: "not_short" }],
-  ] as const) {
-    expect((await call(name, args)).isError).toBe(true);
-  }
-  expect(sent).toEqual([]);
+    .toEqual(["todoist_write_tool"]);
 });
 
 it("pages through a Granola transcript as speaker lines", async () => {
@@ -73,4 +40,14 @@ it("pages through a Granola transcript as speaker lines", async () => {
   const last = (await call("granola_get_transcript", { note_id: "not_1d3tmYTlCICgjy", offset: first.next_offset })).json();
   expect(last.next_offset).toBeNull();
   expect(first.transcript.length + last.transcript.length).toBe(first.total_characters);
+});
+
+it("routes reads and writes through MCP with the correct access mode", async () => {
+  const calls: unknown[][] = [];
+  const tools: import("./tool.ts").Tool[] = createTodoistTools({ async request(...args) { calls.push(args); return { content: [] }; } });
+  const context = { computer: new FakeComputer(), approveAction: async () => true, userId: LOCAL_USER };
+  await tools[0]!.run({}, context);
+  await tools[1]!.run({ name: "find-tasks", arguments: { search: "milk" } }, context);
+  await tools[2]!.run({ name: "add-tasks", arguments: {} }, context);
+  expect(calls).toEqual([[LOCAL_USER, undefined, {}, undefined], [LOCAL_USER, "find-tasks", { search: "milk" }, undefined, true], [LOCAL_USER, "add-tasks", {}, undefined, false]]);
 });
