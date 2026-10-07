@@ -93,7 +93,7 @@ it("keeps the approved input separate from reviewer mutations", async () => {
   expect(computer.files.get("file")).toBe("original");
 });
 
-it("denies expired requests and requests cancelled on disconnect", async () => {
+it("denies expired requests and requests cancelled with their run", async () => {
   vi.useFakeTimers();
   const manager = new PermissionManager(100);
   const reviewer = manager.reviewer("alice", "run", () => {}, () => {});

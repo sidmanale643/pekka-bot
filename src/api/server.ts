@@ -169,9 +169,9 @@ export function createApiServer(options: ServerOptions = {}) {
     const review = permissions.reviewer(userId, runId,
       (request) => emit({ type: "permission_requested", request }),
       (id, approved) => emit({ type: "permission_resolved", id, approved }));
-    const approveAction = streaming ? (action: Parameters<typeof review>[0]) => response.destroyed ? Promise.resolve(false) : review(action) : undefined;
-    const disconnect = () => permissions.cancelRun(runId);
-    response.once("close", disconnect);
+    // The run carries on if the browser that started it disconnects, so its approval requests stay open for any
+    // tab to answer until they expire or the run is stopped.
+    const approveAction = streaming ? review : undefined;
     try {
       // A bot's chat is saved here as the run goes, so it's kept even if the browser that asked disconnects.
       if (bot) recorder = await ChatRecorder.start({ userId, botId: bot.id, botName: bot.name, database }, task, input.chat);
@@ -195,7 +195,6 @@ export function createApiServer(options: ServerOptions = {}) {
         }
       });
     } finally {
-      response.off("close", disconnect);
       permissions.cancelRun(runId);
       cancellations.delete(key);
       active.delete(key);

@@ -49,7 +49,7 @@ it.each([true, false])("enforces a one-time HTTP decision before running the too
   expect(await pending()).toEqual([]);
 });
 
-it("rejects writes in non-streaming runs and cancels approvals on browser disconnect", async () => {
+it("rejects writes in non-streaming runs and keeps approvals open after the browser disconnects", async () => {
   const { computer, post, pending } = await start();
   const response = await post("/api/runs", { task: "Write file" });
   expect((await response.json() as { answer: string }).answer).toContain("Permission required");
@@ -58,7 +58,10 @@ it("rejects writes in non-streaming runs and cancels approvals on browser discon
   await vi.waitFor(async () => expect(await pending()).toHaveLength(1));
   const id = (await pending())[0]!.id;
   await stream.body!.cancel();
-  await vi.waitFor(async () => expect(await pending()).toEqual([]));
+  // The run goes on without the browser that started it, so another tab can still answer.
+  expect((await pending()).map((request) => request.id)).toEqual([id]);
   expect(computer.files.size).toBe(0);
-  expect((await post(`/api/permissions/${id}`, { approved: true })).status).toBe(404);
+  expect((await post(`/api/permissions/${id}`, { approved: true })).status).toBe(200);
+  await vi.waitFor(() => expect(computer.files.has("file")).toBe(true));
+  expect(await pending()).toEqual([]);
 });
