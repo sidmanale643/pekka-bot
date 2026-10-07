@@ -57,6 +57,19 @@ const jobInput = z.object({
   intervalSeconds: z.number().int().min(60).max(31_536_000).optional(), botName: text.max(200).optional(),
 }).strict();
 
+/**
+ * In the public shared workspace, one visitor's connected accounts and model keys would be
+ * every visitor's, so it lists no plugins and refuses to connect one or save a key.
+ */
+const offInPublicWorkspace = (feature: string, pattern: RegExp) => ["GET", "POST", "PUT", "DELETE"].map((method): Route => [method, pattern, async () => {
+  throw new HttpError(403, `${feature} are off in the public shared workspace.`);
+}]);
+const publicWorkspaceRoutes: Route[] = [
+  ["GET", /^\/api\/plugins$/, async (_request, response) => { json(response, 200, { plugins: [] }); }],
+  ...offInPublicWorkspace("Plugins", /^\/api\/plugins\/.+$/),
+  ...offInPublicWorkspace("Saved model keys", /^\/api\/model-keys(?:\/.*)?$/),
+];
+
 type Execute = (task: string, owner: RunOwner, onEvent?: EventHandler) => Promise<AgentResult>;
 type Greet = (bot: Bot, userId: string) => Promise<Greeting>;
 type DeleteSandbox = (userId: string, bot: Bot) => Promise<void>;
@@ -89,6 +102,7 @@ export function createApiServer(options: ServerOptions = {}) {
   const execute = options.execute ?? executeTask;
   const database = () => options.database ?? getDatabase();
   const access = createAccess(options.auth === undefined ? loadAuthConfig() : options.auth ?? undefined, database, { fetch: options.fetch, publicOrigin: options.publicOrigin });
+  const shared = Boolean(options.publicOrigin);
   const modelKeys = options.modelKeys ?? new ModelKeyService({ database });
   const greet: Greet = options.greet ?? (async (bot, userId) => {
     let config;
@@ -244,6 +258,8 @@ export function createApiServer(options: ServerOptions = {}) {
     const { botName, ...input } = await body(request, jobInput);
     const bot = botName ? await findBot(userId, botName) : undefined;
     if (Date.parse(input.runAt) <= Date.now()) throw new HttpError(400, "runAt must be in the future.");
+    // Visitors would leave jobs running on the server's keys after they've gone.
+    if (shared) throw new HttpError(403, "Scheduled jobs are off in the public shared workspace.");
     try {
       json(response, 201, await createScheduledJob(userId, { ...input, bot }, database()));
     } catch (error) {
@@ -292,13 +308,15 @@ export function createApiServer(options: ServerOptions = {}) {
       json(response, 200, { approved });
     }],
     ...access.routes,
-    ...pluginRoutes({
-      notion: options.notion ?? getNotionService(), gmail: options.gmail ?? getGmailService(), calendar: options.calendar ?? getCalendarService(),
-      drive: options.drive ?? getDriveService(), contacts: options.contacts ?? getContactsService(),
-      telegram: options.telegram ?? getTelegramService(), github: options.github ?? getGitHubService(), linear: options.linear ?? getLinearService(),
-      granola: options.granola ?? createGranolaService({ database }), todoist: options.todoist ?? createTodoistService({ database }),
-    }, access.origin),
-    ...modelKeyRoutes(modelKeys, () => { try { return loadConfig().model; } catch { return undefined; } }),
+    ...(shared ? publicWorkspaceRoutes : [
+      ...pluginRoutes({
+        notion: options.notion ?? getNotionService(), gmail: options.gmail ?? getGmailService(), calendar: options.calendar ?? getCalendarService(),
+        drive: options.drive ?? getDriveService(), contacts: options.contacts ?? getContactsService(),
+        telegram: options.telegram ?? getTelegramService(), github: options.github ?? getGitHubService(), linear: options.linear ?? getLinearService(),
+        granola: options.granola ?? createGranolaService({ database }), todoist: options.todoist ?? createTodoistService({ database }),
+      }, access.origin),
+      ...modelKeyRoutes(modelKeys, () => { try { return loadConfig().model; } catch { return undefined; } }),
+    ]),
     ["GET", /^\/api\/characters$/, async (_request, response) => { json(response, 200, { characters: characters.map(({ style, ...item }) => item) }); }],
     ["GET", /^\/api\/bots\/([^/]+)\/character$/, character],
     ["PUT", /^\/api\/bots\/([^/]+)\/character$/, character],

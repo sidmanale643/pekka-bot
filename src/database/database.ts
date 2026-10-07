@@ -18,6 +18,12 @@ export interface Database {
  */
 export const LOCAL_USER = "local";
 
+/**
+ * Every visitor to a public shared workspace (PEKKA_PUBLIC_ACCESS) is this user,
+ * kept apart from the owner's bots, connected accounts and model keys.
+ */
+export const PUBLIC_USER = "public";
+
 const SCHEMA = [
   `CREATE TABLE IF NOT EXISTS users (
     id TEXT PRIMARY KEY,

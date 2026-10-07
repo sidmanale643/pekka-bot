@@ -109,7 +109,7 @@ export function systemPrompt(bot: Bot | undefined, maxSteps: number, { tools, pl
   const chief = plugins.length ? `${CHIEF_OF_STAFF}\n${CHIEF_PLUGINS}` : CHIEF_OF_STAFF;
   return [
     intro, ...(bot?.primary ? [chief] : []), HOW_RUNS_WORK(maxSteps), COMPUTER, ...research(has("web_search"), has("web_scrape")),
-    ...(bot ? [SETUP, MEMORY] : []), ...(has("load_skill") ? [has("write_skill") ? `${SKILLS}\n${WRITING_SKILLS}` : SKILLS] : []), SCHEDULING, ...outside(plugins), SAFETY, ANSWER,
+    ...(bot ? [SETUP, MEMORY] : []), ...(has("load_skill") ? [has("write_skill") ? `${SKILLS}\n${WRITING_SKILLS}` : SKILLS] : []), ...(has("schedule_job") ? [SCHEDULING] : []), ...outside(plugins), SAFETY, ANSWER,
   ].join("\n\n");
 }
 

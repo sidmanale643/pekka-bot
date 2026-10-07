@@ -1,7 +1,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 import { z } from "zod";
 import { GoogleSignIn, type AuthConfig, type LoginAttempt } from "../auth.ts";
-import { LOCAL_USER, type Database } from "../database/database.ts";
+import { LOCAL_USER, PUBLIC_USER, type Database } from "../database/database.ts";
 import { createSession, endSession, SESSION_SECONDS, sessionUser, signIn } from "../users.ts";
 import { body, HttpError, json, readCookie } from "./http.ts";
 
@@ -120,6 +120,7 @@ function signedInAccess(config: AuthConfig, database: () => Database, google: Go
   };
 }
 
+/** With PEKKA_PUBLIC_ACCESS, every visitor shares one public user's workspace, never the owner's. */
 function sharedAccess(origin: string): Access {
   const host = new URL(origin).host;
   return {
@@ -131,7 +132,7 @@ function sharedAccess(origin: string): Access {
       }
     },
     origin: () => origin,
-    userId: async () => LOCAL_USER,
+    userId: async () => PUBLIC_USER,
     routes: [
       ["GET", /^\/api\/auth\/session$/, async (_request, response) => {
         json(response, 200, { required: false, user: null, shared: true });

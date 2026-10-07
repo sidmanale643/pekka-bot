@@ -34,6 +34,16 @@ const namedBotTools = new Set([readMemory.name, writeMemory.name, updateBotConfi
 /** Runs without a named bot get every default tool that works without one. */
 export const unnamedTools: Tool[] = defaultTools.filter((tool) => !namedBotTools.has(tool.name));
 
+/**
+ * Visitors to a public shared workspace can't send email from the server's mailboxes or
+ * leave jobs running on its keys, since any of them could do it to every one of them.
+ */
+const publicWorkspaceBlocked = new Set(["get_email_address", "send_email", "schedule_job", "list_scheduled_jobs", "cancel_scheduled_job"]);
+
+export function forPublicWorkspace(tools: Tool[]): Tool[] {
+  return tools.filter((tool) => !publicWorkspaceBlocked.has(tool.name));
+}
+
 /** Leaves out tools whose provider key the server doesn't have, since they could only fail. */
 export function withServerKeys(tools: Tool[], env: NodeJS.ProcessEnv = process.env): Tool[] {
   const missing = new Set<string>();

@@ -3,10 +3,10 @@ import { runAgent, type ConversationMessage } from "./agent/loop.ts";
 import { findBotById, type Bot } from "./bots.ts";
 import { deleteDaytonaSandbox, openDaytonaComputer } from "./computer/daytona-computer.ts";
 import { loadConfig, type Config } from "./config.ts";
-import { LOCAL_USER } from "./database/database.ts";
+import { LOCAL_USER, PUBLIC_USER } from "./database/database.ts";
 import { modelFor } from "./model-keys.ts";
 import { enabledPlugins } from "./plugins/enabled.ts";
-import { chiefTools, defaultTools, unnamedTools, withPlugins, withServerKeys } from "./tools/index.ts";
+import { chiefTools, defaultTools, forPublicWorkspace, unnamedTools, withPlugins, withServerKeys } from "./tools/index.ts";
 import type { Delegate } from "./tools/tool.ts";
 import type { ApproveAction } from "./permissions/policy.ts";
 
@@ -48,8 +48,9 @@ export async function executeTask(task: string, owner: RunOwner, onEvent?: Event
   try {
     const { model, contextWindow } = await modelFor(owner.userId, config);
     const chief = owner.bot?.primary === true;
+    const tools = withServerKeys(withPlugins(chief ? chiefTools : owner.bot ? defaultTools : unnamedTools, plugins));
     return await runAgent(task, {
-      model, computer, tools: withServerKeys(withPlugins(chief ? chiefTools : owner.bot ? defaultTools : unnamedTools, plugins)), maxSteps: config.maxSteps, contextWindow, userId: owner.userId, bot: owner.bot,
+      model, computer, tools: owner.userId === PUBLIC_USER ? forPublicWorkspace(tools) : tools, maxSteps: config.maxSteps, contextWindow, userId: owner.userId, bot: owner.bot,
       approveAction: owner.approveAction, conversation: owner.conversation, sessionId: owner.sessionId, signal: owner.signal, delegate: chief ? delegateFor(owner, onEvent) : undefined, onEvent,
     });
   } finally {
