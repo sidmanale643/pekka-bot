@@ -14,7 +14,6 @@ marked.use({
     },
   },
 });
-const storageKey = "pekka.task-history.v1";
 const profileKey = "pekka.profile.v1";
 const preferencesKey = "pekka.preferences.v1";
 // The theme is saved once per browser rather than per account, because index.html reads it
@@ -62,63 +61,30 @@ function scoped(key) {
   return account && account.id !== "local" ? `${key}:${account.id}` : key;
 }
 
-// Chats are saved on the server, per bot, so they follow the account to every browser and device.
-// Each message is saved under its own ID when it changes, so two tabs never overwrite each other's messages.
-const savedMessages = new WeakMap(); // message → its JSON when last saved, so only changed messages are sent
-const saveQueues = new Map(); // bot ID → its save in progress, so a message's states reach the server in order
+// Chats are saved on the server, per bot, as each run goes, so they follow the account to every browser and device.
+// This tab only reads them, and shows its own runs live until their saved copy is read back.
 const messagesLoadedAt = new Map(); // bot ID → when its chat was last read from the server
-const onServer = new WeakSet(); // messages the server's copy had when it was last read
-let saveFailed = false;
+const localOnly = new WeakSet(); // messages this tab added that the server's copy didn't have when it was last read
 
 const messageId = () => crypto.randomUUID?.() ?? `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
-const unsaved = (message) => savedMessages.get(message) !== JSON.stringify(message);
 
-/** A saved message as this tab shows it. One that was still running when it was saved shows as interrupted. */
+/** A saved message as this tab shows it. One still running on the server says so, until the chat is read again. */
 function restoredMessage(entry) {
   return {
     ...entry,
     pending: false,
-    status: entry.pending ? "Connection ended. The task may still be running." : typeof entry.status === "string" ? entry.status : "",
+    status: entry.pending ? "Still running when this chat was loaded." : typeof entry.status === "string" ? entry.status : "",
   };
 }
 
-/** Sends messages in requests that stay under the server's limits of 100 messages and 1 MB. */
-async function putMessages(bot, messages) {
-  const sizes = messages.map((message) => JSON.stringify(message).length);
-  for (let start = 0; start < messages.length; ) {
-    let end = start + 1;
-    for (let size = sizes[start]; end < messages.length && end - start < 100 && size + sizes[end] < 800_000; end++) size += sizes[end];
-    await api(`/api/bots/${encodeURIComponent(bot.name)}/messages`, { method: "PUT", body: JSON.stringify({ messages: messages.slice(start, end) }) });
-    start = end;
-  }
+/** Adds messages this tab is about to show before the server has them. */
+function addLocal(bot, ...messages) {
+  const key = bot.name.toLowerCase();
+  for (const message of messages) localOnly.add(message);
+  (history[key] ||= []).push(...messages);
 }
 
-/** Saves a bot's messages that changed since they were last saved. Returns whether everything was saved. */
-async function saveChanges(bot) {
-  const changed = entries(bot).filter(unsaved).map((message) => [message, JSON.stringify(message)]);
-  if (!changed.length) return true;
-  try {
-    await putMessages(bot, changed.map(([, json]) => JSON.parse(json)));
-    for (const [message, json] of changed) savedMessages.set(message, json);
-    if (saveFailed) notify("");
-    saveFailed = false;
-    return true;
-  } catch (error) {
-    saveFailed = true;
-    notify(`Chat history could not be saved: ${error.message} It is saved again when the chat next changes.`);
-    return false;
-  }
-}
-
-/** Queues a save of every bot's changed messages. A bot created during a run is saved once the bot list has it. */
-function persist() {
-  for (const bot of bots) {
-    if (!entries(bot).some(unsaved)) continue;
-    saveQueues.set(bot.id, (saveQueues.get(bot.id) ?? Promise.resolve()).then(() => saveChanges(bot)));
-  }
-}
-
-/** Reads a bot's chat from the server. Messages this tab is still running or hasn't saved yet stay as they are. */
+/** Reads a bot's chat from the server. Replies this tab is still showing live stay as they are. */
 async function loadMessages(bot) {
   messagesLoadedAt.set(bot.id, Date.now());
   const { messages } = await api(`/api/bots/${encodeURIComponent(bot.name)}/messages`);
@@ -127,23 +93,19 @@ async function loadMessages(bot) {
   const merged = messages.map((data) => {
     const mine = local.get(data.id);
     local.delete(data.id);
-    if (mine) onServer.add(mine);
-    if (mine && (mine.pending || unsaved(mine))) return mine;
+    if (mine?.pending) return mine;
     // The same object is updated, so a run or handoff that refers to it still finds it.
-    const message = Object.assign(mine ?? {}, restoredMessage(data));
-    savedMessages.set(message, JSON.stringify(message));
-    onServer.add(message);
-    return message;
+    if (mine) localOnly.delete(mine);
+    return Object.assign(mine ?? {}, restoredMessage(data));
   });
-  // Messages missing from the server's copy were sent from here while it was being read,
-  // unless an earlier read had them: then the chat was cleared from another tab or device.
-  const sent = [...local.values()].filter((message) => !onServer.has(message) || message.pending || unsaved(message));
-  history[key] = [...merged, ...sent].sort((a, b) => a.time - b.time);
+  // Messages missing from the server's copy were added here since it was read, or never reached it, like a task
+  // that couldn't start. Any others were cleared from another tab or device.
+  const added = [...local.values()].filter((message) => message.pending || localOnly.has(message));
+  history[key] = [...merged, ...added].sort((a, b) => a.time - b.time);
 }
 
-/** Picks up messages sent from other tabs and devices, at most every few seconds. */
-async function refreshMessages(bot) {
-  if (Date.now() - (messagesLoadedAt.get(bot.id) ?? 0) < 3000) return;
+/** Reads a bot's chat again, keeping what this tab shows if it can't. */
+async function reloadMessages(bot) {
   try {
     await loadMessages(bot);
   } catch {
@@ -153,50 +115,10 @@ async function refreshMessages(bot) {
   if (selected === bot && currentPage === "workspace") renderTranscript();
 }
 
-/**
- * Chats were kept only in this browser before they were saved on the server. This uploads them once
- * and keeps a copy under a backup key. Chats of bots that no longer exist stay only in that copy.
- */
-async function uploadBrowserHistory() {
-  const key = scoped(storageKey);
-  let raw;
-  try {
-    raw = localStorage.getItem(key);
-  } catch {
-    return;
-  }
-  if (!raw) return;
-  let value;
-  try {
-    value = JSON.parse(raw);
-  } catch {
-    return;
-  }
-  if (!value || typeof value !== "object" || Array.isArray(value)) return;
-  const uploads = [];
-  for (const bot of bots) {
-    const kept = value[bot.name.toLowerCase()];
-    if (!Array.isArray(kept)) continue;
-    // These messages had no IDs, and a reply could be stamped a millisecond before its question.
-    let time = 0;
-    const ids = new Set();
-    history[bot.name.toLowerCase()] = kept
-      .filter((entry) => entry && typeof entry.text === "string" && ["user", "assistant", "error"].includes(entry.role))
-      .map((entry) => {
-        time = Math.max(time, Math.floor(Number(entry.time)) || 0);
-        let id = typeof entry.id === "string" && entry.id ? entry.id : `browser-${time}-${entry.role}`;
-        while (ids.has(id)) id += "+";
-        ids.add(id);
-        return restoredMessage({ ...entry, id, time });
-      });
-    uploads.push(saveChanges(bot));
-  }
-  // Until everything is uploaded, the chats stay here and show as unsaved, so they are tried again.
-  if (!(await Promise.all(uploads)).every(Boolean)) return;
-  try {
-    localStorage.removeItem(key);
-    localStorage.setItem(`${key}.uploaded`, raw);
-  } catch {}
+/** Picks up messages sent from other tabs and devices, at most every few seconds. */
+async function refreshMessages(bot) {
+  if (Date.now() - (messagesLoadedAt.get(bot.id) ?? 0) < 3000) return;
+  await reloadMessages(bot);
 }
 
 function notify(message) {
@@ -639,38 +561,6 @@ function chatIntro(bot) {
   return intro;
 }
 
-// Write tools whose results become cards under the answer and in the bot panel.
-const toolOutputs = {
-  notion_create_page: ["Notion", "Created page"],
-  notion_append_text: ["Notion", "Added to page"],
-  github_create_issue: ["GitHub", "Opened issue"],
-  github_create_pull_request: ["GitHub", "Opened pull request"],
-  github_add_comment: ["GitHub", "Commented"],
-  linear_create_issue: ["Linear", "Created issue"],
-  linear_update_issue: ["Linear", "Updated issue"],
-  linear_add_comment: ["Linear", "Commented"],
-  gmail_send: ["Gmail", "Sent email"],
-  gmail_create_draft: ["Gmail", "Saved draft"],
-  calendar_create_event: ["Calendar", "Created event"],
-  calendar_update_event: ["Calendar", "Updated event"],
-  calendar_respond_to_event: ["Calendar", "Answered invitation"],
-  calendar_delete_event: ["Calendar", "Deleted event"],
-  tasks_create: ["Tasks", "Added reminder"],
-  tasks_update: ["Tasks", "Updated task"],
-  docs_create: ["Docs", "Created document"],
-  docs_append_text: ["Docs", "Added to document"],
-  sheets_create: ["Sheets", "Created spreadsheet"],
-  sheets_append_rows: ["Sheets", "Added rows"],
-  sheets_update_range: ["Sheets", "Updated cells"],
-  send_email: ["Email", "Sent email"],
-  telegram_send_message: ["Telegram", "Sent message"],
-  schedule_job: ["Scheduled", "Scheduled task"],
-  create_bot: ["Team", "Created bot"],
-  delegate_task: ["Team", "Delegated task"],
-  write_file: ["Sandbox", "Saved file"],
-  write_skill: ["Skills", "Saved skill"],
-};
-
 // What each tool is called in the chat, while it runs and once it's done. Internal names stay out of sight.
 const toolAliases = {
   web_search: ["Searching the web", "Searched the web"],
@@ -783,32 +673,6 @@ function toolHint(args) {
   if (!input || typeof input !== "object") return "";
   const value = toolHintKeys.map((key) => input[key]).find((value) => typeof value === "string" && value.trim());
   return value ? value.replace(/^https?:\/\//, "").replace(/\s+/g, " ").trim().slice(0, 140) : "";
-}
-
-// Keeps only what the cards show, so history in browser storage stays small.
-function toolOutput(name, args, output) {
-  const kind = toolOutputs[name];
-  if (!kind) return;
-  const input = parseJson(args) ?? {};
-  const result = parseJson(output) ?? {};
-  // Linear nests what a write created or changed under the mutation's name.
-  const linear = result.issueCreate?.issue ?? result.issueUpdate?.issue ?? result.commentCreate?.comment;
-  const url = [result.html_url, result.url, linear?.url].find((value) => /^https:\/\//.test(value ?? ""));
-  const repository = input.owner && input.repo ? `${input.owner}/${input.repo}` : "";
-  const title =
-    input.title ||
-    input.subject ||
-    input.name ||
-    input.bot_name ||
-    input.path ||
-    input.issue ||
-    (input.issue_number ? `${repository}#${input.issue_number}` : "") ||
-    (input.text ? input.text.slice(0, 80) : "") ||
-    kind[1];
-  const detail = [kind[1], repository && !title.startsWith(repository) ? repository : "", [input.to].flat().filter(Boolean).join(", ")]
-    .filter(Boolean)
-    .join(" · ");
-  return { plugin: kind[0], title, detail, ...(url ? { url } : {}), ...(name === "delegate_task" && input.bot_name ? { bot: input.bot_name } : {}) };
 }
 
 /** `message` is the answer the card belongs to, so a handoff card can reopen that run's handoff modal. */
@@ -1354,7 +1218,9 @@ function applyDelegation(event, data, message, chief) {
   if (event === "delegation_start") {
     const delegation = { id: data.bot.id, name: target?.name || data.bot.name, status: "Starting…" };
     message.delegations.push(delegation);
-    const reply = { id: messageId(), role: "assistant", text: "", time: Date.now(), pending: true, status: "Starting…" };
+    // The server saves the brief and the reply in that bot's chat under these IDs.
+    const time = Date.now();
+    const reply = { id: data.messages?.reply ?? messageId(), role: "assistant", text: "", time, pending: true, status: "Starting…" };
     startLive(reply);
     delegatedReplies.set(data.bot.id, reply);
     if (handoff.message !== message) Object.assign(handoff, { message, chief, items: [], dismissed: false });
@@ -1362,11 +1228,8 @@ function applyDelegation(event, data, message, chief) {
     const watching = selected === chief && currentPage === "workspace" && !document.querySelector("dialog[open]");
     if ($("#handoff-dialog").open) renderHandoff();
     else if (watching && !handoff.dismissed) openHandoff(delegation.id);
-    // A bot created earlier in this run isn't in the bot list yet. Its chat is saved once the run ends and the list has it.
-    const key = (target?.name ?? data.bot.name).toLowerCase();
-    history[key] ||= [];
-    history[key].push({ id: messageId(), role: "user", from: chief.name, text: data.task, time: reply.time }, reply);
-    persist();
+    // A bot created earlier in this run isn't in the bot list yet, so its chat is kept under the name it was given.
+    addLocal(target ?? data.bot, { id: data.messages?.question ?? messageId(), role: "user", from: chief.name, text: data.task, time }, reply);
     if (target) {
       running.add(target.name);
       renderBots();
@@ -1410,7 +1273,6 @@ function finishReply(reply, answer, status) {
 function settleBot(bot) {
   running.delete(bot.name);
   if (selected !== bot || currentPage !== "workspace") unread.add(bot.name);
-  persist();
   renderBots();
   if (selected === bot) updateComposer();
   drainQueue(bot);
@@ -1481,8 +1343,8 @@ function applyEvent(event, data, message) {
         ? `${toolAlias(data.name, true)} failed; continuing…`
         : other ? `${toolAlias(other.name, true)}…` : toolAlias(data.name);
       if (!call) return;
-      const output = !data.isError && toolOutput(call.name, call.arguments, data.output);
-      if (output) call.output = output;
+      // The server makes the card, so the live view and the saved chat show the same one.
+      if (data.card) call.output = data.card;
       delete call.arguments;
       const run = toolRuns.get(call);
       if (run) run.end = Date.now();
@@ -1648,11 +1510,11 @@ async function runTask(bot, task) {
   if (!conversation.length && greetingFor(bot)) conversation.push({ role: "assistant", content: greetingFor(bot).message });
   // The question and its reply share a time, so sorting by time keeps the question first.
   const time = Date.now();
+  const question = { id: messageId(), role: "user", text: task.trim(), time };
   const message = { id: messageId(), role: "assistant", text: "", time, pending: true, status: "Starting…" };
   startLive(message);
-  history[key].push({ id: messageId(), role: "user", text: task.trim(), time }, message);
+  addLocal(bot, question, message);
   running.add(bot.name);
-  persist();
   renderBots();
   if (selected === bot) { updateComposer(); renderTranscript(true); }
   try {
@@ -1662,7 +1524,7 @@ async function runTask(bot, task) {
         "Content-Type": "application/json",
         Accept: "text/event-stream",
       },
-      body: JSON.stringify({ botName: bot.name, task: task.trim(), conversation, sessionId: `${bot.id}:${history[key][0].time}` }),
+      body: JSON.stringify({ botName: bot.name, task: task.trim(), conversation, sessionId: `${bot.id}:${history[key][0].time}`, chat: { question: question.id, reply: message.id } }),
     });
     if (response.status === 401) showSignIn("Your session ended. Sign in again to continue.");
     if (!response.ok) {
@@ -1696,6 +1558,7 @@ async function runTask(bot, task) {
       if (target) settleBot(target);
     }
     if (handoff.message === message && $("#handoff-dialog").open) renderHandoff();
+    const delegated = new Set((message.delegations ?? []).map((delegation) => delegation.id));
     delete message.delegations;
     try {
       const updated = await api(`/api/bots/${encodeURIComponent(bot.name)}`);
@@ -1707,7 +1570,8 @@ async function runTask(bot, task) {
     stopping.delete(bot.name);
     if (selected !== bot || currentPage !== "workspace") unread.add(bot.name);
     if (currentPage === "activity") renderActivity();
-    persist();
+    // The server has saved this run, and any it handed to other bots, by the time it ends, so the saved copies replace the live ones.
+    await Promise.all([bot, ...bots.filter((item) => item !== bot && delegated.has(item.id))].map(reloadMessages));
     renderBots();
     if (selected === bot) {
       $("#heading").replaceChildren(avatar(bot.name, 22), element("strong", "", bot.name), element("span", "", bot.role));
@@ -1796,7 +1660,6 @@ async function saveBotProfile(bot, form, status) {
     if (oldName !== updated.name) drafts.delete(oldName);
     forgetGreeting(bot);
     Object.assign(bot, updated);
-    persist();
     window.history.replaceState(null, "", "#bot/" + encodeURIComponent(bot.name));
     selectBot(bot);
     status.textContent = "Changes saved.";
@@ -1813,7 +1676,6 @@ async function removeBotProfile(bot, form, status) {
     bots = bots.filter((item) => item.id !== bot.id);
     // History is kept by name, so a new bot given this name would otherwise inherit the chat.
     delete history[bot.name.toLowerCase()];
-    persist();
     computers.delete(bot.id);
     drafts.delete(bot.name);
     unread.delete(bot.name);
@@ -1830,8 +1692,6 @@ async function clearChat(bot, button) {
   if (!window.confirm(`Clear your chat with ${bot.name}? Every message is deleted on all your devices, and its next task starts without them. Its memory, files and schedules are kept.`)) return;
   button.disabled = true;
   try {
-    // A save still on its way would put messages back after they are cleared.
-    await saveQueues.get(bot.id);
     await api(`/api/bots/${encodeURIComponent(bot.name)}/messages`, { method: "DELETE" });
     history[bot.name.toLowerCase()] = [];
     renderBots();
@@ -2324,7 +2184,6 @@ async function initialize() {
     return;
   }
   // Every chat loads before the first one shows, so a bot with history doesn't ask for a greeting.
-  await uploadBrowserHistory();
   const failed = (await Promise.allSettled(bots.map(loadMessages))).find((result) => result.status === "rejected");
   if (failed) notify(`Some chats could not be loaded: ${failed.reason.message} Reload to try again.`);
   loaded = true;

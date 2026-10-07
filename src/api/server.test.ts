@@ -282,22 +282,34 @@ it("returns a bot's greeting", async () => {
   expect((await fetch(`${base}/api/bots/missing/greeting`)).status).toBe(404);
 });
 
-it("saves a bot's chat history and keeps it through a rename until the bot is deleted", async () => {
-  await start();
+it("saves a bot's chat on the server as its run goes, and keeps it through a rename until the bot is deleted", async () => {
+  let finish: (() => void) | undefined;
+  await start(createApiServer({ database, deleteSandbox: async () => {}, execute: async (_task, _owner, emit) => {
+    emit?.({ type: "tool_call", id: "c1", name: "web_search", arguments: '{"query":"sources"}' });
+    emit?.({ type: "tool_result", id: "c1", name: "web_search", output: "[]", isError: false });
+    await new Promise<void>((resolve) => { finish = resolve; });
+    return { ...result, answer: "Three sources" };
+  } }));
   expect((await post("/api/bots", { name: "Scout", description: "Research" })).status).toBe(201);
-  const save = (name: string, value: unknown) => fetch(`${base}/api/bots/${name}/messages`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(value) });
-  const list = async (name: string) => (await (await fetch(`${base}/api/bots/${name}/messages`)).json()) as { messages: { id: string; text: string }[] };
+  const list = async (name: string) => (await (await fetch(`${base}/api/bots/${name}/messages`)).json()) as { messages: Record<string, unknown>[] };
   expect(await list("Scout")).toEqual({ messages: [] });
 
-  const question = { id: "q1", time: 1, role: "user", text: "Find sources" };
-  const answer = { id: "a1", time: 1, role: "assistant", text: "", pending: true };
-  expect(await (await save("Scout", { messages: [question, answer] })).json()).toEqual({ saved: 2 });
-  expect((await save("Scout", { messages: [{ ...answer, text: "Three sources", pending: false, tools: [{ name: "web_search" }] }] })).status).toBe(200);
-  expect((await list("scout")).messages).toEqual([question, { ...answer, text: "Three sources", pending: false, tools: [{ name: "web_search" }] }]);
+  const running = post("/api/runs", { botName: "Scout", task: "Find sources", chat: { question: "q1", reply: "a1" } });
+  await vi.waitFor(() => expect(finish).toBeDefined());
+  // The question and a pending reply are saved before the run works, so closing the tab doesn't lose them.
+  const [question, pending] = (await list("Scout")).messages;
+  expect(question).toEqual({ id: "q1", time: expect.any(Number), role: "user", text: "Find sources" });
+  expect(pending).toMatchObject({ id: "a1", role: "assistant", pending: true });
+  finish!();
+  expect((await running).status).toBe(200);
+  expect((await list("scout")).messages).toEqual([question, {
+    id: "a1", time: question!.time, role: "assistant", text: "Three sources", pending: false, status: "", tools: [{ name: "web_search", isError: false }], usage: result.usage,
+  }]);
 
-  expect((await save("Scout", { messages: [{ ...question, role: "system" }] })).status).toBe(400);
-  expect((await save("Scout", { messages: [] })).status).toBe(400);
-  expect((await save("Missing", { messages: [question] })).status).toBe(404);
+  // Only runs write a chat. The browser can't, and a run's message IDs must be plain.
+  const put = await fetch(`${base}/api/bots/Scout/messages`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ messages: [question] }) });
+  expect(put.status).toBe(405);
+  expect((await post("/api/runs", { botName: "Scout", task: "Again", chat: { question: "../q1", reply: "a2" } })).status).toBe(400);
 
   const renamed = await fetch(`${base}/api/bots/Scout`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: "Finder", role: "Research", job: "" }) });
   expect(renamed.status).toBe(200);
@@ -308,27 +320,36 @@ it("saves a bot's chat history and keeps it through a rename until the bot is de
   expect(await list("Finder")).toEqual({ messages: [] });
 });
 
+it("saves a run that fails as an error in the bot's chat", async () => {
+  await start(createApiServer({ database, execute: async (_task, _owner, emit) => {
+    emit?.({ type: "message_delta", text: "Halfway" });
+    throw new Error("model unavailable");
+  } }));
+  await post("/api/bots", { name: "Scout", description: "Research" });
+  const response = await post("/api/runs", { botName: "Scout", task: "Find sources" }, { Accept: "text/event-stream" });
+  expect(await response.text()).toContain("event: error");
+  const { messages } = await (await fetch(`${base}/api/bots/Scout/messages`)).json() as { messages: Record<string, unknown>[] };
+  expect(messages.map(({ role, text }) => ({ role, text }))).toEqual([{ role: "user", text: "Find sources" }, { role: "error", text: "Halfway\n\nTask execution failed." }]);
+});
+
 it("clears one bot's chat history, but not while it is running", async () => {
   let finish: (() => void) | undefined;
-  await start(createApiServer({ database, execute: async () => {
-    await new Promise<void>((resolve) => { finish = resolve; });
+  await start(createApiServer({ database, execute: async (task) => {
+    if (task === "Wait") await new Promise<void>((resolve) => { finish = resolve; });
     return result;
   } }));
   await post("/api/bots", { name: "Scout", description: "Research" });
   await post("/api/bots", { name: "Writer", description: "Drafts" });
-  const message = { id: "q1", time: 1, role: "user", text: "Hello" };
-  const save = (name: string) => fetch(`${base}/api/bots/${name}/messages`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ messages: [message] }) });
   const list = async (name: string) => (await (await fetch(`${base}/api/bots/${name}/messages`)).json()) as { messages: { id: string }[] };
   const clear = (name: string) => fetch(`${base}/api/bots/${name}/messages`, { method: "DELETE" });
-  await save("Scout");
-  await save("Writer");
+  await (await post("/api/runs", { botName: "Writer", task: "Hello", chat: { question: "q1", reply: "a1" } })).text();
 
-  const running = post("/api/runs", { botName: "Scout", task: "Find sources" });
+  const running = post("/api/runs", { botName: "Scout", task: "Wait" });
   await vi.waitFor(() => expect(finish).toBeDefined());
   const blocked = await clear("Scout");
   expect(blocked.status).toBe(409);
   expect(await blocked.json()).toEqual({ error: expect.stringContaining("before clearing its chat") });
-  expect((await list("Scout")).messages).toHaveLength(1);
+  expect((await list("Scout")).messages).toHaveLength(2);
   finish!();
   await (await running).text();
 
@@ -336,6 +357,6 @@ it("clears one bot's chat history, but not while it is running", async () => {
   expect(cleared.status).toBe(200);
   expect(await cleared.json()).toEqual({ cleared: true });
   expect(await list("Scout")).toEqual({ messages: [] });
-  expect((await list("Writer")).messages.map((item) => item.id)).toEqual(["q1"]);
+  expect((await list("Writer")).messages.map((item) => item.id)).toEqual(["q1", "a1"]);
   expect((await clear("Missing")).status).toBe(404);
 });

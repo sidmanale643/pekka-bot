@@ -1,4 +1,3 @@
-import { z } from "zod";
 import { ensureSchema, getDatabase, type Database } from "./database/database.ts";
 
 /** How many of a bot's latest messages a chat loads. */
@@ -6,18 +5,14 @@ export const HISTORY_LIMIT = 500;
 /** D1 binds at most 100 parameters per statement, and each row takes 6. */
 const ROWS_PER_INSERT = 16;
 
-/**
- * A chat message as the web app writes it, with its tool steps, cards and run status.
- * Only the fields that identify and order it are checked; the rest is kept as sent.
- */
-export const ChatMessageSchema = z.looseObject({
-  id: z.string().min(1).max(100),
-  time: z.number().int().nonnegative(),
-  role: z.enum(["user", "assistant", "error"]),
-  text: z.string(),
-}).refine((message) => JSON.stringify(message).length <= 500_000, "Message is too large to save.");
-
-export type ChatMessage = z.output<typeof ChatMessageSchema>;
+/** A chat message, with its tool steps, cards and run status. The server writes them as a bot's runs go. */
+export interface ChatMessage {
+  id: string;
+  time: number;
+  role: "user" | "assistant" | "error";
+  text: string;
+  [field: string]: unknown;
+}
 
 /** A bot's latest messages, oldest first. Messages sent in the same millisecond keep the order they were saved in. */
 export async function listMessages(userId: string, botId: string, database: Database = getDatabase()): Promise<ChatMessage[]> {

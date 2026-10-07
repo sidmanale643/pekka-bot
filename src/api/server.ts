@@ -4,7 +4,8 @@ import { z } from "zod";
 import type { AgentResult } from "../agent/loop.ts";
 import type { EventHandler } from "../agent/events.ts";
 import { BotMemory, memoryFiles } from "../bot-memory.ts";
-import { ChatMessageSchema, deleteMessages, listMessages, saveMessages } from "../chat-history.ts";
+import { deleteMessages, listMessages } from "../chat-history.ts";
+import { ChatRecorder } from "../chat-recorder.ts";
 import { createBot, deleteBot, updateBot, DuplicateBotError, ensureChiefOfStaff, findBot as findStoredBot, listBots, type Bot } from "../bots.ts";
 import { loadConfig } from "../config.ts";
 import { DatabaseConfigError } from "../database/d1.ts";
@@ -43,9 +44,13 @@ const createBotInput = z.union([
   botInput,
 ]);
 const conversationInput = z.array(z.object({ role: z.enum(["user", "assistant"]), content: text.max(4000) }).strict()).max(20);
-const runInput = z.object({ task: text.optional(), botName: text.max(200).optional(), conversation: conversationInput.optional(), sessionId: text.max(150).optional() }).strict()
+const messageId = z.string().regex(/^[\w-]{1,100}$/);
+// `chat` names the messages a bot's run is saved as, so the browser's live copy and the saved one match.
+const runInput = z.object({
+  task: text.optional(), botName: text.max(200).optional(), conversation: conversationInput.optional(), sessionId: text.max(150).optional(),
+  chat: z.object({ question: messageId, reply: messageId }).strict().optional(),
+}).strict()
   .refine((value) => value.task || value.botName, "Provide task or botName.");
-const messagesInput = z.object({ messages: z.array(ChatMessageSchema).min(1).max(100) }).strict();
 const jobInput = z.object({
   name: text.max(200), task: text, runAt: z.iso.datetime({ offset: true }),
   intervalSeconds: z.number().int().min(60).max(31_536_000).optional(), botName: text.max(200).optional(),
@@ -136,8 +141,10 @@ export function createApiServer(options: ServerOptions = {}) {
     const runId = randomUUID();
     const controller = new AbortController();
     cancellations.set(key, { controller, runId });
+    let recorder: ChatRecorder | undefined;
     const emit: EventHandler = (event) => {
-      if (!response.destroyed && response.headersSent) response.write(`event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`);
+      const streamed = recorder ? recorder.apply(event) : event;
+      if (!response.destroyed && response.headersSent) response.write(`event: ${streamed.type}\ndata: ${JSON.stringify(streamed)}\n\n`);
     };
     const streaming = request.headers.accept?.includes("text/event-stream");
     const review = permissions.reviewer(userId, runId,
@@ -147,16 +154,27 @@ export function createApiServer(options: ServerOptions = {}) {
     const disconnect = () => permissions.cancelRun(runId);
     response.once("close", disconnect);
     try {
-      await respondToRun(request, response, () => execute(task, { userId, bot, approveAction, conversation: input.conversation, signal: controller.signal, sessionId: input.sessionId ? `${userId}:${input.sessionId}` : undefined, reserve: (target) => {
-        const release = reserve(target);
-        if (!release) return undefined;
-        const targetKey = `bot:${target.id}`;
-        cancellations.set(targetKey, { controller, runId });
-        return () => { cancellations.delete(targetKey); release(); };
-      } }, emit).catch((error) => {
-        if (!controller.signal.aborted) throw error;
-        return { status: "stopped" as const, answer: "", steps: 0, usage: { promptTokens: 0, completionTokens: 0, costUsd: 0 }, messages: [] };
-      }));
+      // A bot's chat is saved here as the run goes, so it's kept even if the browser that asked disconnects.
+      if (bot) recorder = await ChatRecorder.start({ userId, botId: bot.id, botName: bot.name, database }, task, input.chat);
+      await respondToRun(request, response, async () => {
+        try {
+          const result = await execute(task, { userId, bot, approveAction, conversation: input.conversation, signal: controller.signal, sessionId: input.sessionId ? `${userId}:${input.sessionId}` : undefined, reserve: (target) => {
+            const release = reserve(target);
+            if (!release) return undefined;
+            const targetKey = `bot:${target.id}`;
+            cancellations.set(targetKey, { controller, runId });
+            return () => { cancellations.delete(targetKey); release(); };
+          } }, emit).catch((error) => {
+            if (!controller.signal.aborted) throw error;
+            return { status: "stopped" as const, answer: "", steps: 0, usage: { promptTokens: 0, completionTokens: 0, costUsd: 0 }, messages: [] };
+          });
+          await recorder?.finish(result);
+          return result;
+        } catch (error) {
+          await recorder?.fail("Task execution failed.");
+          throw error;
+        }
+      });
     } finally {
       response.off("close", disconnect);
       permissions.cancelRun(runId);
@@ -213,16 +231,10 @@ export function createApiServer(options: ServerOptions = {}) {
       json(response, 200, { messages: await listMessages(userId, bot.id, database()) });
       return;
     }
-    if (request.method === "DELETE") {
-      // A running reply keeps saving into the chat, so clearing now would leave half a conversation.
-      if (active.has(`bot:${bot.id}`)) throw new HttpError(409, "Wait for this bot's running task to finish before clearing its chat.");
-      await deleteMessages(userId, bot.id, database());
-      json(response, 200, { cleared: true });
-      return;
-    }
-    const { messages } = await body(request, messagesInput);
-    await saveMessages(userId, bot.id, messages, database());
-    json(response, 200, { saved: messages.length });
+    // A running reply keeps saving into the chat, so clearing now would leave half a conversation.
+    if (active.has(`bot:${bot.id}`)) throw new HttpError(409, "Wait for this bot's running task to finish before clearing its chat.");
+    await deleteMessages(userId, bot.id, database());
+    json(response, 200, { cleared: true });
   };
 
   const schedule: Handler = async (request, response, _params, userId) => {
@@ -298,7 +310,6 @@ export function createApiServer(options: ServerOptions = {}) {
     ["POST", /^\/api\/runs$/, run],
     ["GET", /^\/api\/bots\/([^/]+)\/greeting$/, async (_request, response, [name], userId) => { json(response, 200, await greet(await findBot(userId, name!))); }],
     ["GET", /^\/api\/bots\/([^/]+)\/messages$/, chat],
-    ["PUT", /^\/api\/bots\/([^/]+)\/messages$/, chat],
     ["DELETE", /^\/api\/bots\/([^/]+)\/messages$/, chat],
     ["GET", /^\/api\/bots\/([^/]+)\/memory\/([^/]+)$/, memory],
     ["PUT", /^\/api\/bots\/([^/]+)\/memory\/([^/]+)$/, memory],
