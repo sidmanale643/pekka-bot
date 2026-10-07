@@ -1,5 +1,5 @@
-import type { ChatMessage, Model, ModelReply, ToolCall, ToolDefinition } from "./model.ts";
-import { traceOperation } from "../tracing.ts";
+import { KeyCheckError, type ChatMessage, type Model, type ModelReply, type ToolCall, type ToolDefinition } from "./model.ts";
+import { tracedModel } from "./traced.ts";
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 const MODELS_URL = "https://openrouter.ai/api/v1/models";
@@ -11,8 +11,8 @@ export class OpenRouterError extends Error {
   readonly status: number;
   readonly retryAfterMs?: number;
 
-  constructor(status: number, message: string, retryAfterMs?: number) {
-    super(`OpenRouter request failed (${status}): ${message}`);
+  constructor(status: number, message: string, retryAfterMs?: number, provider = "OpenRouter") {
+    super(`${provider} request failed (${status}): ${message}`);
     this.status = status;
     this.retryAfterMs = retryAfterMs;
   }
@@ -33,26 +33,42 @@ interface StreamChunk {
   error?: { code?: number; message: string };
 }
 
+/** An OpenAI-compatible chat completions endpoint: OpenRouter, or OpenAI itself. */
+export interface ChatEndpoint {
+  provider: string;
+  url: string;
+  headers?: Record<string, string>;
+  /** Asks the endpoint to end the stream with token usage. The two providers spell it differently. */
+  usage: Record<string, unknown>;
+}
+
+const OPENROUTER: ChatEndpoint = { provider: "OpenRouter", url: OPENROUTER_URL, headers: { "X-Title": "Pekka" }, usage: { usage: { include: true } } };
+
 export function createOpenRouterModel(options: { apiKey: string; model: string; requestTimeoutMs?: number }): Model {
+  return createChatCompletionsModel(OPENROUTER, options);
+}
+
+export function createChatCompletionsModel(endpoint: ChatEndpoint, options: { apiKey: string; model: string; requestTimeoutMs?: number }): Model {
   const timeoutMs = options.requestTimeoutMs ?? REQUEST_TIMEOUT_MS;
   if (!Number.isSafeInteger(timeoutMs) || timeoutMs <= 0) throw new RangeError("requestTimeoutMs must be a positive integer");
   const model: Model = {
     async reply(messages: ChatMessage[], tools: ToolDefinition[], onDelta?: (text: string) => void, signal?: AbortSignal): Promise<ModelReply> {
       const payload = {
         model: options.model,
-        messages,
+        // Other providers' raw content is only for them.
+        messages: messages.map(({ ...message }) => { if (message.role === "assistant") delete message.raw; return message; }),
         // Some providers reject an empty tool list.
         ...(tools.length ? { tools } : {}),
         stream: true,
-        usage: { include: true },
+        ...endpoint.usage,
       };
       for (let attempt = 1; ; attempt++) {
         let receivedOutput = false;
         try {
           signal?.throwIfAborted();
           const timeout = AbortSignal.timeout(timeoutMs);
-          const response = await post(options.apiKey, payload, signal ? AbortSignal.any([signal, timeout]) : timeout);
-          return await readStream(response, onDelta, () => { receivedOutput = true; });
+          const response = await post(endpoint, options.apiKey, payload, signal ? AbortSignal.any([signal, timeout]) : timeout);
+          return await readStream(endpoint.provider, response, onDelta, () => { receivedOutput = true; });
         } catch (error) {
           if (signal?.aborted || receivedOutput || !isRetryable(error) || attempt >= MAX_ATTEMPTS) throw error;
           const retryAfterMs = error instanceof OpenRouterError ? error.retryAfterMs : undefined;
@@ -64,32 +80,7 @@ export function createOpenRouterModel(options: { apiKey: string; model: string; 
       }
     },
   };
-  return {
-    reply(messages, tools, onDelta, signal) {
-      return traceOperation("openrouter.chat", "generation", {
-        model: options.model, input: messages, metadata: { provider: "openrouter", tools },
-      }, async (update) => {
-        let started = false;
-        const reply = await model.reply(messages, tools, (text) => {
-          if (!started) {
-            started = true;
-            update({ completionStartTime: new Date() });
-          }
-          onDelta?.(text);
-        }, signal);
-        update({
-          output: reply.message,
-          usageDetails: {
-            input: Math.max(0, reply.usage.promptTokens - (reply.usage.cachedTokens ?? 0)),
-            output: reply.usage.completionTokens,
-            ...(reply.usage.cachedTokens == null ? {} : { input_cached_tokens: reply.usage.cachedTokens }),
-          },
-          costDetails: { total: reply.usage.costUsd },
-        });
-        return reply;
-      });
-    },
-  };
+  return tracedModel(endpoint.provider, options.model, model);
 }
 
 const contextWindows = new Map<string, number>();
@@ -99,14 +90,13 @@ const contextWindows = new Map<string, number>();
  * OpenRouter only routes a prompt to one that fits it. Undefined when OpenRouter
  * doesn't list one, as for routers like openrouter/auto.
  */
-export async function fetchContextWindow(model: string): Promise<number | undefined> {
+export async function fetchContextWindow(model: string, fetcher: typeof fetch = fetch): Promise<number | undefined> {
   const known = contextWindows.get(model);
   if (known) return known;
   try {
-    const response = await fetch(`${MODELS_URL}/${model}/endpoints`, { signal: AbortSignal.timeout(5000) });
+    const response = await fetcher(`${MODELS_URL}/${model}/endpoints`, { signal: AbortSignal.timeout(5000) });
     if (!response.ok) return undefined;
-    const body = (await response.json()) as { data?: { endpoints?: { context_length?: number | null }[] } };
-    const window = Math.max(0, ...(body.data?.endpoints ?? []).map((endpoint) => endpoint.context_length ?? 0));
+    const window = largestWindow(await response.json());
     if (window === 0) return undefined;
     contextWindows.set(model, window);
     return window;
@@ -116,13 +106,29 @@ export async function fetchContextWindow(model: string): Promise<number | undefi
   }
 }
 
-async function post(apiKey: string, payload: unknown, signal: AbortSignal): Promise<Response> {
-  const response = await fetch(OPENROUTER_URL, {
+function largestWindow(body: unknown): number {
+  const endpoints = (body as { data?: { endpoints?: { context_length?: number | null }[] } }).data?.endpoints ?? [];
+  return Math.max(0, ...endpoints.map((endpoint) => endpoint.context_length ?? 0));
+}
+
+/** Checks that an OpenRouter key works and the model exists, and returns the model's context window. */
+export async function checkOpenRouterKey({ apiKey, model, fetch: fetcher = fetch }: { apiKey: string; model: string; fetch?: typeof fetch }): Promise<{ contextWindow?: number }> {
+  const key = await fetcher("https://openrouter.ai/api/v1/key", { headers: { Authorization: `Bearer ${apiKey}` }, signal: AbortSignal.timeout(10_000) });
+  if (key.status === 401 || key.status === 403) throw new KeyCheckError("OpenRouter rejected this API key.");
+  if (!key.ok) throw new KeyCheckError(`OpenRouter couldn't check the key (HTTP ${key.status}). Try again.`);
+  const endpoints = await fetcher(`${MODELS_URL}/${model}/endpoints`, { signal: AbortSignal.timeout(10_000) });
+  if (endpoints.status === 404) throw new KeyCheckError(`OpenRouter has no model called "${model}".`);
+  if (!endpoints.ok) throw new KeyCheckError(`OpenRouter couldn't look up the model (HTTP ${endpoints.status}). Try again.`);
+  return { contextWindow: largestWindow(await endpoints.json()) || undefined };
+}
+
+async function post(endpoint: ChatEndpoint, apiKey: string, payload: unknown, signal: AbortSignal): Promise<Response> {
+  const response = await fetch(endpoint.url, {
     method: "POST",
     headers: {
       Authorization: `Bearer ${apiKey}`,
       "Content-Type": "application/json",
-      "X-Title": "Pekka",
+      ...endpoint.headers,
     },
     body: JSON.stringify(payload),
     signal,
@@ -130,13 +136,13 @@ async function post(apiKey: string, payload: unknown, signal: AbortSignal): Prom
 
   if (!response.ok) {
     const body = (await response.json().catch(() => ({}))) as OpenRouterResponse;
-    throw new OpenRouterError(response.status, body.error?.message ?? response.statusText, parseRetryAfter(response.headers.get("Retry-After")));
+    throw new OpenRouterError(response.status, body.error?.message ?? response.statusText, parseRetryAfter(response.headers.get("Retry-After")), endpoint.provider);
   }
-  if (!response.body) throw new OpenRouterError(502, "response contained no stream");
+  if (!response.body) throw new OpenRouterError(502, "response contained no stream", undefined, endpoint.provider);
   return response;
 }
 
-async function readStream(response: Response, onDelta: ((text: string) => void) | undefined, onOutput: () => void): Promise<ModelReply> {
+async function readStream(provider: string, response: Response, onDelta: ((text: string) => void) | undefined, onOutput: () => void): Promise<ModelReply> {
   const reader = response.body!.getReader();
   const decoder = new TextDecoder();
   const calls = new Map<number, ToolCall>();
@@ -155,7 +161,7 @@ async function readStream(response: Response, onDelta: ((text: string) => void) 
       return;
     }
     const chunk = JSON.parse(data) as StreamChunk;
-    if (chunk.error) throw new OpenRouterError(chunk.error.code ?? 502, chunk.error.message);
+    if (chunk.error) throw new OpenRouterError(chunk.error.code ?? 502, chunk.error.message, undefined, provider);
     if (chunk.usage) usage = chunk.usage;
     for (const choice of chunk.choices ?? []) {
       const delta = choice.delta;
@@ -188,7 +194,7 @@ async function readStream(response: Response, onDelta: ((text: string) => void) 
         else if (line.startsWith("data:")) eventData.push(line.slice(5).trimStart());
       }
     }
-    if (!done) throw new OpenRouterError(502, "stream ended before [DONE]");
+    if (!done) throw new OpenRouterError(502, "stream ended before [DONE]", undefined, provider);
   } finally {
     await reader.cancel().catch(() => {});
     reader.releaseLock();
@@ -196,7 +202,7 @@ async function readStream(response: Response, onDelta: ((text: string) => void) 
 
   const toolCalls = [...calls.entries()].sort(([a], [b]) => a - b).map(([, call]) => call);
   if (toolCalls.some((call) => !call.id || !call.function.name)) {
-    throw new OpenRouterError(502, "stream contained an incomplete tool call");
+    throw new OpenRouterError(502, "stream contained an incomplete tool call", undefined, provider);
   }
   return {
     message: { role: "assistant", content: content || null, ...(toolCalls.length ? { tool_calls: toolCalls } : {}) },

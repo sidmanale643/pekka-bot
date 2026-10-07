@@ -19,6 +19,7 @@
   },
   "type": "module",
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.131.0",
     "@daytonaio/sdk": "^0.218.0",
     "@langfuse/otel": "^5.11.1",
     "@langfuse/tracing": "^5.11.1",

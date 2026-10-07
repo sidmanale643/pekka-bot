@@ -15,6 +15,11 @@ export interface AssistantMessage {
   role: "assistant";
   content: string | null;
   tool_calls?: ToolCall[];
+  /**
+   * The reply exactly as a provider sent it, for providers that need it back
+   * unchanged. Anthropic checks that each thinking block returns as it was.
+   */
+  raw?: { provider: "anthropic"; content: unknown[] };
 }
 
 export type ChatMessage =
@@ -50,3 +55,6 @@ export interface ModelReply {
 export interface Model {
   reply(messages: ChatMessage[], tools: ToolDefinition[], onDelta?: (text: string) => void, signal?: AbortSignal): Promise<ModelReply>;
 }
+
+/** Why a provider wouldn't accept a key or model, in words to show the person who entered them. */
+export class KeyCheckError extends Error {}
