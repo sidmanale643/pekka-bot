@@ -1290,28 +1290,40 @@ footer .brand img { width: 30px; height: 30px; border-radius: 8px; }
           <p>A chat assistant tells you what to do. A Pekka bot does it: it runs the commands, writes the files and uses your connected tools itself, then reports back. It keeps its workspace and memory between tasks and can run on a schedule.</p>
         </details>
         <details>
-          <summary><span>02</span>Does every bot get its own computer?</summary>
-          <p>Yes. Each named bot has its own persistent Daytona sandbox, plus its own memory and skills. Sandboxes stop after 15 idle minutes and start again on the next task with their files intact.</p>
+          <summary><span>02</span>What can I hand off to a bot?</summary>
+          <p>Research, reports, code, inbox and calendar work, issue triage, meeting prep and follow-ups. A bot can search and read the web, write and run code in its own computer, and work across GitHub, Linear, Gmail, Google Calendar, Drive, Contacts, Notion, Todoist, Granola and Wispr Flow. It can email from its own address and message you on Telegram.</p>
         </details>
         <details>
-          <summary><span>03</span>Can bots work together?</summary>
-          <p>Yes, through your chief of staff. It sends self-contained briefs to your other bots, runs several at once and brings their answers together. Each bot does the work in its own computer and keeps the brief and its answer in its chat, so you can follow up with it. Bots that receive a handoff can't pass it on.</p>
+          <summary><span>03</span>Does every bot get its own computer?</summary>
+          <p>Yes. Each named bot has its own persistent Daytona sandbox where it installs packages, runs code and keeps its files, plus its own memory and skills. Its next task picks up right where the last one left off.</p>
         </details>
         <details>
-          <summary><span>04</span>What can a bot do without asking?</summary>
-          <p>Read: files, memory, skills, web searches, read-only plugin calls, and a short allowlist of shell commands such as <code>ls</code> and <code>cat</code>. Everything else, including other commands, file and memory writes, schedule changes and anything that sends or publishes, needs one-time approval of the exact arguments.</p>
+          <summary><span>04</span>Can bots work together?</summary>
+          <p>Yes, through your chief of staff. It sends self-contained briefs to your other bots, runs several at once and brings their answers together. Each bot keeps the brief and its answer in its chat, so you can follow up with it directly.</p>
         </details>
         <details>
-          <summary><span>05</span>Which models can I use?</summary>
-          <p>Any OpenRouter model that supports tool calling. Set <code>PEKKA_MODEL</code> to pick one.</p>
+          <summary><span>05</span>Can bots work while I'm away?</summary>
+          <p>Yes. Ask any bot to do something every morning, every Friday or once next week, and it schedules the job itself. Each run's result is kept with the job, and a bot can message you on Telegram when it's done. Close the tab mid-task and the reply keeps coming.</p>
         </details>
         <details>
-          <summary><span>06</span>Can my team share one server?</summary>
+          <summary><span>06</span>Do bots get better over time?</summary>
+          <p>Yes. Each bot keeps a memory of your preferences and what it has learned, and can write its own skills, so a workflow you teach once becomes something it knows how to do.</p>
+        </details>
+        <details>
+          <summary><span>07</span>How much say do I have?</summary>
+          <p>As much as you want. Bots get on with the work, and changes that shape future runs, like new instructions, skills, schedules and bots, come to you first. Set <code>PEKKA_REQUIRE_APPROVAL=true</code> to sign off on every write and send as well.</p>
+        </details>
+        <details>
+          <summary><span>08</span>Which models can I use?</summary>
+          <p>Any OpenRouter model that supports tool calling, or OpenAI and Anthropic models directly. Set <code>PEKKA_MODEL</code> for the server's default, and anyone can add their own OpenRouter, OpenAI or Anthropic key in Settings.</p>
+        </details>
+        <details>
+          <summary><span>09</span>Can my team share one server?</summary>
           <p>Yes. Turn on Google sign-in and list the addresses or domains allowed in. Each person gets their own bots, memory, schedules and plugin connections.</p>
         </details>
         <details>
-          <summary><span>07</span>What does it cost?</summary>
-          <p>Pekka is free and open source. You pay OpenRouter for model usage, Daytona for sandboxes, and any optional providers you turn on.</p>
+          <summary><span>10</span>What does it cost?</summary>
+          <p>Pekka is free and open source. You pay your model provider for usage, Daytona for sandboxes, and any optional providers you turn on. People who add their own model key pay for their own runs.</p>
         </details>
       </div>
     </div>
