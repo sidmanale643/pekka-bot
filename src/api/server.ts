@@ -224,7 +224,12 @@ export function createApiServer(options: ServerOptions = {}) {
     const { botName, ...input } = await body(request, jobInput);
     const bot = botName ? await findBot(userId, botName) : undefined;
     if (Date.parse(input.runAt) <= Date.now()) throw new HttpError(400, "runAt must be in the future.");
-    json(response, 201, await createScheduledJob(userId, { ...input, bot }, database()));
+    try {
+      json(response, 201, await createScheduledJob(userId, { ...input, bot }, database()));
+    } catch (error) {
+      if (error instanceof JobStateError) throw new HttpError(409, error.message);
+      throw error;
+    }
   };
 
   const jobActions = { cancel: cancelScheduledJob, pause: pauseScheduledJob, resume: resumeScheduledJob };

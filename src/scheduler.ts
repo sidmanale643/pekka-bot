@@ -13,6 +13,9 @@ const InputSchema = z.object({
   bot: z.object({ id: z.string(), name: z.string(), role: z.string(), job: z.string() }).optional(),
 });
 
+/** Upcoming, running and paused jobs per user, so a runaway agent or user can't pile up jobs that each cost a model run. */
+export const MAX_ACTIVE_JOBS = 50;
+
 export interface ScheduledJob {
   id: string;
   /** The user the job runs as. Its bot, plugins and results belong to them. */
@@ -112,6 +115,11 @@ export async function createScheduledJob(
 ): Promise<ScheduledJob> {
   const parsed = InputSchema.parse(input);
   if (Date.parse(parsed.runAt) <= Date.now()) throw new Error("runAt must be a future ISO timestamp with a timezone offset.");
+  const store = await ready(database);
+  const [count] = await store.query<{ active: number }>(
+    "SELECT COUNT(*) AS active FROM scheduled_jobs WHERE user_id = ? AND status IN ('pending', 'running', 'paused')", [userId],
+  );
+  if (Number(count?.active) >= MAX_ACTIVE_JOBS) throw new JobStateError(`You already have ${MAX_ACTIVE_JOBS} active jobs. Cancel one before scheduling another.`);
   const now = new Date().toISOString();
   const job: ScheduledJob = {
     ...parsed,
@@ -124,7 +132,7 @@ export async function createScheduledJob(
     updatedAt: now,
     runCount: 0,
   };
-  await insertJob(await ready(database), job);
+  await insertJob(store, job);
   return job;
 }
 

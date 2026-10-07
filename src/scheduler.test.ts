@@ -3,7 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ensureSchema, LOCAL_USER } from "./database/database.ts";
 import { createSqliteDatabase } from "./database/sqlite.ts";
 import {
-  cancelScheduledJob, createScheduledJob, listScheduledJobs, pauseScheduledJob, resumeScheduledJob, runScheduler, type ScheduledJob,
+  cancelScheduledJob, createScheduledJob, JobStateError, listScheduledJobs, MAX_ACTIVE_JOBS, pauseScheduledJob, resumeScheduledJob, runScheduler,
+  type ScheduledJob,
 } from "./scheduler.ts";
 
 let database: ReturnType<typeof createSqliteDatabase>;
@@ -40,6 +41,17 @@ describe("scheduled jobs", () => {
   it("keeps every concurrently created job", async () => {
     await Promise.all(Array.from({ length: 4 }, (_, i) => createScheduledJob(LOCAL_USER, { ...input(), name: `job-${i}` }, database)));
     expect(await listScheduledJobs(LOCAL_USER, database)).toHaveLength(4);
+  });
+
+  it("caps each user's active jobs, counting paused ones but not cancelled ones", async () => {
+    const jobs = [];
+    for (let i = 0; i < MAX_ACTIVE_JOBS; i++) jobs.push(await createScheduledJob(LOCAL_USER, input(), database));
+    await pauseScheduledJob(LOCAL_USER, jobs[0]!.id, database);
+    await expect(createScheduledJob(LOCAL_USER, input(), database)).rejects.toThrow(JobStateError);
+    // Another user has their own allowance.
+    await expect(createScheduledJob("bob", input(), database)).resolves.toMatchObject({ userId: "bob" });
+    await cancelScheduledJob(LOCAL_USER, jobs[1]!.id, database);
+    await expect(createScheduledJob(LOCAL_USER, input(), database)).resolves.toMatchObject({ status: "pending" });
   });
 
   it("executes due tasks serially once, skips future and cancelled tasks, and isolates failures", async () => {
