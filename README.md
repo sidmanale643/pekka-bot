@@ -226,7 +226,7 @@ Connect a plugin on the **Plugins** page, then enable access. Reading is always 
 | Linear | Find, read, create, and update issues, and post comments | Linear OAuth application |
 | [Wispr Flow](https://github.com/Wispr-AI/wispr-flow-plugin) | Read meeting notes, transcripts, scratchpad notes and calendar context | Sign in with Wispr Flow; automatic OAuth client registration |
 | Granola | Read meeting notes, summaries, and transcripts | Personal API key, pasted on the Plugins page |
-| Todoist | Read projects and tasks, and add, update, complete, and comment on tasks | Personal API token, pasted on the Plugins page |
+| Todoist | Read projects and tasks, and add, update, complete, and comment on tasks | OAuth through [Todoist MCP](https://www.todoist.com/help/todoist/todoist-and-ai/connect-todoist-to-an-ai-assistant-xMSzFfHng), connected on the Plugins page |
 | Telegram | Message your own linked chat | Bot token from [@BotFather](https://t.me/BotFather) |
 
 OAuth and API-key plugins need `PEKKA_PLUGIN_KEY`, which encrypts saved tokens. Generate it once with `openssl rand -hex 32` and keep it stable. The client IDs and exact callback URLs for each plugin are listed in [`.env.example`](.env.example).

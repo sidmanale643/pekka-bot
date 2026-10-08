@@ -40,6 +40,7 @@ let notionPlugin;
 let githubPlugin;
 let linearPlugin;
 let wisprPlugin;
+let todoistPlugin;
 // Google plugins share one sign-in flow and card layout; each keeps its own connection and access switch.
 const googlePlugins = {
   gmail: { name: "Gmail", grant: "Gmail access", enabled: "Gmail access enabled. Bots can now read and send your email." },
@@ -49,7 +50,7 @@ const googlePlugins = {
 };
 let googleStatus = {};
 // Plugins connected by pasting the user's own API key share one card layout.
-const apiKeyPlugins = { granola: { name: "Granola", key: "API key" }, todoist: { name: "Todoist", key: "API token" } };
+const apiKeyPlugins = { granola: { name: "Granola", key: "API key" } };
 let apiKeyStatus = {};
 let telegramPlugin;
 let telegramLink;
@@ -640,6 +641,9 @@ const toolAliases = {
   granola_list_notes: ["Checking Granola notes", "Checked Granola notes"],
   granola_get_note: ["Reading a meeting note", "Read a meeting note"],
   granola_get_transcript: ["Reading a transcript", "Read a transcript"],
+  todoist_list_tools: ["Discovering Todoist tools", "Discovered Todoist tools"],
+  todoist_read_tool: ["Reading Todoist", "Read Todoist"],
+  todoist_write_tool: ["Updating Todoist", "Updated Todoist"],
   todoist_list_projects: ["Checking Todoist projects", "Checked Todoist projects"],
   todoist_list_tasks: ["Checking Todoist tasks", "Checked Todoist tasks"],
   todoist_get_task: ["Reading a Todoist task", "Read a Todoist task"],
@@ -2390,6 +2394,7 @@ function renderPlugins() {
   renderGithub();
   renderLinear();
   renderWispr();
+  renderTodoist();
   for (const id of Object.keys(apiKeyPlugins)) renderApiKeyPlugin(id);
   renderPluginCatalog();
 }
@@ -2400,7 +2405,7 @@ function renderPluginCatalog() {
   const query = $("#plugin-search").value.trim().toLowerCase();
   const installed = $("#plugin-installed");
   installed.replaceChildren();
-  const connections = { notion: notionPlugin, ...googleStatus, telegram: telegramPlugin, github: githubPlugin, linear: linearPlugin, wispr: wisprPlugin, ...apiKeyStatus };
+  const connections = { notion: notionPlugin, ...googleStatus, telegram: telegramPlugin, github: githubPlugin, linear: linearPlugin, wispr: wisprPlugin, todoist: todoistPlugin, ...apiKeyStatus };
   $("#plugin-count").textContent = document.querySelectorAll("[data-plugin]").length;
   let connectedCount = 0;
   let visibleCount = 0;
@@ -2512,6 +2517,7 @@ async function loadPlugins() {
       error: `${name} could not be connected. Make sure you allowed ${grant} on Google's consent screen, or check the server's OAuth setup.`,
     }])),
     github: { connected: "GitHub connected. Choose whether to allow Pekka access below.", denied: "GitHub connection was cancelled. You can try again whenever you're ready.", error: "GitHub could not be connected. Try again or check the server's OAuth setup." },
+    todoist: { connected: "Todoist connected. Choose whether to allow Pekka access below.", denied: "Todoist connection was cancelled.", error: "Todoist could not be connected. Try again or check the server setup." },
     wispr: { connected: "Wispr Flow connected. Choose whether to allow Pekka access below.", denied: "Wispr Flow connection was cancelled.", error: "Wispr Flow could not be connected. Try again or check the server setup." },
     linear: { connected: "Linear connected. Choose whether to allow Pekka access below.", denied: "Linear connection was cancelled. You can try again whenever you're ready.", error: "Linear could not be connected. Try again or check the server's OAuth setup." },
   };
@@ -2538,6 +2544,7 @@ async function loadPlugins() {
     }
     githubPlugin = data.plugins.find((plugin) => plugin.id === "github");
     linearPlugin = data.plugins.find((plugin) => plugin.id === "linear");
+    todoistPlugin = data.plugins.find((plugin) => plugin.id === "todoist");
     wisprPlugin = data.plugins.find((plugin) => plugin.id === "wispr");
     apiKeyStatus = Object.fromEntries(Object.keys(apiKeyPlugins).map((id) => [id, data.plugins.find((plugin) => plugin.id === id)]));
   } catch (error) {
@@ -2547,6 +2554,7 @@ async function loadPlugins() {
     githubPlugin = undefined;
     linearPlugin = undefined;
     wisprPlugin = undefined;
+    todoistPlugin = undefined;
     apiKeyStatus = {};
     $("#plugin-status").textContent = `Could not load plugins: ${error.message}`;
   } finally {
@@ -2704,6 +2712,56 @@ async function changeWispr(action) {
 $("#wispr-connect").addEventListener("click", () => changeWispr("connect"));
 $("#wispr-disconnect").addEventListener("click", () => changeWispr("disconnect"));
 $("#wispr-enabled").addEventListener("change", () => changeWispr("permission"));
+
+function renderTodoist() {
+  const connected = Boolean(todoistPlugin?.connected);
+  const configured = Boolean(todoistPlugin?.configured);
+  $("#todoist-card").setAttribute("aria-busy", String(pluginsBusy));
+  $("#todoist-state").textContent = !todoistPlugin ? (pluginsBusy ? "Loading…" : "Unavailable") : connected ? (todoistPlugin.enabled ? "Access enabled" : "Access off") : configured ? "Not connected" : "Setup required";
+  $("#todoist-state").classList.toggle("enabled", connected && todoistPlugin.enabled);
+  $("#todoist-setup").hidden = !todoistPlugin || configured;
+  $("#todoist-workspace").hidden = !connected;
+  $("#todoist-workspace").textContent = connected ? `Connected to ${todoistPlugin.workspaceName || "your Todoist account"}` : "";
+  $("#todoist-permission").hidden = !connected;
+  if (!pluginsBusy) $("#todoist-enabled").checked = connected && todoistPlugin.enabled;
+  $("#todoist-enabled").disabled = pluginsBusy || !connected;
+  $("#todoist-connect").textContent = connected ? "Reconnect Todoist" : "Add Todoist";
+  $("#todoist-connect").disabled = pluginsBusy || !configured;
+  $("#todoist-disconnect").hidden = !connected;
+  $("#todoist-disconnect").disabled = pluginsBusy;
+  $("#todoist-use").hidden = !connected;
+}
+
+async function changeTodoist(action) {
+  if (pluginsBusy) return;
+  pluginsBusy = true;
+  const enabled = $("#todoist-enabled").checked;
+  renderPlugins();
+  $("#plugin-status").textContent = action === "connect" ? "Opening Todoist…" : "Saving…";
+  try {
+    if (action === "connect") {
+      const result = await api("/api/plugins/todoist/connect", { method: "POST", body: "{}" });
+      const target = new URL(result.url);
+      if (target.protocol !== "https:" || target.hostname !== "todoist.com" || target.pathname !== "/oauth/authorize") throw new Error("Invalid Todoist authorization URL.");
+      location.assign(target.href);
+      return;
+    }
+    todoistPlugin = await api("/api/plugins/todoist", action === "disconnect" ? { method: "DELETE" } : { method: "PUT", body: JSON.stringify({ enabled }) });
+    $("#plugin-status").textContent = action === "disconnect" ? "Todoist disconnected. Pekka no longer has access." : enabled ? "Todoist access enabled for all bots." : "Todoist access turned off.";
+  } catch (error) {
+    const message = `Could not update Todoist: ${error.message}`;
+    pluginsBusy = false;
+    await loadPlugins();
+    $("#plugin-status").textContent = todoistPlugin ? message : `${message} Refresh to check the current connection state.`;
+  } finally {
+    pluginsBusy = false;
+    renderPlugins();
+  }
+}
+
+$("#todoist-connect").addEventListener("click", () => changeTodoist("connect"));
+$("#todoist-disconnect").addEventListener("click", () => changeTodoist("disconnect"));
+$("#todoist-enabled").addEventListener("change", () => changeTodoist("permission"));
 
 function renderApiKeyPlugin(id) {
   const plugin = apiKeyStatus[id];
