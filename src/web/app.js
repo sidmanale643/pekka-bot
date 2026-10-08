@@ -70,11 +70,15 @@ const localOnly = new WeakSet(); // messages this tab added that the server's co
 
 const messageId = () => crypto.randomUUID?.() ?? `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
 
-/** A saved message as this tab shows it. One still running on the server says so, until the chat is read again. */
+/**
+ * A saved message as this tab shows it. One still running on the server says so, until the chat is read again,
+ * and its open permission requests can still be answered here.
+ */
 function restoredMessage(entry) {
   return {
     ...entry,
     pending: false,
+    stillRunning: Boolean(entry.pending),
     status: entry.pending ? "Still running when this chat was loaded." : typeof entry.status === "string" ? entry.status : "",
   };
 }
@@ -95,7 +99,9 @@ async function loadMessages(bot) {
   const merged = messages.map((data) => {
     const mine = local.get(data.id);
     local.delete(data.id);
-    if (mine?.pending) return mine;
+    // A reply still running here keeps its live copy, but takes the saved time: its question now has the server's
+    // time, which is later than this tab's, and sorting by the old one would put the reply above the question.
+    if (mine?.pending) return Object.assign(mine, { time: data.time });
     // The same object is updated, so a run or handoff that refers to it still finds it.
     if (mine) localOnly.delete(mine);
     return Object.assign(mine ?? {}, restoredMessage(data));
@@ -770,6 +776,14 @@ function clock(since) {
   return node;
 }
 
+// A run started in another tab, or before this page loaded, shows up only when its chat is read again. A reply
+// left running by a server that stopped stays that way, so only the last hour's are followed.
+setInterval(() => {
+  if (document.visibilityState !== "visible" || !selected || currentPage !== "workspace") return;
+  const recent = (message) => message.stillRunning && Date.now() - message.time < 3_600_000;
+  if (history[selected.name.toLowerCase()]?.some(recent)) void refreshMessages(selected);
+}, 3000);
+
 setInterval(() => {
   if (!running.size) return;
   for (const node of document.querySelectorAll("[data-since]")) node.textContent = elapsed(Date.now() - Number(node.dataset.since));
@@ -1378,7 +1392,7 @@ function permissionCard(request, message) {
   card.append(element("p", "permission-tool", toolAlias(request.tool, true)));
   card.append(element("pre", "permission-arguments", JSON.stringify(request.arguments, null, 2)));
   const expired = Date.parse(request.expiresAt) <= Date.now();
-  if (request.decision || expired || !message.pending) {
+  if (request.decision || expired || !(message.pending || message.stillRunning)) {
     card.append(element("p", "", request.decision || "Expired or run disconnected"));
     return card;
   }
@@ -1395,6 +1409,8 @@ function permissionCard(request, message) {
       try {
         await api(`/api/permissions/${encodeURIComponent(request.id)}`, { method: "POST", body: JSON.stringify({ approved }) });
         request.decision = approved ? "Approved once" : "Denied";
+        // A run this tab isn't streaming shows what happens next when its chat is read again.
+        if (!message.pending && selected) void reloadMessages(selected);
       } catch (error) {
         request.error = error.message;
       } finally {
