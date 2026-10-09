@@ -1,5 +1,5 @@
 <p align="center">
-  <a href="https://pekkabot.xyz"><img src="site/head.svg" alt="Pekka" width="96" /></a>
+  <a href="https://pekkabot.xyz"><img src="assets/head.svg" alt="Pekka" width="96" /></a>
 </p>
 
 <h1 align="center">Pekka</h1>
@@ -317,6 +317,8 @@ Tracing is off unless both keys are set, and `LANGFUSE_TRACING_ENABLED=false` tu
 
 ## Project structure
 
+The landing page lives in [pekka-landing](https://github.com/sidmanale643/pekka-landing).
+
 ```text
 src/
 ├── agent/          Agent loop, context summarization, system prompt
@@ -331,7 +333,7 @@ src/
 ├── web/            The web app (plain HTML, CSS, and JS)
 └── cli.ts          The `pekka` CLI
 skills/             Ready-made skills for the bundled plugins
-site/               Landing page
+assets/             Shared brand assets
 server.ts           Vercel entry point
 ```
 

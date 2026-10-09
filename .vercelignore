@@ -11,7 +11,7 @@
 **/*.test.ts
 
 # Not part of the API deployment
-/site
+/assets
 /skills
 /docs
 /references
