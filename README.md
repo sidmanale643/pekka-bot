@@ -41,11 +41,11 @@ Chief of Staff: Acme still wants a three-year price lock and SSO in the base pla
                 and it raised a Series C in August. You're free 9:30–10:00 Thursday.
 ```
 
-Pekka is a self-hosted Node.js app. Models run through [OpenRouter](https://openrouter.ai), or OpenAI and Anthropic directly with a key of your own, sandboxes through [Daytona](https://daytona.io), and data is stored in [Cloudflare D1](https://developers.cloudflare.com/d1/). You bring the API keys, and every credential stays on your server.
+Pekka is a self-hosted Node.js app. Models run through [OpenRouter](https://openrouter.ai), or OpenAI and Anthropic directly with a key of your own. Each bot's computer is a [Daytona](https://daytona.io) sandbox, or a Docker container on your own machine. Data is stored in [Cloudflare D1](https://developers.cloudflare.com/d1/), or in a SQLite file next to the server. You bring the API keys, and every credential stays on your server.
 
 ## Features
 
-- **A computer per bot.** Each bot has its own persistent [Daytona](https://daytona.io) sandbox. It stops after 15 idle minutes and starts again with its files intact.
+- **A computer per bot.** Each bot has its own persistent [Daytona](https://daytona.io) sandbox, or a Docker container when there's no Daytona key. It stops when a task ends and starts again with its files intact.
 - **Delegation.** Chief of Staff writes each bot a self-contained brief and runs several bots at once. Each bot keeps the work in its own chat, so you can follow up with it directly.
 - **Memory you can read.** Each bot has two Markdown files, `PREFERENCES.md` and `KNOWLEDGE.md`. The bot fills them in as you chat, and you can edit them at any time.
 - **Skills.** Reusable instructions in `SKILL.md` folders. Bots see a short catalog and load the full instructions only when a task needs them, and they can write new skills for themselves.
@@ -56,7 +56,7 @@ Pekka is a self-hosted Node.js app. Models run through [OpenRouter](https://open
 - **Long tasks.** When a prompt fills half of the model's context window, older steps are summarized. Your request and the latest step are kept word for word.
 - **Guardrails.** Deletions, destructive Git commands, `sudo`, and piping a download into a shell are always blocked. Changes that shape future runs, such as a bot's instructions, skills and scheduled jobs, always wait for your approval. You can also turn on approval of every write and send.
 - **Any model.** Use any OpenRouter model that supports tool calling. Each person can also save their own OpenRouter, OpenAI, or Anthropic key in **Settings**, and their runs use it and bill them directly.
-- **Three interfaces.** A web app, a CLI, and an HTTP API that streams events over SSE.
+- **Four interfaces.** A web app, a Mac app that runs Pekka on your Mac, a CLI, and an HTTP API that streams events over SSE.
 - **Teams.** Turn on Google sign-in to share one server. Each person gets their own bots, memory, schedules, and plugin connections.
 - **Tracing.** Optional [Langfuse](https://langfuse.com) traces of every model call, tool call, and delegation.
 
@@ -107,20 +107,25 @@ The agent loop sends the task and the available tools to the model, runs each to
 
 - [Node.js](https://nodejs.org) 22.13 or later
 - [pnpm](https://pnpm.io) 11.3 or later (within version 11)
-- An [OpenRouter API key](https://openrouter.ai/settings/keys)
-- A [Daytona API key](https://app.daytona.io/dashboard/keys)
-- A [Cloudflare D1](https://developers.cloudflare.com/d1/get-started/) database, and an API token with **Account → D1 → Edit** permission
+
+Pekka starts without any keys. Add these when you want what they give you:
+
+| Key | With it | Without it |
+| --- | --- | --- |
+| An [OpenRouter API key](https://openrouter.ai/settings/keys) | Every task uses the server's model. | Each person adds their own OpenRouter, OpenAI, or Anthropic key in **Settings**. Until they do, tasks fail with a message saying so. |
+| A [Daytona API key](https://app.daytona.io/dashboard/keys) | Each bot gets a cloud sandbox. | Each bot gets a Docker container on the server's machine, so [Docker](https://www.docker.com/products/docker-desktop/) must be running there. |
+| A [Cloudflare D1](https://developers.cloudflare.com/d1/get-started/) database, and an API token with **Account → D1 → Edit** permission | Data is stored in D1, so several servers can share it. | Data is stored in `pekka.db`, a SQLite file in the directory you start Pekka from. |
 
 ### Install and run
 
 ```bash
-git clone https://github.com/sidmanale643/pekka.git
-cd pekka
+git clone https://github.com/sidmanale643/pekka-bot.git
+cd pekka-bot
 pnpm install
 cp .env.example .env
 ```
 
-Fill in the required values in `.env`:
+Fill in the keys you have in `.env`, for example:
 
 ```dotenv
 OPENROUTER_API_KEY=...
@@ -130,7 +135,7 @@ CLOUDFLARE_ACCOUNT_ID=...
 CLOUDFLARE_D1_DATABASE_ID=...
 ```
 
-Check the database connection and start the server:
+Check which database Pekka uses, then start the server:
 
 ```bash
 pnpm pekka db check
@@ -151,6 +156,26 @@ The web app is where you do most of your work:
 - **Plugins.** Connect an app, then enable access. Access stays off until you turn it on.
 - **Scheduled.** Create, pause, resume, and cancel recurring tasks.
 - **Settings.** Pick which model runs use: the server's default, or your own OpenRouter, OpenAI, or Anthropic key. Keys are checked with the provider and stored encrypted with `PEKKA_PLUGIN_KEY`.
+
+### Mac app
+
+The Mac app is the same web app in its own window, with Pekka's server built in. You don't need Node.js, pnpm, or a checkout to use it.
+
+Open the app and Pekka starts. Its server and scheduler run on your Mac while the app is open, with their settings in `~/Library/Application Support/Pekka/.env`. Add your model key in **Settings**, the same as in the web app. Your data is kept in `pekka.db` in the same folder, and bots use Docker containers, so start Docker Desktop before you run a task. To use Daytona sandboxes or Cloudflare D1 instead, add `DAYTONA_API_KEY` or the `CLOUDFLARE_*` settings to that `.env` (**Pekka → Open Data Folder**). Closing the window keeps the server and scheduler running, so tasks and schedules carry on. Quitting stops them.
+
+The app serves Pekka at `http://127.0.0.1:3000`, or at `PEKKA_API_PORT` and `PEKKA_URL` when your `.env` sets them, so the plugin redirect URIs you registered for `pnpm api` keep working. If a Pekka server is already running there, such as `pnpm api`, the app opens that one instead of starting a second. Choose **Pekka → Change Server…** to connect to a Pekka you host instead (if that server has Google sign-in on, you sign in inside the app), and **Pekka → Run Scheduled Tasks** to stop running schedules from this Mac. The server log is in `~/Library/Logs/Pekka/server.log`.
+
+Build the app from a checkout. You get an Apple Silicon DMG in `desktop/dist/`:
+
+```bash
+pnpm install
+pnpm --dir desktop install
+pnpm desktop:dmg
+```
+
+`pnpm desktop` runs the app straight from the checkout instead. Both compile the server from `src/` first.
+
+The app is signed and notarized when electron-builder finds a Developer ID certificate and Apple credentials (`CSC_LINK`, `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, `APPLE_TEAM_ID`). Without them it's signed for this Mac only. To open it on another Mac, open it once, then choose **Open Anyway** in **System Settings → Privacy & Security**.
 
 ### CLI
 
@@ -245,11 +270,13 @@ All settings are environment variables. They are read from `.env` and documented
 
 | Variable | Default | Description |
 | --- | --- | --- |
-| `OPENROUTER_API_KEY` | *required* | OpenRouter API key, used by every run that doesn't have its own saved key. |
-| `DAYTONA_API_KEY` | *required* | Daytona API key. |
-| `CLOUDFLARE_API_TOKEN` | *required* | Token with D1 Edit permission. |
-| `CLOUDFLARE_ACCOUNT_ID` | *required* | Cloudflare account ID. |
-| `CLOUDFLARE_D1_DATABASE_ID` | *required* | D1 database ID. |
+| `OPENROUTER_API_KEY` | | OpenRouter API key, used by every run that doesn't have its own saved key. Without it, each person needs their own key from **Settings**. |
+| `DAYTONA_API_KEY` | | Daytona API key. Without it, each bot's computer is a Docker container. |
+| `PEKKA_DOCKER_IMAGE` | `python:3.13-bookworm` | Image for those Docker containers. |
+| `CLOUDFLARE_D1_DATABASE_ID` | | D1 database ID. When it's set, Pekka stores everything in D1 and needs the two variables below. |
+| `CLOUDFLARE_API_TOKEN` | | Token with D1 Edit permission. |
+| `CLOUDFLARE_ACCOUNT_ID` | | Cloudflare account ID. |
+| `PEKKA_DATABASE_PATH` | `pekka.db` | The SQLite file Pekka uses when D1 isn't configured. |
 | `PEKKA_MODEL` | `deepseek/deepseek-v4.1-flash` | Any OpenRouter model that supports tool calling. |
 | `PEKKA_MAX_STEPS` | `30` | The most model replies a task can use. |
 | `PEKKA_CONTEXT_WINDOW` | the model's window on OpenRouter | Overrides the context window used to decide when to summarize. |
@@ -267,11 +294,11 @@ The variables for sign-in, plugins, and tracing are covered in the sections belo
 
 - **Hard blocks.** Some shell commands are refused whatever the settings: `rm`, `rmdir`, `shred`, `mkfs`, and `dd`; `git reset --hard`, `git clean`, and force-pushes; `sudo`, `su`, `chmod`, `chown`, and shutdown or reboot; and `curl … | sh`.
 - **Approvals.** By default, everything else runs without asking. Set `PEKKA_REQUIRE_APPROVAL=true` to review each write, command, and plugin action, with the exact arguments, before it runs. Read-only tools and a short list of safe commands, such as `ls` and `cat`, never ask. Whatever this is set to, Pekka always asks before a bot changes its own or another bot's instructions, creates a bot, saves a skill or schedules a job, so text injected into one run can't take hold of later ones. Scheduled tasks have nobody to ask, so they can't take actions that need approval. Each user can have up to 50 active scheduled jobs.
-- **Credentials.** Plugin tokens are encrypted with `PEKKA_PLUGIN_KEY` and stored in D1. They are never placed in the model's context or the bot's sandbox.
+- **Credentials.** Plugin tokens are encrypted with `PEKKA_PLUGIN_KEY` and stored in the database. They are never placed in the model's context or the bot's sandbox.
 - **Untrusted content.** Bots are told to treat web pages, emails, issues, and repository files as data, not as instructions.
 - **Localhost by default.** Without sign-in, Pekka listens on `127.0.0.1` and serves one user.
 
-To report a vulnerability, please use [GitHub's private vulnerability reporting](https://github.com/sidmanale643/pekka/security/advisories/new) instead of opening a public issue.
+To report a vulnerability, please use [GitHub's private vulnerability reporting](https://github.com/sidmanale643/pekka-bot/security/advisories/new) instead of opening a public issue.
 
 ## Deployment
 
