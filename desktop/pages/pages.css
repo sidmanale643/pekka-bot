@@ -1,0 +1,252 @@
+/* The app's own status page, in the web app's colors and type. */
+:root {
+  --paper: #efeee9;
+  --sheet: #f8f8f5;
+  --sunk: #e0dfd8;
+  --rule: #d3d2ca;
+  --rule-strong: #b3b2a9;
+  --ink: #151515;
+  --ink-2: #4f4e48;
+  --ink-3: #7d7c73;
+  --accent: #2a3cf0;
+  --danger: #a8281d;
+  --term: #0d0f15;
+  --term-ink: #ecebe6;
+  --sans: "Geist", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  --mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --radius: 3px;
+  color-scheme: light;
+  font-family: var(--sans);
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--ink);
+  background: var(--paper);
+  font-synthesis: none;
+  -webkit-font-smoothing: antialiased;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #191918;
+    --sheet: #20201e;
+    --sunk: #2a2a27;
+    --rule: #31312e;
+    --rule-strong: #4a4945;
+    --ink: #ecebe6;
+    --ink-2: #b5b4ac;
+    --ink-3: #8b8a82;
+    --accent: #7d89ff;
+    --danger: #f08a7e;
+    color-scheme: dark;
+  }
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  background: var(--paper);
+}
+[hidden] {
+  display: none !important;
+}
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+a {
+  color: inherit;
+  text-underline-offset: 2px;
+}
+button,
+input {
+  font: inherit;
+  color: inherit;
+}
+
+.page {
+  max-width: 520px;
+  margin: 0 auto;
+  padding: 11vh 24px 56px;
+}
+.page h1 {
+  margin: 20px 0 0;
+  font-size: 28px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+.lede {
+  margin: 10px 0 0;
+  color: var(--ink-2);
+  font-size: 15px;
+  line-height: 1.6;
+}
+.muted {
+  color: var(--ink-2);
+  font-size: 13px;
+  line-height: 1.6;
+}
+.hint {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: var(--ink-3);
+}
+.error {
+  margin: 14px 0 0;
+  color: var(--danger);
+  font-size: 13px;
+}
+.error:empty {
+  display: none;
+}
+code {
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 34px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: var(--radius);
+  background: none;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background-color 0.12s, border-color 0.12s, color 0.12s;
+}
+.button:disabled {
+  cursor: default;
+  opacity: 0.4;
+}
+.button.primary {
+  background: var(--ink);
+  color: var(--sheet);
+}
+.button.primary:not(:disabled):hover {
+  background: var(--accent);
+}
+.button.secondary {
+  border: 1px solid var(--rule-strong);
+}
+.button.secondary:not(:disabled):hover {
+  border-color: var(--ink);
+}
+.button.ghost {
+  color: var(--ink-2);
+}
+.button.ghost:not(:disabled):hover {
+  color: var(--ink);
+  background: var(--sunk);
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 24px;
+}
+
+/* Server */
+.modes {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  margin-top: 28px;
+  padding: 4px;
+  background: var(--sunk);
+  border-radius: 6px;
+}
+.modes button {
+  height: 32px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--ink-2);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+.modes button[aria-pressed="true"] {
+  background: var(--sheet);
+  color: var(--ink);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 0.12);
+}
+form {
+  margin-top: 22px;
+}
+.intro {
+  margin: 0 0 14px;
+}
+label {
+  display: block;
+  margin-top: 18px;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--ink-2);
+}
+input {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+  padding: 9px 11px;
+  background: var(--sheet);
+  border: 1px solid var(--rule-strong);
+  border-radius: var(--radius);
+  font-family: var(--sans);
+  font-size: 14px;
+  color: var(--ink);
+  transition: border-color 0.12s;
+}
+input:focus {
+  outline: none;
+  border-color: var(--ink);
+}
+::placeholder {
+  color: var(--ink-3);
+  opacity: 1;
+}
+
+/* Status */
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--rule-strong);
+  border-top-color: var(--ink);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation-duration: 2.4s;
+  }
+}
+.starting {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 20px;
+  color: var(--ink-2);
+  font-size: 15px;
+}
+.log {
+  margin: 20px 0 0;
+  max-height: 260px;
+  overflow: auto;
+  padding: 12px 14px;
+  background: var(--term);
+  color: var(--term-ink);
+  border-radius: var(--radius);
+  font-family: var(--mono);
+  font-size: 11.5px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+}

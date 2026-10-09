@@ -1,6 +1,8 @@
 # Dependencies and build output
 node_modules/
 dist/
+# The server copy the Mac app runs, built by desktop/scripts/stage-server.mjs
+/desktop/server/
 coverage/
 *.tsbuildinfo
 

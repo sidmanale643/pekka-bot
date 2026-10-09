@@ -1,0 +1,7 @@
+# The Mac app is its own package, kept apart from the server's dependencies.
+allowBuilds:
+  electron: true
+  # Only builds Windows installers.
+  electron-winstaller: false
+minimumReleaseAgeExclude:
+  - electron@44.7.0

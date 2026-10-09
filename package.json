@@ -6,7 +6,9 @@
     "pekka": "tsx src/cli.ts",
     "api": "tsx src/api/main.ts",
     "test": "vitest run",
-    "typecheck": "tsc"
+    "typecheck": "tsc",
+    "desktop": "pnpm --dir desktop start",
+    "desktop:dmg": "pnpm --dir desktop dist"
   },
   "author": "",
   "license": "Apache-2.0",

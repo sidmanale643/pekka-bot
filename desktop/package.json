@@ -1,0 +1,79 @@
+{
+  "name": "pekka-desktop",
+  "productName": "Pekka",
+  "version": "1.0.0",
+  "description": "Pekka for macOS: the web app in a window, with Pekka's server running on your Mac",
+  "author": "Pekka",
+  "license": "Apache-2.0",
+  "private": true,
+  "type": "module",
+  "main": "main.js",
+  "scripts": {
+    "stage": "node scripts/stage-server.mjs",
+    "start": "node scripts/stage-server.mjs && electron .",
+    "dist": "node scripts/dist.mjs"
+  },
+  "devEngines": {
+    "packageManager": {
+      "name": "pnpm",
+      "version": "^11.28.2",
+      "onFail": "download"
+    }
+  },
+  "devDependencies": {
+    "electron": "^44.7.0",
+    "electron-builder": "^26.15.3"
+  },
+  "build": {
+    "appId": "xyz.pekkabot.app",
+    "productName": "Pekka",
+    "copyright": "Apache License 2.0",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.js",
+      "env-file.js",
+      "processes.js",
+      "preload.cjs",
+      "pages/**"
+    ],
+    "extraResources": [
+      {
+        "from": "server",
+        "to": "server",
+        "filter": [
+          "**/*",
+          "!tsconfig.build.json",
+          "!.deps-hash",
+          "!pnpm-lock.yaml",
+          "!pnpm-workspace.yaml"
+        ]
+      },
+      {
+        "from": "server/node_modules",
+        "to": "server/node_modules"
+      }
+    ],
+    "mac": {
+      "category": "public.app-category.productivity",
+      "icon": "build/icon.png",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64"
+          ]
+        }
+      ],
+      "hardenedRuntime": true,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist"
+    },
+    "dmg": {
+      "title": "Pekka",
+      "artifactName": "Pekka-${version}-${arch}.${ext}"
+    }
+  }
+}

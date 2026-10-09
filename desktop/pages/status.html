@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' file:"
+    />
+    <title>Pekka</title>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap" />
+    <link rel="stylesheet" href="pages.css" />
+    <script type="module" src="status.js"></script>
+  </head>
+  <body>
+    <main class="page">
+      <img id="logo" alt="" width="96" height="96" />
+      <section id="starting" hidden>
+        <p class="starting"><span class="spinner" aria-hidden="true"></span><span id="starting-message" role="status"></span></p>
+      </section>
+      <section id="failed" hidden>
+        <h1>Pekka didn't start</h1>
+        <p class="lede" id="failed-message" role="alert"></p>
+        <div class="actions">
+          <button class="button primary" id="retry">Try again</button>
+        </div>
+      </section>
+    </main>
+  </body>
+</html>
