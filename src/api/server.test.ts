@@ -218,16 +218,17 @@ describe("HTTP API", () => {
     expect((await listBots(LOCAL_USER, database)).map((bot) => bot.name)).toEqual(["Chief of Staff", "Scout"]);
   });
 
-  it("reports missing D1 configuration as unavailable storage", async () => {
-    const saved = process.env.CLOUDFLARE_API_TOKEN;
-    delete process.env.CLOUDFLARE_API_TOKEN;
+  it("reports a half-configured D1 as unavailable storage, naming what's missing", async () => {
+    vi.stubEnv("CLOUDFLARE_D1_DATABASE_ID", "database");
+    vi.stubEnv("CLOUDFLARE_API_TOKEN", "");
+    vi.stubEnv("CLOUDFLARE_ACCOUNT_ID", "account");
     try {
       await start(createApiServer({ execute: async () => result }));
       const response = await fetch(`${base}/api/bots`);
       expect(response.status).toBe(503);
-      expect(await response.json()).toEqual({ error: "Storage requires Cloudflare D1 configuration." });
+      expect(await response.json()).toEqual({ error: "Missing D1 configuration: CLOUDFLARE_API_TOKEN. See .env.example." });
     } finally {
-      if (saved !== undefined) process.env.CLOUDFLARE_API_TOKEN = saved;
+      vi.unstubAllEnvs();
     }
   });
 

@@ -6,6 +6,9 @@ coverage/
 
 # Secrets and local environment
 .env
+# The SQLite database Pekka uses without Cloudflare D1
+/pekka.db
+/pekka.db-*
 .env.*
 !.env.example
 .vercel

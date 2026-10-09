@@ -1,6 +1,11 @@
+import { existsSync } from "node:fs";
+import { mkdtemp, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { expect, it } from "vitest";
 import { listBots } from "../bots.ts";
-import { ensureSchema, LOCAL_USER } from "./database.ts";
+import { DatabaseConfigError } from "./d1.ts";
+import { createDatabase, ensureSchema, LOCAL_USER, sqlitePath, usesD1 } from "./database.ts";
 import { createSqliteDatabase } from "./sqlite.ts";
 
 it("gives bots and plugin connections stored before users existed to the local user, once", async () => {
@@ -42,3 +47,22 @@ it("creates a fresh database without the retired tables", async () => {
 function createSqliteDatabaseSharing(database: ReturnType<typeof createSqliteDatabase>) {
   return { query: database.query, run: database.run };
 }
+
+it("uses Cloudflare D1 when its database ID is set, and a SQLite file otherwise", async () => {
+  expect(usesD1({ CLOUDFLARE_D1_DATABASE_ID: "id" })).toBe(true);
+  expect(usesD1({ CLOUDFLARE_API_TOKEN: "token" })).toBe(false);
+  expect(() => createDatabase({ CLOUDFLARE_D1_DATABASE_ID: "id" })).toThrow(DatabaseConfigError);
+  expect(sqlitePath({})).toBe("pekka.db");
+  const directory = await mkdtemp(join(tmpdir(), "pekka-db-"));
+  try {
+    const path = join(directory, "nested", "pekka.db");
+    const database = createDatabase({ PEKKA_DATABASE_PATH: path }) as ReturnType<typeof createSqliteDatabase>;
+    await ensureSchema(database);
+    expect(await database.query("SELECT COUNT(*) AS bots FROM bot_profiles")).toEqual([{ bots: 0 }]);
+    expect(await database.query("PRAGMA journal_mode")).toEqual([{ journal_mode: "wal" }]);
+    database.close();
+    expect(existsSync(path)).toBe(true);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+});

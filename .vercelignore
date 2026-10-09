@@ -4,6 +4,8 @@
 # Secrets and local environment
 .env
 .env.*
+/pekka.db
+/pekka.db-*
 
 # Tests
 **/*.test.ts

@@ -1,7 +1,9 @@
 import { createD1Service } from "./d1.ts";
+import { createSqliteDatabase } from "./sqlite.ts";
 
-// Everything Pekka stores goes through this interface. Production uses
-// Cloudflare D1; tests use node:sqlite, which runs the same SQL.
+// Everything Pekka stores goes through this interface. It's Cloudflare D1 when
+// that is configured, and otherwise a SQLite file on this machine. D1 runs
+// SQLite, so both run the same SQL; tests use an in-memory SQLite database.
 
 /** D1's HTTP API only binds strings, so numbers are sent as text and SQLite's column affinity converts them back. */
 export type SqlValue = string | number;
@@ -187,8 +189,24 @@ export function ensureSchema(database: Database): Promise<void> {
 
 let defaultDatabase: Database | undefined;
 
-/** The configured D1 database. Created on first use so commands that never touch storage don't need D1 keys. */
+/** The configured database, created on first use so commands that never touch storage don't open one. */
 export function getDatabase(): Database {
-  defaultDatabase ??= createD1Service();
+  defaultDatabase ??= createDatabase();
   return defaultDatabase;
+}
+
+/**
+ * Cloudflare D1 when CLOUDFLARE_D1_DATABASE_ID is set (the other D1 variables are then required), otherwise
+ * the SQLite file at PEKKA_DATABASE_PATH, by default pekka.db in the working directory.
+ */
+export function createDatabase(env: NodeJS.ProcessEnv = process.env): Database {
+  return usesD1(env) ? createD1Service(env) : createSqliteDatabase(sqlitePath(env));
+}
+
+export function usesD1(env: NodeJS.ProcessEnv = process.env): boolean {
+  return Boolean(env.CLOUDFLARE_D1_DATABASE_ID?.trim());
+}
+
+export function sqlitePath(env: NodeJS.ProcessEnv = process.env): string {
+  return env.PEKKA_DATABASE_PATH?.trim() || "pekka.db";
 }

@@ -6,7 +6,7 @@ import { closeDocuments } from "./documents.ts";
 import { loadConfig } from "./config.ts";
 import { executeTask, sandboxNameFor, type RunOwner } from "./runtime.ts";
 import { cancelScheduledJob, listScheduledJobs, runScheduler } from "./scheduler.ts";
-import { getDatabase, LOCAL_USER } from "./database/database.ts";
+import { getDatabase, LOCAL_USER, sqlitePath, usesD1 } from "./database/database.ts";
 import { importLocalData } from "./database/import-local.ts";
 import { readSkillFolder, removeSkill, saveSkill, SkillStore } from "./skills.ts";
 import { basename, resolve } from "node:path";
@@ -130,16 +130,16 @@ async function manageJobs(args: string[]): Promise<void> {
 async function manageDatabase(args: string[]): Promise<void> {
   if (args.length === 1 && args[0] === "check") {
     await getDatabase().query("SELECT 1 AS ok");
-    console.log("Connected to Cloudflare D1.");
+    console.log(usesD1() ? "Connected to Cloudflare D1." : `Using the SQLite database at ${resolve(sqlitePath())}. Set CLOUDFLARE_D1_DATABASE_ID to use Cloudflare D1.`);
     return;
   }
   if (args.length === 1 && args[0] === "import") {
     const { bots, memoryFiles, skills, jobs } = await importLocalData();
     console.log(`Imported from ${process.cwd()}/.pekka:`);
-    console.log(`  ${bots.imported} bots (${bots.skipped} already in D1)`);
+    console.log(`  ${bots.imported} bots (${bots.skipped} already saved)`);
     console.log(`  ${memoryFiles} memory files`);
-    console.log(`  ${skills.imported} skills (${skills.skipped} already in D1)`);
-    console.log(`  ${jobs.imported} scheduled jobs (${jobs.skipped} already in D1)`);
+    console.log(`  ${skills.imported} skills (${skills.skipped} already saved)`);
+    console.log(`  ${jobs.imported} scheduled jobs (${jobs.skipped} already saved)`);
     for (const error of skills.errors) console.log(`  Skipped skill ${error}`);
     return;
   }
@@ -183,7 +183,7 @@ async function startScheduler(once: boolean): Promise<void> {
   };
   process.once("SIGINT", stop);
   process.once("SIGTERM", stop);
-  console.log(`Scheduler checking jobs in D1${once ? " once" : "; keep this process running"}.`);
+  console.log(`Scheduler checking jobs${once ? " once" : "; keep this process running"}.`);
   try {
     await runScheduler(async (job) => {
       console.log(`\nRunning scheduled job "${job.name}" (${job.id})...`);

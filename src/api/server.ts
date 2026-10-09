@@ -354,7 +354,7 @@ export function createApiServer(options: ServerOptions = {}) {
     response.setHeader("X-Frame-Options", "DENY");
     dispatch(request, response, routes, access).catch((error: unknown) => {
       if (error instanceof NotionError || error instanceof GoogleError || error instanceof TelegramError || error instanceof GitHubError || error instanceof LinearError || error instanceof WisprError || error instanceof TodoistError || error instanceof ApiKeyPluginError) { fail(response, new HttpError(400, error.message)); return; }
-      fail(response, error instanceof DatabaseConfigError ? new HttpError(503, "Storage requires Cloudflare D1 configuration.") : error);
+      fail(response, error instanceof DatabaseConfigError ? new HttpError(503, error.message) : error);
     });
   });
 }
