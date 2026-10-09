@@ -1087,46 +1087,109 @@ function renderComputer() {
   view.scrollTop = pinned ? view.scrollHeight : (before?.scrollTop ?? 0);
 }
 
+/** Whether you're reading the chat's newest lines, so it follows new ones as they come. */
+function atBottom() {
+  const transcript = $("#transcript");
+  return transcript.scrollHeight - transcript.scrollTop - transcript.clientHeight < 120;
+}
+
+/** "Jump to latest" shows whenever the chat isn't following, because you scrolled up. */
+function syncJump() {
+  $("#jump-latest").hidden = atBottom();
+}
+
+/**
+ * Keeps the chat on its newest line if you were reading there. It moves there at once: a smooth scroll would still
+ * be on its way when the next token lands, and the chat would read as scrolled up and stop following.
+ */
+function keepFollowing(following) {
+  const transcript = $("#transcript");
+  if (following) {
+    transcript.style.scrollBehavior = "auto";
+    transcript.scrollTop = transcript.scrollHeight;
+    transcript.style.scrollBehavior = "";
+  }
+  syncJump();
+}
+
 function renderTranscript(forceScroll = false) {
   const transcript = $("#transcript");
-  const nearBottom =
-    transcript.scrollHeight - transcript.scrollTop - transcript.clientHeight <
-    100;
+  const following = forceScroll || atBottom();
   const messages = entries(selected);
   transcript.replaceChildren();
   if (!messages.length) transcript.append(chatIntro(selected));
-  for (const message of messages) {
-    const row = element("article", `message ${message.role}${message.from ? " delegated" : ""}`);
-    const time = new Date(message.time).toLocaleString([], {
-      month: "short",
-      day: "numeric",
-      hour: "numeric",
-      minute: "2-digit",
-    });
-    const meta = element("div", "message-meta");
-    // A brief the chief of staff sent this bot is shown as theirs, not the user's.
-    const author = message.role === "user" ? message.from || profile.displayName || "You" : selected.name;
-    if (message.role !== "user" || message.from) meta.append(avatar(author, 18));
-    const stamp = element("time", "", time);
-    stamp.dateTime = new Date(message.time).toISOString();
-    meta.append(element("strong", "", author), stamp);
-    row.append(meta);
-    // Messages sent or started in this session rise in; older ones are already there.
-    entrance(row, message.time, 350);
-    const live = liveRuns.get(message);
-    row.classList.toggle("writing", Boolean(message.pending && live?.phase === "writing"));
-    if (message.text) row.append(renderMessage(message));
-    if (message.tools?.length) row.append(message.pending ? liveSteps(message) : live?.phase === "done" ? entrance(toolTrail(message), live.since) : toolTrail(message));
-    for (const request of message.permissions ?? []) row.append(permissionCard(request, message));
-    if (message.pending) for (const delegation of message.delegations ?? []) row.append(delegationLine(delegation));
-    if (message.pending) row.append(...liveLine(message));
-    else if (message.status) row.append(element("div", "run-status", message.status));
-    // An answer still streaming is redrawn on every token, so it gets its copy button once it settles.
-    if (message.text && !message.pending) row.append(messageActions(message.text));
-    transcript.append(row);
-  }
-  if (forceScroll || nearBottom) transcript.scrollTop = transcript.scrollHeight;
+  for (const message of messages) transcript.append(messageRow(message));
+  keepFollowing(following);
   renderContext();
+}
+
+/**
+ * Redraws one message of the open chat, for a reply that is streaming. The rest of the chat stays as it is, so text
+ * you selected in it stays selected, and a long chat doesn't redo every message's markdown on each token.
+ */
+function renderRow(message) {
+  const row = messageRows.get(message);
+  if (!row?.isConnected) return renderTranscript();
+  const following = atBottom();
+  row.replaceWith(messageRow(message));
+  keepFollowing(following);
+}
+
+// Each message's row in the open chat, so a streaming reply can be redrawn on its own.
+const messageRows = new WeakMap();
+
+function messageRow(message) {
+  const row = element("article", `message ${message.role}${message.from ? " delegated" : ""}`);
+  const time = new Date(message.time).toLocaleString([], {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+  const meta = element("div", "message-meta");
+  // A brief the chief of staff sent this bot is shown as theirs, not the user's.
+  const author = message.role === "user" ? message.from || profile.displayName || "You" : selected.name;
+  if (message.role !== "user" || message.from) meta.append(avatar(author, 18));
+  const stamp = element("time", "", time);
+  stamp.dateTime = new Date(message.time).toISOString();
+  meta.append(element("strong", "", author), stamp);
+  row.append(meta);
+  // Messages sent or started in this session rise in; older ones are already there.
+  entrance(row, message.time, 350);
+  const live = liveRuns.get(message);
+  row.classList.toggle("writing", Boolean(message.pending && live?.phase === "writing"));
+  if (message.text) row.append(renderMessage(message));
+  if (message.tools?.length) row.append(message.pending ? liveSteps(message) : live?.phase === "done" ? entrance(toolTrail(message), live.since) : toolTrail(message));
+  for (const request of message.permissions ?? []) row.append(permissionCard(request, message));
+  if (message.pending) for (const delegation of message.delegations ?? []) row.append(delegationLine(delegation));
+  if (message.pending) row.append(...liveLine(message));
+  else if (message.status) row.append(element("div", "run-status", message.status));
+  const retry = retryButton(message);
+  if (retry) row.append(retry);
+  // An answer still streaming is redrawn on every token, so it gets its copy button once it settles.
+  if (message.text && !message.pending) row.append(messageActions(message.text));
+  messageRows.set(message, row);
+  return row;
+}
+
+const retryIcon = '<svg viewBox="0 0 20 20" width="14" height="14" aria-hidden="true"><path d="M16 7A6 6 0 0 0 5 5L3 7m0-4v4h4M4 13a6 6 0 0 0 11 2l2-2m0 4v-4h-4" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" /></svg>';
+
+/**
+ * "Try again" under the chat's last reply when it failed, was stopped or ended early. It sends your question again.
+ * A brief from the chief of staff is the chief's to send again, so its reply gets none.
+ */
+function retryButton(message) {
+  const messages = entries(selected);
+  if (message !== messages.at(-1) || message.pending || message.stillRunning || running.has(selected.name)) return;
+  if (message.role !== "error" && !(message.role === "assistant" && message.status)) return;
+  const question = messages.at(-2);
+  if (question?.role !== "user" || question.from) return;
+  const button = element("button", "button secondary small retry");
+  button.type = "button";
+  button.innerHTML = retryIcon;
+  button.append("Try again");
+  button.addEventListener("click", () => sendTask(question.text));
+  return button;
 }
 
 function delegationLine(delegation) {
@@ -1277,7 +1340,14 @@ function applyDelegation(event, data, message, chief) {
     delegation.status = delegationEndings[data.status];
     if (target) settleBot(target);
   }
-  if (target && selected === target) renderTranscript();
+  if (target && selected === target) {
+    // A brief adds two messages to its chat; after that only the reply changes.
+    if (event === "delegation_start") renderTranscript();
+    else {
+      renderRow(reply);
+      if (data.event?.type !== "message_delta") renderContext();
+    }
+  }
   if ($("#handoff-dialog").open) {
     if (event === "delegation_end") renderHandoff();
     else renderHandoffWork();
@@ -1410,7 +1480,7 @@ function permissionCard(request, message) {
     button.addEventListener("click", async () => {
       request.submitting = true;
       request.error = "";
-      renderTranscript();
+      renderRow(message);
       try {
         await api(`/api/permissions/${encodeURIComponent(request.id)}`, { method: "POST", body: JSON.stringify({ approved }) });
         request.decision = approved ? "Approved once" : "Denied";
@@ -1420,7 +1490,7 @@ function permissionCard(request, message) {
         request.error = error.message;
       } finally {
         request.submitting = false;
-        renderTranscript();
+        renderRow(message);
       }
     });
     actions.append(button);
@@ -1511,12 +1581,20 @@ function drainQueue(bot) {
   if (queue?.length) void runTask(bot, queue.shift());
 }
 
+/** Sends what's in the composer, and empties it. */
+function sendComposer() {
+  const task = $("#task").value;
+  if (!task.trim()) return;
+  $("#task").value = "";
+  drafts.delete(selected.name);
+  sendTask(task);
+}
+
+/** Sends a task to the open bot, or queues it while the bot is busy. What you're typing stays in the composer. */
 function sendTask(task) {
   const bot = selected;
   task = task.trim();
   if (!task) return;
-  $("#task").value = "";
-  drafts.delete(bot.name);
   if (running.has(bot.name)) {
     if (!messageQueues.has(bot.name)) messageQueues.set(bot.name, []);
     messageQueues.get(bot.name).push(task);
@@ -1561,7 +1639,11 @@ async function runTask(bot, task) {
       if (!event.startsWith("delegation_")) watchComputer(bot, event, data);
       // A delegated bot's text streams into its own chat, so the chief's only redraws when a status line changes.
       const changed = event.startsWith("delegation_") ? applyDelegation(event, data, message, bot) : (applyEvent(event, data, message), true);
-      if (changed && selected === bot) renderTranscript();
+      if (changed && selected === bot) {
+        renderRow(message);
+        // The bot panel lists what replies made and linked to, so it follows each step rather than each token.
+        if (event !== "message_delta") renderContext();
+      }
     });
   } catch (error) {
     message.role = "error";
@@ -2149,13 +2231,20 @@ $("#stop").addEventListener("click", async () => {
 $("#task").addEventListener("input", updateComposer);
 $("#composer").addEventListener("submit", (event) => {
   event.preventDefault();
-  sendTask($("#task").value);
+  sendComposer();
 });
 $("#task").addEventListener("keydown", (event) => {
   if (preferences.enterToSend && event.key === "Enter" && !event.shiftKey && !event.isComposing) {
     event.preventDefault();
-    sendTask($("#task").value);
+    sendComposer();
   }
+});
+$("#transcript").addEventListener("scroll", syncJump, { passive: true });
+$("#jump-latest").addEventListener("click", () => {
+  const transcript = $("#transcript");
+  transcript.scrollTo({ top: transcript.scrollHeight });
+  // The button hides once you're back at the bottom, so typing picks up from here. A phone keeps its keyboard down.
+  if (!matchMedia("(hover: none)").matches) $("#task").focus({ preventScroll: true });
 });
 $("#details").addEventListener("click", () => togglePanel("context"));
 $("#computer").addEventListener("click", () => togglePanel("computer"));
