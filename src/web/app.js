@@ -20,7 +20,7 @@ const preferencesKey = "pekka.preferences.v1";
 // before anyone signs in. With nothing saved it follows the device.
 const themeKey = "pekka.theme.v1";
 const profileDefaults = { displayName: "", occupation: "", bio: "" };
-const preferenceDefaults = { enterToSend: true, compact: false, reduceMotion: false };
+const preferenceDefaults = { enterToSend: true, compact: false, reduceMotion: false, notify: false };
 // The signed-in Google account, or null when the server runs without sign-in.
 let account = null;
 let profile = { ...profileDefaults };
@@ -328,6 +328,8 @@ function renderBots() {
     list.append(element("p", "empty-list", "No bots match."));
   if (!team.length && chief)
     list.append(element("p", "empty-list", `None yet. Ask ${chief.name} to set one up, or use New bot.`));
+  // The tab's title counts the bots flagged here.
+  syncTitle();
 }
 
 function selectBot(bot) {
@@ -337,7 +339,7 @@ function selectBot(bot) {
     return;
   }
   currentPage = "workspace";
-  document.title = `${bot.name} — Pekka`;
+  setTitle(`${bot.name} — Pekka`);
   $("#pages").hidden = true;
   $("#scheduled").hidden = true;
   updateNavigation();
@@ -1363,10 +1365,53 @@ function finishReply(reply, answer, status) {
   for (const tool of reply.tools ?? []) delete tool.arguments;
 }
 
+/** Whether you're looking at this bot's chat right now, rather than another page, tab or app. */
+function lookingAt(bot) {
+  return selected === bot && currentPage === "workspace" && !document.hidden && document.hasFocus();
+}
+
+/** Coming back to Pekka counts as seeing what the open chat got while you were away. */
+function cameBack() {
+  if (selected && lookingAt(selected) && unread.delete(selected.name)) renderBots();
+}
+
+let pageTitle = document.title;
+
+/** The tab's title, after a count of bots with something new for you. The Mac app shows that count on its dock icon. */
+function setTitle(title) {
+  pageTitle = title;
+  syncTitle();
+}
+
+function syncTitle() {
+  document.title = unread.size ? `(${unread.size}) ${pageTitle}` : pageTitle;
+}
+
+/** Tells you about a bot with a notification while Pekka is in the background, once you've turned them on in Settings. */
+function desktopNotify(bot, title, body) {
+  if (!preferences.notify || lookingAt(bot) || !("Notification" in window) || Notification.permission !== "granted") return;
+  // One per bot, so a newer one replaces the last.
+  const notification = new Notification(title, { body: body.slice(0, 180), tag: bot.id, icon: "/favicon.png" });
+  notification.addEventListener("click", () => {
+    window.focus();
+    notification.close();
+    selectBot(bot);
+  });
+}
+
+/** A bot is waiting on your approval, which expires after five minutes, so it's flagged and notified right away. */
+function needsApproval(bot, request) {
+  if (!lookingAt(bot)) {
+    unread.add(bot.name);
+    renderBots();
+  }
+  desktopNotify(bot, `${bot.name} needs your approval`, request.reason || toolAlias(request.tool, true));
+}
+
 // Marks a bot idle after a run, flagging the result if the user is looking elsewhere.
 function settleBot(bot) {
   running.delete(bot.name);
-  if (selected !== bot || currentPage !== "workspace") unread.add(bot.name);
+  if (!lookingAt(bot)) unread.add(bot.name);
   renderBots();
   if (selected === bot) updateComposer();
   drainQueue(bot);
@@ -1644,6 +1689,11 @@ async function runTask(bot, task) {
         // The bot panel lists what replies made and linked to, so it follows each step rather than each token.
         if (event !== "message_delta") renderContext();
       }
+      if (event === "permission_requested") needsApproval(bot, data.request);
+      if (event === "delegation_event" && data.event.type === "permission_requested") {
+        const target = bots.find((item) => item.id === data.bot.id);
+        if (target) needsApproval(target, data.event.request);
+      }
     });
   } catch (error) {
     message.role = "error";
@@ -1676,7 +1726,7 @@ async function runTask(bot, task) {
     } catch {}
     running.delete(bot.name);
     stopping.delete(bot.name);
-    if (selected !== bot || currentPage !== "workspace") unread.add(bot.name);
+    if (!lookingAt(bot)) unread.add(bot.name);
     if (currentPage === "activity") renderActivity();
     // The server has saved this run, and any it handed to other bots, by the time it ends, so the saved copies replace the live ones.
     await Promise.all([bot, ...bots.filter((item) => item !== bot && delegated.has(item.id))].map(reloadMessages));
@@ -1686,6 +1736,9 @@ async function runTask(bot, task) {
       renderTranscript();
       updateComposer();
     }
+    // You stopped it yourself, so there's nothing to tell you.
+    if (message.status !== "Stopped")
+      desktopNotify(bot, message.role === "error" ? `${bot.name} couldn't finish` : bot.name, plainText(message.text) || message.status);
     drainQueue(bot);
   }
 }
@@ -2283,7 +2336,9 @@ document.addEventListener("keydown", (event) => {
 // Coming back to this tab picks up messages sent from another tab or device in the meantime.
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible" && selected && currentPage === "workspace") void refreshMessages(selected);
+  cameBack();
 });
+window.addEventListener("focus", cameBack);
 window.addEventListener("beforeunload", (event) => {
   if (running.size) {
     event.preventDefault();
@@ -2374,7 +2429,7 @@ function showSignIn(message = "") {
   $("#app").hidden = true;
   $("#sign-in").hidden = false;
   $("#sign-in-error").textContent = message;
-  document.title = "Sign in — Pekka";
+  setTitle("Sign in — Pekka");
 }
 
 function renderAccount() {
@@ -2435,7 +2490,7 @@ function openPage(page) {
   $("#pages").hidden = false;
   $("#pages").classList.toggle("plugin-page", page === "plugins");
   $("#pages").classList.toggle("profile-page", page === "profile");
-  document.title = `${titles[page][0]} — Pekka`;
+  setTitle(`${titles[page][0]} — Pekka`);
   $("#heading").textContent = titles[page][0];
   $("#page-title").textContent = titles[page][0];
   $("#page-description").textContent = titles[page][1];
@@ -3115,14 +3170,31 @@ $("#profile-form").addEventListener("submit", (event) => {
   renderProfile();
   if (selected) renderTranscript();
 });
-$("#settings-form").addEventListener("submit", (event) => {
-  event.preventDefault();
+// Preferences apply and save as soon as they're switched, like the theme.
+$("#settings-form").addEventListener("change", async (event) => {
   const form = event.currentTarget;
-  const value = Object.fromEntries(Object.keys(preferences).map((key) => [key, form.elements[key].checked]));
-  if (!saveLocal(scoped(preferencesKey), value, form)) return;
-  preferences = value;
+  const status = form.querySelector(".form-status");
+  if (event.target.name === "notify" && event.target.checked && !(await allowNotifications(status))) {
+    event.target.checked = false;
+    return;
+  }
+  preferences = Object.fromEntries(Object.keys(preferences).map((key) => [key, form.elements[key].checked]));
   applyPreferences();
+  saveLocal(scoped(preferencesKey), preferences, form);
 });
+
+/** Asks the browser to let Pekka show notifications, and says why not when it can't. */
+async function allowNotifications(status) {
+  if (!("Notification" in window)) {
+    status.textContent = "This browser can't show notifications.";
+    return false;
+  }
+  if (Notification.permission !== "granted" && (await Notification.requestPermission()) !== "granted") {
+    status.textContent = "Notifications are blocked for Pekka. Allow them in your browser's site settings, then turn this on again.";
+    return false;
+  }
+  return true;
+}
 // The theme applies as soon as it's picked, so it saves without the preferences form's button.
 $("#theme-picker").addEventListener("change", (event) => {
   theme = event.target.value;
@@ -3150,9 +3222,6 @@ $("#profile-discard").addEventListener("click", () => {
   for (const [key, value] of Object.entries(profile)) form.elements[key].value = value;
   updateProfileEditor();
   form.querySelector(".form-status").textContent = "Changes discarded.";
-});
-$("#settings-form").addEventListener("input", (event) => {
-  event.currentTarget.querySelector(".form-status").textContent = "Unsaved changes";
 });
 $("#export-history").addEventListener("click", () => {
   const url = URL.createObjectURL(new Blob([JSON.stringify(history, null, 2)], { type: "application/json" }));
@@ -3767,7 +3836,7 @@ async function openScheduled(view) {
   $("#panel-toggles").hidden = true;
   $("#pages").hidden = true;
   $("#scheduled").hidden = false;
-  document.title = "Scheduled — Pekka";
+  setTitle("Scheduled — Pekka");
   $("#heading").textContent = "Scheduled";
   updateNavigation();
   renderBots();
