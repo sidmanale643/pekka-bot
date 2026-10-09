@@ -22,10 +22,16 @@ function keyCheckLimiter(now: () => number) {
   };
 }
 
-/** The Settings page's model providers: a saved key for each, which one runs use, or the server's model. */
-export function modelKeyRoutes(keys: ModelKeyService, serverModel: () => string | undefined, now: () => number = () => Date.now()): Route[] {
+/**
+ * The Settings page's model providers: a saved key for each, which one runs use, or the server's model.
+ * `serverKey` says whether the server has a model key of its own, so runs can use its model at all.
+ */
+export function modelKeyRoutes(keys: ModelKeyService, serverModel: () => { model: string; key: boolean } | undefined, now: () => number = () => Date.now()): Route[] {
   const countCheck = keyCheckLimiter(now);
-  const status = async (userId: string) => ({ ...await keys.status(userId), serverModel: serverModel() ?? null });
+  const status = async (userId: string) => {
+    const server = serverModel();
+    return { ...await keys.status(userId), serverModel: server?.model ?? null, serverKey: server?.key ?? false };
+  };
   const fail = (error: unknown): never => {
     if (error instanceof ModelKeyError) throw new HttpError(400, error.message);
     throw error;

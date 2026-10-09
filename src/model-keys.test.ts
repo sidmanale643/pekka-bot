@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { createSqliteDatabase } from "./database/sqlite.ts";
-import { ModelKeyError, ModelKeyService } from "./model-keys.ts";
+import { loadConfig } from "./config.ts";
+import { ModelKeyError, ModelKeyService, NO_MODEL_KEY, modelFor } from "./model-keys.ts";
 
 let database: ReturnType<typeof createSqliteDatabase>;
 let upstream: ReturnType<typeof vi.fn<typeof fetch>>;
@@ -89,4 +90,9 @@ it("needs PEKKA_PLUGIN_KEY to save a key", async () => {
   expect((await unconfigured.status("alice")).available).toBe(false);
   await expect(unconfigured.save("alice", "openai", { model: "gpt-test", apiKey: "sk-good-key-5678" })).rejects.toThrow("PEKKA_PLUGIN_KEY");
   expect(upstream).not.toHaveBeenCalled();
+});
+
+it("says how to add a model when neither the user nor the server has a key", async () => {
+  const config = loadConfig({});
+  await expect(modelFor("alice", config, keys)).rejects.toThrow(new ModelKeyError(NO_MODEL_KEY));
 });

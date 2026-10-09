@@ -1,11 +1,10 @@
 import { z } from "zod";
 
-const required = z.string({ error: "is required" }).min(1, "is required");
 /** Unset and empty are the same: whatever needs the key falls back, or says it's missing when used. */
 const optionalKey = z.string().optional().transform((value) => value?.trim() || undefined);
 
 const ConfigSchema = z.object({
-  OPENROUTER_API_KEY: required,
+  OPENROUTER_API_KEY: optionalKey,
   DAYTONA_API_KEY: optionalKey,
   PEKKA_MODEL: z.string().default("deepseek/deepseek-v4.1-flash"),
   PEKKA_SANDBOX_NAME: z.string().default("pekka-computer"),
@@ -15,7 +14,8 @@ const ConfigSchema = z.object({
 });
 
 export interface Config {
-  openRouterApiKey: string;
+  /** The server's model key. Without it, runs need the user's own key from Settings. */
+  openRouterApiKey?: string;
   /** Without it, each sandbox is a Docker container on this machine. */
   daytonaApiKey?: string;
   model: string;

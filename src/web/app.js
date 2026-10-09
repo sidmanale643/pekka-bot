@@ -3083,15 +3083,18 @@ const defaultModel = (provider) => provider === "openrouter" ? modelKeys?.server
 const providerForm = (provider) => $(`.model-provider[data-provider="${provider}"] form`);
 
 function renderModelKeys() {
-  const { available, active, keys, serverModel } = modelKeys;
+  const { available, active, keys, serverModel, serverKey } = modelKeys;
   const used = active && keys[active];
   $("#model-current").textContent = used
     ? `Your runs use your ${modelProviders[active].name} key ending ${used.hint}, with ${used.model}.`
-    : `Your runs use Pekka's default model${serverModel ? `, ${serverModel},` : ""} on the server's OpenRouter key. Add your own key to choose the provider and model and pay for usage yourself.`;
+    : serverKey
+      ? `Your runs use Pekka's default model${serverModel ? `, ${serverModel},` : ""} on the server's OpenRouter key. Add your own key to choose the provider and model and pay for usage yourself.`
+      : "This Pekka server has no model key of its own. Add your OpenRouter, OpenAI or Anthropic key below to run tasks.";
   $("#model-setup").hidden = available;
   for (const radio of $("#model-use").querySelectorAll("input")) {
     radio.checked = radio.value === (active || "");
-    radio.disabled = !available || (radio.value !== "" && !keys[radio.value]);
+    // Pekka's own model needs the server's key.
+    radio.disabled = !available || (radio.value === "" ? !serverKey : !keys[radio.value]);
   }
   for (const [provider, { name, key }] of Object.entries(modelProviders)) {
     const saved = keys[provider];

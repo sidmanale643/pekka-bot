@@ -10,13 +10,16 @@ import { seal, unseal } from "./plugins/secrets.ts";
 // Bring your own key: a user can save an API key for each of OpenRouter, OpenAI
 // and Anthropic, and pick one for their runs. Every model call made for them then
 // uses it, including scheduled jobs, delegations and greetings. With none picked,
-// runs use the server's OpenRouter key.
+// runs use the server's OpenRouter key, and with neither there's nothing to run them with.
 
 export const PROVIDERS = ["openrouter", "openai", "anthropic"] as const;
 export type Provider = (typeof PROVIDERS)[number];
 const NAMES: Record<Provider, string> = { openrouter: "OpenRouter", openai: "OpenAI", anthropic: "Anthropic" };
 
 export class ModelKeyError extends Error {}
+
+/** Why a run can't start when neither the user nor the server has a model key. */
+export const NO_MODEL_KEY = "Pekka has no model to run this with yet. Add your OpenRouter, OpenAI or Anthropic key in Settings, or set OPENROUTER_API_KEY on the server.";
 
 export const ModelKeyInput = z.object({
   model: z.string().trim().regex(/^[\w.:/-]{1,200}$/, "Enter a model ID such as claude-opus-5-5."),
@@ -153,6 +156,7 @@ const CREATE: Record<Provider, (options: { apiKey: string; model: string }) => M
 export async function modelFor(userId: string, config: Config, keys: ModelKeyService = getModelKeys()): Promise<{ model: Model; contextWindow?: number }> {
   const choice = await keys.choice(userId);
   if (!choice) {
+    if (!config.openRouterApiKey) throw new ModelKeyError(NO_MODEL_KEY);
     return { model: createOpenRouterModel({ apiKey: config.openRouterApiKey, model: config.model }), contextWindow: config.contextWindow ?? await fetchContextWindow(config.model) };
   }
   const contextWindow = choice.contextWindow ?? (choice.provider === "openrouter" ? await fetchContextWindow(choice.model) : undefined);

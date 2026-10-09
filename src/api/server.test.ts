@@ -232,6 +232,21 @@ describe("HTTP API", () => {
     }
   });
 
+  it("refuses a run when neither the server nor the user has a model key", async () => {
+    vi.stubEnv("OPENROUTER_API_KEY", "");
+    try {
+      await start(createApiServer({ database, auth: null }));
+      await post("/api/bots", { name: "Scout", description: "Help me research" });
+      const response = await post("/api/runs", { botName: "Scout", task: "Find repos" }, { Accept: "text/event-stream" });
+      expect(response.status).toBe(503);
+      expect(await response.json()).toEqual({ error: expect.stringContaining("Add your OpenRouter, OpenAI or Anthropic key in Settings") });
+      // Settings then knows Pekka's own model can't be used.
+      expect(await (await fetch(`${base}/api/model-keys`)).json()).toMatchObject({ serverModel: "deepseek/deepseek-v4.1-flash", serverKey: false });
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
   it("rejects bad input, cross-origin requests, and unknown routes", async () => {
     await start();
     expect((await fetch(`${base}/api/health`)).status).toBe(200);

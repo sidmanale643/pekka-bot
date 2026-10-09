@@ -11,7 +11,7 @@ import { loadConfig } from "../config.ts";
 import { DatabaseConfigError } from "../database/d1.ts";
 import { getDatabase, type Database } from "../database/database.ts";
 import { createGreeting, type Greeting } from "../greeting.ts";
-import { modelFor, ModelKeyService } from "../model-keys.ts";
+import { modelFor, ModelKeyError, ModelKeyService, NO_MODEL_KEY } from "../model-keys.ts";
 import { deleteBotSandbox, executeTask, type Reserve, type RunOwner } from "../runtime.ts";
 import {
   cancelScheduledJob, createScheduledJob, getScheduledJob, getSchedulerStatus, JobStateError, listScheduledJobs, pauseScheduledJob, resumeScheduledJob,
@@ -152,7 +152,10 @@ export function createApiServer(options: ServerOptions = {}) {
     const key = bot ? `bot:${bot.id}` : `user:${userId}`;
     if (active.has(key)) throw new HttpError(409, "A task is already running in this workspace.");
     if (!options.execute) {
-      try { loadConfig(); } catch { throw new HttpError(503, "Task execution requires valid provider configuration."); }
+      let config;
+      try { config = loadConfig(); } catch { throw new HttpError(503, "Task execution requires valid provider configuration."); }
+      // Checked before the run starts streaming, because after that an error only reaches the browser as "Task execution failed."
+      if (!config.openRouterApiKey && !(await modelKeys.choice(userId))) throw new HttpError(503, NO_MODEL_KEY);
     }
     const task = input.task ?? bot?.job;
     if (!task) throw new HttpError(400, "Send a message to tell this bot what you need.");
@@ -316,7 +319,7 @@ export function createApiServer(options: ServerOptions = {}) {
         telegram: options.telegram ?? getTelegramService(), github: options.github ?? getGitHubService(), linear: options.linear ?? getLinearService(), wispr: options.wispr ?? new WisprService({ database }),
         granola: options.granola ?? createGranolaService({ database }), todoist: options.todoist ?? createTodoistService({ database }),
       }, access.origin),
-      ...modelKeyRoutes(modelKeys, () => { try { return loadConfig().model; } catch { return undefined; } }),
+      ...modelKeyRoutes(modelKeys, () => { try { const config = loadConfig(); return { model: config.model, key: Boolean(config.openRouterApiKey) }; } catch { return undefined; } }),
     ]),
     ["GET", /^\/api\/characters$/, async (_request, response) => { json(response, 200, { characters: characters.map(({ style, ...item }) => item) }); }],
     ["GET", /^\/api\/bots\/([^/]+)\/character$/, character],
@@ -353,7 +356,7 @@ export function createApiServer(options: ServerOptions = {}) {
     response.setHeader("X-Content-Type-Options", "nosniff");
     response.setHeader("X-Frame-Options", "DENY");
     dispatch(request, response, routes, access).catch((error: unknown) => {
-      if (error instanceof NotionError || error instanceof GoogleError || error instanceof TelegramError || error instanceof GitHubError || error instanceof LinearError || error instanceof WisprError || error instanceof TodoistError || error instanceof ApiKeyPluginError) { fail(response, new HttpError(400, error.message)); return; }
+      if (error instanceof NotionError || error instanceof GoogleError || error instanceof TelegramError || error instanceof GitHubError || error instanceof LinearError || error instanceof WisprError || error instanceof TodoistError || error instanceof ApiKeyPluginError || error instanceof ModelKeyError) { fail(response, new HttpError(400, error.message)); return; }
       fail(response, error instanceof DatabaseConfigError ? new HttpError(503, error.message) : error);
     });
   });
