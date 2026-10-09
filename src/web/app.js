@@ -50,7 +50,7 @@ const googlePlugins = {
 };
 let googleStatus = {};
 // Plugins connected by pasting the user's own API key share one card layout.
-const apiKeyPlugins = { granola: { name: "Granola", key: "API key" }, bland: { name: "Bland AI", key: "API key" } };
+const apiKeyPlugins = { granola: { name: "Granola", key: "API key" }, /* retell: { name: "Retell AI", key: "API key" }, Retell AI, commented out for now */ bland: { name: "Bland AI", key: "API key" } };
 let apiKeyStatus = {};
 let telegramPlugin;
 let telegramLink;
@@ -647,6 +647,9 @@ const toolAliases = {
   granola_list_notes: ["Checking Granola notes", "Checked Granola notes"],
   granola_get_note: ["Reading a meeting note", "Read a meeting note"],
   granola_get_transcript: ["Reading a transcript", "Read a transcript"],
+  // retell_list_numbers: ["Checking phone numbers", "Checked phone numbers"], // Retell AI
+  // retell_call: ["Placing a phone call", "Placed a phone call"], // Retell AI
+  // retell_get_call: ["Checking on a call", "Checked on a call"], // Retell AI
   bland_call: ["Placing a phone call", "Placed a phone call"],
   bland_get_call: ["Checking on a call", "Checked on a call"],
   todoist_list_tools: ["Discovering Todoist tools", "Discovered Todoist tools"],
