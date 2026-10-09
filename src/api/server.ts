@@ -33,6 +33,7 @@ import { WisprService, WisprError } from "../plugins/wispr.ts";
 import { getLinearService, LinearError, type LinearService } from "../plugins/linear.ts";
 import { ApiKeyPluginError } from "../plugins/api-key.ts";
 import { createGranolaService, type GranolaService } from "../plugins/granola.ts";
+import { createBlandService, type BlandService } from "../plugins/bland.ts";
 import { TodoistError, createTodoistService, type TodoistService } from "../plugins/todoist.ts";
 import { getNotionService, NotionError, type NotionService } from "../plugins/notion.ts";
 import { getTelegramService, TelegramError, type TelegramService } from "../plugins/telegram.ts";
@@ -91,6 +92,7 @@ interface ServerOptions {
   wispr?: WisprService;
   linear?: LinearService;
   granola?: GranolaService;
+  bland?: BlandService;
   todoist?: TodoistService;
   modelKeys?: ModelKeyService;
   /** Sign-in settings. Defaults to the environment; null turns sign-in off. */
@@ -317,7 +319,7 @@ export function createApiServer(options: ServerOptions = {}) {
         notion: options.notion ?? getNotionService(), gmail: options.gmail ?? getGmailService(), calendar: options.calendar ?? getCalendarService(),
         drive: options.drive ?? getDriveService(), contacts: options.contacts ?? getContactsService(),
         telegram: options.telegram ?? getTelegramService(), github: options.github ?? getGitHubService(), linear: options.linear ?? getLinearService(), wispr: options.wispr ?? new WisprService({ database }),
-        granola: options.granola ?? createGranolaService({ database }), todoist: options.todoist ?? createTodoistService({ database }),
+        granola: options.granola ?? createGranolaService({ database }), bland: options.bland ?? createBlandService({ database }), todoist: options.todoist ?? createTodoistService({ database }),
       }, access.origin),
       ...modelKeyRoutes(modelKeys, () => { try { const config = loadConfig(); return { model: config.model, key: Boolean(config.openRouterApiKey) }; } catch { return undefined; } }),
     ]),

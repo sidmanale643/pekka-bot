@@ -139,20 +139,22 @@ export interface PluginServices {
   github: GitHubService;
   linear: LinearService;
   granola: ApiKeyPlugin;
+  bland: ApiKeyPlugin;
   todoist: TodoistService;
 }
 
-export function pluginRoutes({ wispr, notion, gmail, calendar, drive, contacts, telegram, github, linear, granola, todoist }: PluginServices, origin: (request: IncomingMessage) => string): Route[] {
+export function pluginRoutes({ wispr, notion, gmail, calendar, drive, contacts, telegram, github, linear, granola, bland, todoist }: PluginServices, origin: (request: IncomingMessage) => string): Route[] {
   const oauth: [string, string, OAuthPlugin][] = [
     ["todoist", "Todoist", todoist], ["wispr", "Wispr Flow", wispr], ["notion", "Notion", notion], ["gmail", "Gmail", gmail], ["calendar", "Google Calendar", calendar],
     ["drive", "Google Drive", drive], ["contacts", "Google Contacts", contacts], ["github", "GitHub", github], ["linear", "Linear", linear],
   ];
   return [
     ["GET", /^\/api\/plugins$/, async (_request, response, _params, userId) => {
-      json(response, 200, { plugins: await Promise.all([wispr, notion, gmail, calendar, drive, contacts, telegram, github, linear, granola, todoist].map((plugin) => plugin.status(userId))) });
+      json(response, 200, { plugins: await Promise.all([wispr, notion, gmail, calendar, drive, contacts, telegram, github, linear, granola, bland, todoist].map((plugin) => plugin.status(userId))) });
     }],
     ...oauth.flatMap(([id, name, plugin]) => oauthRoutes(id, name, plugin, origin)),
     ...apiKeyRoutes(granola),
+    ...apiKeyRoutes(bland),
     ["POST", /^\/api\/plugins\/telegram\/connect$/, async (request, response, _params, userId) => {
       await body(request, z.object({}).strict());
       json(response, 200, await telegram.startLink(userId));
