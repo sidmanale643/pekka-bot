@@ -2,6 +2,7 @@ import type { EventHandler } from "./agent/events.ts";
 import { runAgent, type ConversationMessage } from "./agent/loop.ts";
 import { findBotById, type Bot } from "./bots.ts";
 import { deleteDaytonaSandbox, openDaytonaComputer } from "./computer/daytona-computer.ts";
+import { deleteDockerSandbox, openDockerComputer } from "./computer/docker-computer.ts";
 import { loadConfig, type Config } from "./config.ts";
 import { LOCAL_USER, PUBLIC_USER } from "./database/database.ts";
 import { modelFor } from "./model-keys.ts";
@@ -44,7 +45,7 @@ export async function executeTask(task: string, owner: RunOwner, onEvent?: Event
   const config = loadConfig();
   const plugins = await enabledPlugins(owner.userId);
   const sandboxName = sandboxNameFor(config, owner);
-  const { computer, release } = openDaytonaComputer({ apiKey: config.daytonaApiKey, sandboxName, workspace: Boolean(owner.bot) });
+  const { computer, release } = openComputer(config, sandboxName, Boolean(owner.bot));
   try {
     const { model, contextWindow } = await modelFor(owner.userId, config);
     const chief = owner.bot?.primary === true;
@@ -59,10 +60,18 @@ export async function executeTask(task: string, owner: RunOwner, onEvent?: Event
   }
 }
 
+/** A Daytona sandbox when the server has a Daytona key, otherwise a Docker container on this machine. */
+function openComputer(config: Config, sandboxName: string, workspace: boolean) {
+  if (config.daytonaApiKey) return openDaytonaComputer({ apiKey: config.daytonaApiKey, sandboxName, workspace });
+  return openDockerComputer({ sandboxName, image: config.dockerImage });
+}
+
 /** Deletes a bot's sandbox and every file in it. */
 export function deleteBotSandbox(userId: string, bot: Bot): Promise<void> {
   const config = loadConfig();
-  return deleteDaytonaSandbox({ apiKey: config.daytonaApiKey, sandboxName: sandboxNameFor(config, { userId, bot }) });
+  const sandboxName = sandboxNameFor(config, { userId, bot });
+  if (config.daytonaApiKey) return deleteDaytonaSandbox({ apiKey: config.daytonaApiKey, sandboxName });
+  return deleteDockerSandbox(sandboxName);
 }
 
 const delegating = new Set<string>();
