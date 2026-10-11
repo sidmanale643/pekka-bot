@@ -327,7 +327,7 @@ function renderBots() {
   if (team.length && !filtered.length)
     list.append(element("p", "empty-list", "No bots match."));
   if (!team.length && chief)
-    list.append(element("p", "empty-list", `None yet. Ask ${chief.name} to set one up, or use New bot.`));
+    list.append(element("p", "empty-list", "Ask in chat to set one up, or use New bot."));
   // The tab's title counts the bots flagged here.
   syncTitle();
 }
@@ -354,10 +354,9 @@ function selectBot(bot) {
   $("#heading").replaceChildren(
     avatar(bot.name, 22),
     element("strong", "", bot.name),
-    element("span", "", bot.role),
   );
   $("#task").value = drafts.get(bot.name) || "";
-  $("#task").placeholder = `Message ${bot.name}…`;
+  $("#task").placeholder = "Message…";
   updateComposer();
   renderBots();
   renderTranscript(true);
@@ -511,7 +510,7 @@ async function loadGreeting(bot) {
     greetings.set(key, {
       ...base,
       fallback: true,
-      message: bot.job ? `Hi, I'm ${bot.name}. What would you like me to work on?` : `Hi, I'm ${bot.name}. Tell me a little about yourself and what you'd like help with.`,
+      message: bot.job ? "What would you like me to work on?" : "Tell me a little about yourself and what you'd like help with.",
       suggestions: [],
     });
   } finally {
@@ -534,15 +533,7 @@ function chatIntro(bot) {
   const greeting = greetingFor(bot);
   if (!greeting) loadGreeting(bot);
   const intro = element("div", "chat-intro");
-  const hero = element("div", "intro-hero");
-  const copy = element("div", "");
-  copy.append(element("h2", "", bot.name), element("p", "role", bot.role));
-  hero.append(avatar(bot.name, 56), copy);
-
   const message = element("article", "message assistant greeting");
-  const meta = element("div", "message-meta");
-  meta.append(avatar(bot.name, 18), element("strong", "", bot.name));
-  message.append(meta);
   if (greeting) message.append(renderMessage({ role: "assistant", text: greeting.message }), messageActions(greeting.message));
   else {
     const typing = element("div", "typing");
@@ -558,7 +549,7 @@ function chatIntro(bot) {
   if (greeting) for (const text of greeting.suggestions) list.append(suggestion(text));
   else list.append(element("div", "suggestion placeholder"), element("div", "suggestion placeholder"));
 
-  intro.append(hero, message, list);
+  intro.append(message, list);
   if (greeting?.suggestions.length) {
     const refresh = element("button", "button ghost small refresh-ideas", "More ideas");
     refresh.type = "button";
