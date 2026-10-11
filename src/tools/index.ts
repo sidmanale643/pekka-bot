@@ -14,6 +14,7 @@ import { createNotionTools } from "./notion.ts";
 import { createWisprTools } from "./wispr.ts";
 import { createLinearTools } from "./linear.ts";
 import { createTinyFishTools } from "./tinyfish.ts";
+import { createBrowserTools } from "./browser.ts";
 import { createGranolaTools } from "./granola.ts";
 // import { createRetellTools } from "./retell.ts"; // Retell AI, commented out for now
 import { createBlandTools } from "./bland.ts";
@@ -26,8 +27,10 @@ import { createContactsTools } from "./contacts.ts";
 import { updateBotConfig } from "./bot-config.ts";
 import { chiefOfStaffTools } from "./chief-of-staff.ts";
 
+const browserTools = createBrowserTools();
+
 /** The tools every bot gets. To add a tool, write one file and list it here. */
-export const defaultTools: Tool[] = [runCommand, readFile, writeFile, editFile, webSearch, webScrape, readMemory, writeMemory, updateBotConfig, listSkills, loadSkill, writeSkill, ...createSchedulingTools(), ...createEmailTools(), ...createGmailTools(), ...createCalendarTools(), ...createDriveTools(), ...createContactsTools(), ...createNotionTools(), ...createTelegramTools(), ...createGitHubTools(), ...createLinearTools(), ...createGranolaTools(), ...createTinyFishTools(), /* ...createRetellTools(), Retell AI */ ...createBlandTools(), ...createTodoistTools(), ...createWisprTools()];
+export const defaultTools: Tool[] = [runCommand, readFile, writeFile, editFile, webSearch, webScrape, ...browserTools, readMemory, writeMemory, updateBotConfig, listSkills, loadSkill, writeSkill, ...createSchedulingTools(), ...createEmailTools(), ...createGmailTools(), ...createCalendarTools(), ...createDriveTools(), ...createContactsTools(), ...createNotionTools(), ...createTelegramTools(), ...createGitHubTools(), ...createLinearTools(), ...createGranolaTools(), ...createTinyFishTools(), /* ...createRetellTools(), Retell AI */ ...createBlandTools(), ...createTodoistTools(), ...createWisprTools()];
 
 /** The chief of staff also manages the user's other bots. */
 export const chiefTools: Tool[] = [...defaultTools, ...chiefOfStaffTools];
@@ -54,6 +57,11 @@ export function withServerKeys(tools: Tool[], env: NodeJS.ProcessEnv = process.e
   if (!env.TAVILY_API_KEY && !env.EXA_API_KEY) missing.add(webSearch.name);
   if (!env.SCRAPERAPI_API_KEY?.trim()) missing.add(webScrape.name);
   return tools.filter((tool) => !missing.has(tool.name));
+}
+
+/** Leaves out the browser tools unless the user saved a Cloudflare Browser Run key in Settings. */
+export function withBrowser(tools: Tool[], enabled: boolean): Tool[] {
+  return enabled ? tools : tools.filter((tool) => !browserTools.includes(tool));
 }
 
 /** Leaves out the tools of plugins that aren't set up, so a run is only shown tools it can use. */

@@ -1,13 +1,15 @@
 import type { EventHandler } from "./agent/events.ts";
 import { runAgent, type ConversationMessage } from "./agent/loop.ts";
 import { findBotById, type Bot } from "./bots.ts";
+import { browsers } from "./browser/browsers.ts";
+import { getBrowserKeys } from "./browser/keys.ts";
 import { deleteDaytonaSandbox, openDaytonaComputer } from "./computer/daytona-computer.ts";
 import { deleteDockerSandbox, openDockerComputer } from "./computer/docker-computer.ts";
 import { loadConfig, type Config } from "./config.ts";
 import { LOCAL_USER, PUBLIC_USER } from "./database/database.ts";
 import { modelFor } from "./model-keys.ts";
 import { enabledPlugins } from "./plugins/enabled.ts";
-import { chiefTools, defaultTools, forPublicWorkspace, unnamedTools, withPlugins, withServerKeys } from "./tools/index.ts";
+import { chiefTools, defaultTools, forPublicWorkspace, unnamedTools, withBrowser, withPlugins, withServerKeys } from "./tools/index.ts";
 import type { Delegate } from "./tools/tool.ts";
 import type { ApproveAction } from "./permissions/policy.ts";
 
@@ -43,20 +45,21 @@ export async function executeTask(task: string, owner: RunOwner, onEvent?: Event
   }
   owner.signal?.throwIfAborted();
   const config = loadConfig();
-  const plugins = await enabledPlugins(owner.userId);
+  const [plugins, browser] = await Promise.all([enabledPlugins(owner.userId), getBrowserKeys().has(owner.userId)]);
   const sandboxName = sandboxNameFor(config, owner);
   const { computer, release } = openComputer(config, sandboxName, Boolean(owner.bot));
   try {
     const { model, contextWindow } = await modelFor(owner.userId, config);
     const chief = owner.bot?.primary === true;
-    const tools = withServerKeys(withPlugins(chief ? chiefTools : owner.bot ? defaultTools : unnamedTools, plugins));
+    const tools = withBrowser(withServerKeys(withPlugins(chief ? chiefTools : owner.bot ? defaultTools : unnamedTools, plugins)), browser);
     return await runAgent(task, {
       model, computer, tools: owner.userId === PUBLIC_USER ? forPublicWorkspace(tools) : tools, maxSteps: config.maxSteps, contextWindow, userId: owner.userId, bot: owner.bot,
       approveAction: owner.approveAction, conversation: owner.conversation, sessionId: owner.sessionId, signal: owner.signal, delegate: chief ? delegateFor(owner, onEvent) : undefined, onEvent,
     });
   } finally {
-    // Not awaited, so the answer isn't held up while the sandbox stops.
+    // Not awaited, so the answer isn't held up while the sandbox and browser stop.
     release().catch((error) => console.error(`Could not stop sandbox "${sandboxName}": ${error instanceof Error ? error.message : error}`));
+    browsers.close(owner.userId, owner.bot?.id).catch((error) => console.error(`Could not close the browser: ${error instanceof Error ? error.message : error}`));
   }
 }
 

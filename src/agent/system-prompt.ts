@@ -26,6 +26,12 @@ function research(search: boolean, scrape: boolean): string[] {
   ].join("\n")];
 }
 
+const BROWSER = `# Your browser
+- browser_open opens a page in your own browser on Cloudflare and returns its text and numbered elements; browser_click and browser_type act on those numbers and return the page that results, and browser_snapshot reads it again. The browser keeps its pages and cookies until the run ends.
+- To just read a page, web_scrape is quicker when you have it. Use the browser to click through a site, fill in forms or read pages that need JavaScript.
+- The user can watch your browser. Kitesurf, the default, shows them screenshots; only a Chromium browser lets them take over or open DevTools. When a page needs a sign-in, payment details or a CAPTCHA, open it with engine chromium, ask the user to do that part in their browser view, and call browser_snapshot once they say it's done. Never type passwords or other secrets yourself.
+- If Kitesurf can't render a site, open it again with engine chromium. Click and submit only what the user's task calls for.`;
+
 const MEMORY = `# Memory
 - You keep two Markdown files that are loaded at the start of every run, including scheduled runs: PREFERENCES.md for the user's explicit preferences, and KNOWLEDGE.md for verified facts, useful paths and reusable findings.
 - Use read_memory before write_memory, keep entries short, correct stale facts and keep what is still useful. Only batch memory writes that go to different files.
@@ -108,7 +114,7 @@ export function systemPrompt(bot: Bot | undefined, maxSteps: number, { tools, pl
     : "You are Pekka, an AI agent with a persistent Linux computer and a set of tools. You complete tasks by acting, not just describing.";
   const chief = plugins.length ? `${CHIEF_OF_STAFF}\n${CHIEF_PLUGINS}` : CHIEF_OF_STAFF;
   return [
-    intro, ...(bot?.primary ? [chief] : []), HOW_RUNS_WORK(maxSteps), COMPUTER, ...research(has("web_search"), has("web_scrape")),
+    intro, ...(bot?.primary ? [chief] : []), HOW_RUNS_WORK(maxSteps), COMPUTER, ...research(has("web_search"), has("web_scrape")), ...(has("browser_open") ? [BROWSER] : []),
     ...(bot ? [SETUP, MEMORY] : []), ...(has("load_skill") ? [has("write_skill") ? `${SKILLS}\n${WRITING_SKILLS}` : SKILLS] : []), ...(has("schedule_job") ? [SCHEDULING] : []), ...outside(plugins), SAFETY, ANSWER,
   ].join("\n\n");
 }
