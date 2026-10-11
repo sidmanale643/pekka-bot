@@ -49,10 +49,13 @@ Pekka is a self-hosted Node.js app. Models run through [OpenRouter](https://open
 - **Delegation.** Chief of Staff writes each bot a self-contained brief and runs several bots at once. Each bot keeps the work in its own chat, so you can follow up with it directly.
 - **Memory you can read.** Each bot has two Markdown files, `PREFERENCES.md` and `KNOWLEDGE.md`. The bot fills them in as you chat, and you can edit them at any time.
 - **Skills.** Reusable instructions in `SKILL.md` folders. Bots see a short catalog and load the full instructions only when a task needs them, and they can write new skills for themselves.
-- **Schedules.** Say "every Monday at 9" and the bot schedules itself. You can pause, resume, or cancel jobs from the **Scheduled** page.
-- **Plugins.** Gmail, Google Calendar, Drive, Contacts, Notion, GitHub, Linear, Granola, Todoist, and Telegram. Tokens are encrypted in your database and never shown to the model or the sandbox.
+- **Schedules.** Say "every Monday at 9" and the bot schedules itself. You can pause, resume, or cancel jobs from **Settings → Scheduled**.
+- **Plugins.** Gmail, Google Calendar, Drive, Contacts, Notion, GitHub, Linear, Wispr Flow, Granola, Todoist, TinyFish, Bland AI, and Telegram. Tokens are encrypted in your database and never shown to the model or the sandbox.
+- **Browser agents and phone calls.** With TinyFish, a bot can search the web, read pages, and send a browser agent to do a task on a website. With Bland AI, it can phone someone through a voice agent and report back on the call.
 - **Documents.** PDFs, scans, and images from Drive and Gmail are converted to Markdown on your server, using [LiteParse](https://github.com/run-llama/liteparse) with local OCR.
 - **Computer view.** Watch a bot's commands, their output and exit codes, and every file it reads or edits, live beside the chat.
+- **A web browser per bot.** Add a [Cloudflare Browser Run](https://developers.cloudflare.com/browser-run/kitesurf/) key in **Settings** and every bot can open pages, click, and fill in forms in its own browser, running on Kitesurf, Cloudflare's lightweight agent browser, or Chromium when a site needs it. Watch it beside the chat; in Chromium you can also take over, for example to sign in, or open DevTools to inspect the page.
+- **A face per bot.** Every bot wears its own live 3D Pekka head that thinks, works, searches, and speaks along with the run. New bots get a look unlike your others, and you can change the horns, crest, eyes, and colors.
 - **Long tasks.** When a prompt fills half of the model's context window, older steps are summarized. Your request and the latest step are kept word for word.
 - **Guardrails.** Deletions, destructive Git commands, `sudo`, and piping a download into a shell are always blocked. Changes that shape future runs, such as a bot's instructions, skills and scheduled jobs, always wait for your approval. You can also turn on approval of every write and send.
 - **Any model.** Use any OpenRouter model that supports tool calling. Each person can also save their own OpenRouter, OpenAI, or Anthropic key in **Settings**, and their runs use it and bill them directly.
@@ -81,9 +84,9 @@ flowchart TB
   subgraph Services["Outside services"]
     direction LR
     LLM[OpenRouter, OpenAI<br/>or Anthropic]
-    DT[Daytona<br/>one sandbox per bot]
-    PL[Plugins<br/>Google, GitHub, Linear, Notion,<br/>Granola, Todoist, Telegram]
-    DB[(Cloudflare D1<br/>bots, chats, memory,<br/>skills, jobs, keys)]
+    DT[Daytona or Docker<br/>one computer per bot]
+    PL[Plugins<br/>Google, GitHub, Linear, Notion,<br/>Granola, TinyFish, Bland AI, ...]
+    DB[(Cloudflare D1 or SQLite<br/>bots, chats, memory,<br/>skills, jobs, keys)]
   end
 
   You --> A
@@ -150,12 +153,17 @@ Open **[http://127.0.0.1:3000](http://127.0.0.1:3000)** and give Chief of Staff 
 
 The web app is where you do most of your work:
 
-- **Bots.** Create specialists, then edit their instructions, memory, skills, and character (the voice a bot uses with you). Clear one bot's chat from its bot panel.
-- **Chat.** The server saves each chat in D1 as the run goes, so a reply keeps coming even if you close the tab, and the chat is the same in every browser. Export a copy from **Settings**.
+- **Bots.** Create specialists, then edit their instructions, avatar, skills, and character (the voice a bot uses with you). Clear one bot's chat from its bot panel.
+- **Memory.** A bot's preferences and knowledge show as formatted notes. Choose **Edit note** to change one, and the bot uses your version from its next task.
+- **Chat.** The server saves each chat in its database as the run goes, so a reply keeps coming even if you close the tab, and the chat is the same in every browser.
 - **Computer view.** Open it from a bot's chat to watch that bot's sandbox. Sessions are ephemeral, so it shows only tasks that run while the page is open.
-- **Plugins.** Connect an app, then enable access. Access stays off until you turn it on.
-- **Scheduled.** Create, pause, resume, and cancel recurring tasks.
-- **Settings.** Pick which model runs use: the server's default, or your own OpenRouter, OpenAI, or Anthropic key. Keys are checked with the provider and stored encrypted with `PEKKA_PLUGIN_KEY`.
+- **Browser view.** The globe button beside the computer button shows the bot's browser while a task has it open: **Page** to watch it (and take over, in Chromium), **DevTools** to inspect it (Chromium only).
+- **Settings.** Everything outside your bots lives here:
+  - **Preferences.** Pick which model runs use: the server's default, or your own OpenRouter, OpenAI, or Anthropic key. Keys are checked with the provider and stored encrypted with `PEKKA_PLUGIN_KEY`. Add your Cloudflare account ID and a Browser Run token (Account › Browser Rendering › Edit) under **Web browser** to give every bot a browser. Theme, notifications, and chat export are here too.
+  - **Scheduled.** Create, pause, resume, and cancel recurring tasks.
+  - **Plugins.** Connect an app, then enable access. Access stays off until you turn it on.
+  - **Activity.** The tasks you sent to your bots, newest first.
+  - **Help.** How bots, delegation, and the computer view work.
 
 ### Mac app
 
@@ -238,7 +246,7 @@ The [`skills/`](skills) folder contains ready-made skills for the bundled plugin
 
 ## Plugins
 
-Connect a plugin on the **Plugins** page, then enable access. Reading is always automatic. With approvals on, anything that writes or sends waits for your yes.
+Connect a plugin in **Settings → Plugins**, then enable access. Reading is always automatic. With approvals on, anything that writes or sends waits for your yes.
 
 | Plugin | What bots can do | Setup |
 | --- | --- | --- |
@@ -251,8 +259,12 @@ Connect a plugin on the **Plugins** page, then enable access. Reading is always 
 | Linear | Find, read, create, and update issues, and post comments | Linear OAuth application |
 | [Wispr Flow](https://github.com/Wispr-AI/wispr-flow-plugin) | Read meeting notes, transcripts, scratchpad notes and calendar context | Sign in with Wispr Flow; automatic OAuth client registration |
 | Granola | Read meeting notes, summaries, and transcripts | Personal API key, pasted on the Plugins page |
+| [TinyFish](https://tinyfish.ai) | Search the web, read pages, and run browser agents that complete tasks on websites | [API key](https://agent.tinyfish.ai/api-keys), pasted on the Plugins page |
+| [Bland AI](https://www.bland.ai) | Phone people through a voice agent, then read the call's summary and transcript | API key from **Settings → API Keys** in Bland, pasted on the Plugins page |
 | Todoist | Read projects and tasks, and add, update, complete, and comment on tasks | OAuth through [Todoist MCP](https://www.todoist.com/help/todoist/todoist-and-ai/connect-todoist-to-an-ai-assistant-xMSzFfHng), connected on the Plugins page |
 | Telegram | Message your own linked chat | Bot token from [@BotFather](https://t.me/BotFather) |
+
+TinyFish browser agent runs spend your TinyFish wallet balance, so they always wait for your approval. Bland AI calls use your Bland credit and go out from Bland's shared number pool unless a bot is told to use one of yours.
 
 OAuth and API-key plugins need `PEKKA_PLUGIN_KEY`, which encrypts saved tokens. Generate it once with `openssl rand -hex 32` and keep it stable. The client IDs and exact callback URLs for each plugin are listed in [`.env.example`](.env.example).
 
@@ -293,7 +305,7 @@ The variables for sign-in, plugins, and tracing are covered in the sections belo
 ## Security model
 
 - **Hard blocks.** Some shell commands are refused whatever the settings: `rm`, `rmdir`, `shred`, `mkfs`, and `dd`; `git reset --hard`, `git clean`, and force-pushes; `sudo`, `su`, `chmod`, `chown`, and shutdown or reboot; and `curl … | sh`.
-- **Approvals.** By default, everything else runs without asking. Set `PEKKA_REQUIRE_APPROVAL=true` to review each write, command, and plugin action, with the exact arguments, before it runs. Read-only tools and a short list of safe commands, such as `ls` and `cat`, never ask. Whatever this is set to, Pekka always asks before a bot changes its own or another bot's instructions, creates a bot, saves a skill or schedules a job, so text injected into one run can't take hold of later ones. Scheduled tasks have nobody to ask, so they can't take actions that need approval. Each user can have up to 50 active scheduled jobs.
+- **Approvals.** By default, everything else runs without asking. Set `PEKKA_REQUIRE_APPROVAL=true` to review each write, command, and plugin action, with the exact arguments, before it runs. Read-only tools and a short list of safe commands, such as `ls` and `cat`, never ask. Whatever this is set to, Pekka always asks before a bot changes its own or another bot's instructions, creates a bot, saves a skill, schedules a job, or starts a paid TinyFish browser agent, so text injected into one run can't take hold of later ones. Scheduled tasks have nobody to ask, so they can't take actions that need approval. Each user can have up to 50 active scheduled jobs.
 - **Credentials.** Plugin tokens are encrypted with `PEKKA_PLUGIN_KEY` and stored in the database. They are never placed in the model's context or the bot's sandbox.
 - **Untrusted content.** Bots are told to treat web pages, emails, issues, and repository files as data, not as instructions.
 - **Localhost by default.** Without sign-in, Pekka listens on `127.0.0.1` and serves one user.
@@ -350,21 +362,21 @@ The landing page lives in [pekka-landing](https://github.com/sidmanale643/pekka-
 src/
 ├── agent/          Agent loop, context summarization, system prompt
 ├── api/            HTTP server, auth, plugin OAuth, SSE runs
-├── computer/       Computer interface, with Daytona and fake implementations
-├── database/       Cloudflare D1 client, with SQLite for tests
+├── computer/       Computer interface, with Daytona, Docker, and fake implementations
+├── database/       Cloudflare D1 client, and SQLite for local use and tests
 ├── model/          OpenRouter, OpenAI, and Anthropic clients, and usage accounting
 ├── permissions/    Hard blocks and the approval policy
 ├── plugins/        OAuth and API clients for each plugin
 ├── tools/          One file per tool, all with the same shape
 ├── base-skills/    Skills every bot has (skill-creator)
-├── web/            The web app (plain HTML, CSS, and JS)
+├── web/            The web app (plain HTML, CSS, and JS) and the Pekka head renderer
 └── cli.ts          The `pekka` CLI
 skills/             Ready-made skills for the bundled plugins
 assets/             Shared brand assets
 server.ts           Vercel entry point
 ```
 
-The agent talks to its sandbox only through the `Computer` interface in [`src/computer/computer.ts`](src/computer/computer.ts). This keeps the rest of the code independent of Daytona and lets tests use a fake computer.
+The agent talks to its sandbox only through the `Computer` interface in [`src/computer/computer.ts`](src/computer/computer.ts). This keeps the rest of the code independent of Daytona and Docker and lets tests use a fake computer.
 
 ## Contributing
 
