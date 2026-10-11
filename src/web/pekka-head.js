@@ -21,6 +21,8 @@ class PekkaHead extends HTMLElement {
   }
 
   get state() { return states.has(this.getAttribute("state")) ? this.getAttribute("state") : "idle"; }
+  // Frameworks such as React set it as a property.
+  set state(value) { this.setAttribute("state", value); }
 
   get look() {
     return {
