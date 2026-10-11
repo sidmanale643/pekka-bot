@@ -1868,7 +1868,7 @@ async function runTask(bot, task) {
     await Promise.all([bot, ...bots.filter((item) => item !== bot && delegated.has(item.id))].map(reloadMessages));
     renderBots();
     if (selected === bot) {
-      $("#heading").replaceChildren(avatar(bot.name, 22), element("strong", "", bot.name), element("span", "", bot.role));
+      $("#heading").replaceChildren(avatar(bot.name, 22), element("strong", "", bot.name));
       renderTranscript();
       updateComposer();
     }
