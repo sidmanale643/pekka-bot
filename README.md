@@ -1,5 +1,5 @@
 <p align="center">
-  <a href="https://pekkabot.xyz"><img src="assets/head.svg" alt="Pekka" width="96" /></a>
+  <a href="https://pekkabot.xyz"><img src="assets/mark.png" alt="Pekka" width="96" /></a>
 </p>
 
 <h1 align="center">Pekka</h1>
