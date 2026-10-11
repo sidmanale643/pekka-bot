@@ -181,7 +181,6 @@ function avatar(name, size, look) {
   head.setAttribute("size", size);
   dress(head, look || bot?.avatar);
   head.setAttribute("state", bot ? avatarState(bot) : "idle");
-  if (size <= 24) head.setAttribute("paused", "");
   if (bot) head.dataset.botId = bot.id;
   head.setAttribute("aria-hidden", "true");
   return head;
@@ -199,6 +198,24 @@ function sidebarAvatar(bot, size) {
   }
   dress(head, bot.avatar);
   head.setAttribute("state", avatarState(bot));
+  return head;
+}
+
+// A streaming reply's row is redrawn on every token, so the chat keeps heads the same way: one per name and size for
+// each message or delegation they belong to.
+const keptHeads = new WeakMap();
+function keptAvatar(owner, name, size) {
+  if (!keptHeads.has(owner)) keptHeads.set(owner, new Map());
+  const heads = keptHeads.get(owner);
+  const key = `${name.toLowerCase()}:${size}`;
+  const head = heads.get(key);
+  if (!head) {
+    heads.set(key, avatar(name, size));
+    return heads.get(key);
+  }
+  const bot = bots.find((item) => item.name.toLowerCase() === name.toLowerCase());
+  dress(head, bot?.avatar);
+  head.setAttribute("state", bot ? avatarState(bot) : "idle");
   return head;
 }
 
@@ -1287,7 +1304,7 @@ function messageRow(message) {
   const meta = element("div", "message-meta");
   // A brief the chief of staff sent this bot is shown as theirs, not the user's.
   const author = message.role === "user" ? message.from || profile.displayName || "You" : selected.name;
-  if (message.role !== "user" || message.from) meta.append(avatar(author, 18));
+  if (message.role !== "user" || message.from) meta.append(keptAvatar(message, author, 18));
   const stamp = element("time", "", time);
   stamp.dateTime = new Date(message.time).toISOString();
   meta.append(element("strong", "", author), stamp);
@@ -1334,7 +1351,7 @@ function delegationLine(delegation) {
   const line = element("a", `delegation-line${delegation.done ? "" : " live"}`);
   line.href = "#bot/" + encodeURIComponent(delegation.name);
   line.title = `Open ${delegation.name} to follow its work`;
-  line.append(avatar(delegation.name, 16), element("strong", "", delegation.name), element("span", delegation.done ? "" : "shimmer", delegation.status));
+  line.append(keptAvatar(delegation, delegation.name, 16), element("strong", "", delegation.name), element("span", delegation.done ? "" : "shimmer", delegation.status));
   if (!delegation.done) synced(line);
   line.addEventListener("click", (event) => {
     if (!handoff.items.some((item) => item.delegation === delegation)) return;
@@ -1365,7 +1382,7 @@ function renderHandoff() {
   const arrow = element("span", `handoff-arrow${delegation.done ? "" : " live"}`, "→");
   arrow.setAttribute("aria-hidden", "true");
   $("#handoff-title").replaceChildren(
-    avatar(handoff.chief.name, 24), arrow, avatar(delegation.name, 24),
+    keptAvatar(delegation, handoff.chief.name, 24), arrow, keptAvatar(delegation, delegation.name, 24),
     element("span", "", `${handoff.chief.name} handed this to ${delegation.name}`),
   );
   const tabs = $("#handoff-tabs");

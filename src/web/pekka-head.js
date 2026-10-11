@@ -90,7 +90,11 @@ class PekkaHead extends HTMLElement {
     const still = !this.visible || this.motion.matches || this.hasAttribute("paused") || document.documentElement.classList.contains("reduce-motion");
     // A head moved to a new spot carries on from its current pose rather than flashing its resting one.
     this.paint(!still && this.sim.age > 0);
-    if (still) return;
+    // A still head lets its renderer go, so a long chat doesn't keep one for every message scrolled past.
+    if (still) {
+      this.renderer = null;
+      return;
+    }
     // Heads in lists are small enough that 30 frames a second looks the same and costs half.
     const everyOther = size < 48;
     this.unsubscribe = subscribe((dt) => {
