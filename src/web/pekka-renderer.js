@@ -214,48 +214,78 @@ function crestPath() {
   return pts;
 }
 
-function buildCrest(kind, detail) {
+function crestRings(kind) {
   const path = crestPath();
-  const rings = path.map(({ c, up }, i) => {
+  return path.map(({ c, up }, i) => {
     const s = i / (path.length - 1);
     const end = smooth2(1, 0.82, s);
     if (kind === "fin") return { c, side: [1, 0, 0], up, w: 0.026, h: 0.03 + 0.13 * Math.pow(Math.sin(Math.PI * Math.min(1, s * 1.15)), 0.8) * end };
     return { c, side: [1, 0, 0], up, w: (0.05 - 0.014 * s) * (0.3 + 0.7 * end), h: 0.03 * end + 0.004 };
   });
-  return buildTube(rings, Math.max(6, Math.round(12 * detail)), true);
 }
 
-/* What sticks out of the shell, for sizing the canvas. */
-function extents(look) {
-  let side = 0.5, top = HY;
-  const horn = HORNS[look.horns];
-  if (horn) {
-    for (let k = 0; k <= 16; k++) {
-      const [x, y] = bezier(horn.curve, k / 16);
-      const r = horn.root * Math.pow(1 - k / 16, 0.85);
-      side = Math.max(side, -x + r);
-      top = Math.max(top, -y + r);
-    }
-  }
-  if (look.crest === "fin") top = Math.max(top, HY + 0.17);
-  if (look.crest === "plume") top = Math.max(top, HY + 0.46);
-  return { side, top };
+function buildCrest(kind, detail) {
+  return buildTube(crestRings(kind), Math.max(6, Math.round(12 * detail)), true);
+}
+
+/* A knight's plume: five feathers rooted on the crown, each a curve from its base past a control point to its tip.
+ * `sway` and `nod` are the antenna springs, which whip the tips about. */
+const FEATHER = 0.075;
+function plumeFeathers(sway, nod) {
+  return [-2, -1, 0, 1, 2].map((i) => [
+    [i * 0.018, -HY + 0.01, -0.02 - Math.abs(i) * 0.02],
+    [i * 0.06 + sway * 0.28 * 0.4, -HY - 0.3, -0.1 - Math.abs(i) * 0.03 + nod * 0.22 * 0.4],
+    [i * 0.13 + sway * 0.28, -HY - 0.34 + Math.abs(i) * 0.06, -0.4 - Math.abs(i) * 0.04 + nod * 0.22],
+  ]);
 }
 
 /* Every look shares one layout, so a helmet is the same size whatever it wears. The box fits the helmet and
- * the roots of base Pekka's horns; horn tips and plumes reach into the padding round it. */
+ * the roots of base Pekka's horns; horn tips and plumes reach into the padding round it. TRAVEL is how far the
+ * sim moves a head: a hop's height, the stretch as it leaves the ground (a share of the height above its base),
+ * the tilt of a nod or a lean, and the widening as it lands. */
 const LAYOUT = { side: 0.64, top: 0.6 };
-const TRAVEL = { hop: 0.36, shadow: 0.22, side: 0.12 };
+const TRAVEL = { hop: 0.26, stretch: 0.09, tilt: 0.47, widen: 1.09, shadow: 0.22, side: 0.12 };
 const BOX_INSET = 0.04;
+
+/* What sticks out of the shell, for sizing the canvas: how high each part can get and how far from the head's
+ * axis, once it has tilted as far as it goes and spun round. */
+function extents(look) {
+  let side = 0.5, top = HY;
+  const reach = ([x, y, z], r) => {
+    const d = Math.hypot(x, y, z), lean = Math.atan2(Math.hypot(x, z), -y);
+    top = Math.max(top, d * Math.cos(Math.max(0, lean - TRAVEL.tilt)) + r);
+    side = Math.max(side, d * Math.sin(Math.min(Math.PI / 2, lean + TRAVEL.tilt)) + r);
+  };
+  // The crown, from the visor's bevel over to the back's: a nod lifts its edges above the dome.
+  for (const [z, inset] of shellProfile(8)) reach([0, inset - HY, z], 0);
+  const horn = HORNS[look.horns];
+  if (horn) {
+    for (let k = 0; k <= 16; k++) reach(bezier(horn.curve, k / 16), horn.root * Math.pow(1 - k / 16, 0.85));
+  }
+  if (look.crest === "fin" || look.crest === "ridge") {
+    for (const { c, up, w, h } of crestRings(look.crest)) reach([c[0] + up[0] * h, c[1] + up[1] * h, c[2] + up[2] * h], w);
+  }
+  if (look.crest === "plume") {
+    // The antenna springs stop at ±0.7.
+    for (const sway of [-0.7, 0.7]) for (const nod of [-0.7, 0.7]) {
+      for (const [, ctrl, tip] of plumeFeathers(sway, nod)) {
+        reach(ctrl, FEATHER / 2);
+        reach(tip, FEATHER / 2);
+      }
+    }
+  }
+  return { side, top };
+}
 
 export function pekkaFrame(look, box) {
   const reach = extents(look);
   const tall = HY + LAYOUT.top;
   const unit = Math.min((box * (1 - 2 * BOX_INSET)) / tall, (box * (1 - 2 * BOX_INSET)) / (2 * LAYOUT.side));
   const centreY = (box - tall * unit) / 2 + LAYOUT.top * unit;
-  const padTop = Math.ceil(Math.max(0, (reach.top + TRAVEL.hop) * unit - centreY) + 1);
+  const rise = reach.top + TRAVEL.hop + TRAVEL.stretch * (HY + reach.top);
+  const padTop = Math.ceil(Math.max(0, rise * unit - centreY) + 1);
   const padBottom = Math.ceil(Math.max(0, centreY + (HY + TRAVEL.shadow) * unit - box) + 1);
-  const padSide = Math.ceil(Math.max(0, (reach.side * 1.08 + TRAVEL.side) * unit - box / 2) + 1);
+  const padSide = Math.ceil(Math.max(0, (reach.side * TRAVEL.widen + TRAVEL.side) * unit - box / 2) + 1);
   return { box, padTop, padBottom, padSide, unit, cx: padSide + box / 2, cy: padTop + centreY };
 }
 
@@ -542,6 +572,7 @@ export class PekkaRenderer {
     this.prepare(look, U);
     if (!this.layer || this.layer.width !== ctx.canvas.width || this.layer.height !== ctx.canvas.height) {
       this.layer = makeCanvas(ctx.canvas.width, ctx.canvas.height);
+      this.frontLayer = makeCanvas(ctx.canvas.width, ctx.canvas.height);
       this.grain = grainPattern(ctx);
     }
     const shown = sim ? sim.shown : state;
@@ -646,7 +677,26 @@ export class PekkaRenderer {
     ctx.drawImage(this.layer, 0, 0);
 
     if (crest) this.drawMesh(ctx, crest, look.crest === "fin" ? palette.horn : palette.ridge, P, R, U);
-    if (facing > 0) this.drawFront(ctx, plane, lit, U, sim, state, shown, look, palette, led, pose);
+    if (facing > 0) {
+      // The visor, brow and rivets lie flat on the front, out past where it starts to curve away, so as the head
+      // turns they'd hang off its side. Cut them to the shell's outline.
+      const front = this.frontLayer.getContext("2d");
+      front.setTransform(1, 0, 0, 1, 0, 0);
+      front.clearRect(0, 0, this.frontLayer.width, this.frontLayer.height);
+      this.drawFront(front, plane, lit, U, sim, state, shown, look, palette, led, pose);
+      front.setTransform(1, 0, 0, 1, 0, 0);
+      front.globalCompositeOperation = "destination-in";
+      front.drawImage(this.layer, 0, 0);
+      front.globalCompositeOperation = "source-over";
+      ctx.drawImage(this.frontLayer, 0, 0);
+      // Sleeping Zs drift off the helmet, so they're drawn past the cut.
+      if (shown === "sleeping") {
+        plane(ctx, FRONT.z);
+        toSvg(ctx);
+        snore(ctx, sim ? sim.face.time : 0.4, led);
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+      }
+    }
 
     horns.forEach((parts, i) => !behind[i] && drawHorn(parts));
     if (!plumeBehind) plume();
@@ -705,7 +755,6 @@ export class PekkaRenderer {
     ctx.strokeStyle = lip;
     ctx.lineWidth = 3;
     ctx.stroke(s.visor);
-    if (shown === "sleeping") snore(ctx, sim ? sim.face.time : 0.4, led);
 
     // Rivets at the cheeks.
     for (const x of [164, 348]) {
@@ -747,13 +796,9 @@ export class PekkaRenderer {
     ctx.restore();
   }
 
-  /* A knight's plume: feathers rooted on the crown that whip about on the antenna springs. */
   drawPlume(ctx, P, U, pose, palette) {
-    const feathers = [-2, -1, 0, 1, 2].map((i) => {
-      const sway = pose.antennaX * 0.28, nod = pose.antennaZ * 0.22;
-      const base = P(i * 0.018, -HY + 0.01, -0.02 - Math.abs(i) * 0.02);
-      const ctrl = P(i * 0.06 + sway * 0.4, -HY - 0.3, -0.1 - Math.abs(i) * 0.03 + nod * 0.4);
-      const tip = P(i * 0.13 + sway, -HY - 0.34 + Math.abs(i) * 0.06, -0.4 - Math.abs(i) * 0.04 + nod);
+    const feathers = plumeFeathers(pose.antennaX, pose.antennaZ).map((points) => {
+      const [base, ctrl, tip] = points.map((p) => P(...p));
       return { base, ctrl, tip, z: tip[2] + base[2] };
     }).sort((a, b) => a.z - b.z);
     const deep = css(radiance({ ...palette.horn, albedo: mix(palette.horn.albedo, [0, 0, 0], 0.45) }, 0, 0, 1));
@@ -767,7 +812,7 @@ export class PekkaRenderer {
       ctx.moveTo(base[0], base[1]);
       ctx.quadraticCurveTo(ctrl[0], ctrl[1], tip[0], tip[1]);
       ctx.strokeStyle = g;
-      ctx.lineWidth = U * 0.075 * pose.sx;
+      ctx.lineWidth = U * FEATHER * pose.sx;
       ctx.stroke();
       ctx.strokeStyle = "rgba(255,255,255,0.35)";
       ctx.lineWidth = U * 0.014;
