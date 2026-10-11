@@ -1,4 +1,5 @@
 import { characters, CharacterSchema, getCharacter, saveCharacter } from "../characters.ts";
+import { AvatarSchema } from "../avatars.ts";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { z } from "zod";
 import type { AgentResult } from "../agent/loop.ts";
@@ -6,7 +7,7 @@ import type { EventHandler } from "../agent/events.ts";
 import { BotMemory, memoryFiles } from "../bot-memory.ts";
 import { deleteMessages, listMessages } from "../chat-history.ts";
 import { ChatRecorder } from "../chat-recorder.ts";
-import { createBot, deleteBot, updateBot, DuplicateBotError, ensureChiefOfStaff, findBot as findStoredBot, listBots, type Bot } from "../bots.ts";
+import { createBot, deleteBot, updateBot, DuplicateBotError, ensureChiefOfStaff, findBot as findStoredBot, listBots, suggestAvatar, type Bot } from "../bots.ts";
 import { loadConfig } from "../config.ts";
 import { DatabaseConfigError } from "../database/d1.ts";
 import { getDatabase, type Database } from "../database/database.ts";
@@ -43,9 +44,9 @@ import { randomUUID } from "node:crypto";
 import { PermissionManager } from "../permissions/manager.ts";
 
 const text = z.string().trim().min(1).max(100_000);
-const botInput = z.object({ name: text.max(200), role: text, job: z.string().trim().max(100_000), character: CharacterSchema.optional() }).strict();
+const botInput = z.object({ name: text.max(200), role: text, job: z.string().trim().max(100_000), character: CharacterSchema.optional(), avatar: AvatarSchema.optional() }).strict();
 const createBotInput = z.union([
-  z.object({ name: text.max(200), description: text }).strict().transform(({ name, description }) => ({ name, role: description, job: "", character: undefined })),
+  z.object({ name: text.max(200), description: text, avatar: AvatarSchema.optional() }).strict().transform(({ name, description, avatar }) => ({ name, role: description, job: "", character: undefined, avatar })),
   botInput,
 ]);
 const conversationInput = z.array(z.object({ role: z.enum(["user", "assistant"]), content: text.max(4000) }).strict()).max(20);
@@ -336,6 +337,7 @@ export function createApiServer(options: ServerOptions = {}) {
       json(response, 200, { bots: await listBots(userId, database()) });
     }],
     ["POST", /^\/api\/bots$/, create],
+    ["GET", /^\/api\/avatars\/new$/, async (_request, response, _params, userId) => { json(response, 200, await suggestAvatar(userId, database())); }],
     ["GET", /^\/api\/bots\/([^/]+)$/, async (_request, response, [name], userId) => { json(response, 200, await findBot(userId, name!)); }],
     ["PUT", /^\/api\/bots\/([^/]+)$/, editBot],
     ["DELETE", /^\/api\/bots\/([^/]+)$/, removeBot],

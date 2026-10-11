@@ -321,7 +321,7 @@ label select {
   position: relative;
 }
 .bot-list-item .bot-row {
-  padding-right: 44px;
+  padding-right: 34px;
 }
 .bot-edit {
   position: absolute;
@@ -365,9 +365,9 @@ label select {
   position: relative;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   width: 100%;
-  padding: 8px 10px;
+  padding: 8px 10px 8px 8px;
   border-radius: var(--radius);
   text-align: left;
 }
@@ -399,7 +399,7 @@ label select {
   white-space: nowrap;
 }
 .bot-copy strong {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
 }
 /* The chief of staff gets its own card above the other bots. */
@@ -421,7 +421,7 @@ label select {
   display: grid;
   grid-template-columns: auto 1fr auto;
   align-items: center;
-  column-gap: 10px;
+  column-gap: 12px;
   width: 100%;
   padding: 10px 40px 10px 10px;
   text-align: left;
@@ -430,7 +430,7 @@ label select {
   background: var(--paper);
 }
 .chief-main .bot-copy strong {
-  font-size: 14px;
+  font-size: 15px;
 }
 .chief-label {
   font-family: var(--mono);
@@ -490,13 +490,156 @@ label select {
   font-size: 12px;
   color: var(--ink-3);
 }
+/* Avatars are live Pekka heads (pekka-head.js) on a transparent canvas; horn tips may reach past the box. */
 .avatar {
   display: block;
   flex-shrink: 0;
-  border-radius: var(--radius);
-  outline: 1px solid color-mix(in srgb, var(--ink) 10%, transparent);
-  outline-offset: -1px;
 }
+.avatar-picker {
+  display: grid;
+  gap: 18px;
+  margin: 12px 0 24px;
+}
+.avatar-stage {
+  display: grid;
+  justify-items: center;
+  gap: 16px;
+  padding: 30px 12px 14px;
+  background: radial-gradient(circle at 50% 36%, var(--sheet), var(--sunk) 78%);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-soft);
+}
+.avatar-stage pekka-head {
+  cursor: pointer;
+}
+.avatar-moods {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px;
+}
+.avatar-mood {
+  padding: 2px 9px;
+  font: inherit;
+  font-size: 12px;
+  color: var(--ink-3);
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 999px;
+  cursor: pointer;
+}
+.avatar-mood:hover {
+  color: var(--ink);
+}
+.avatar-mood[aria-pressed="true"] {
+  color: var(--ink);
+  background: var(--sheet);
+  border-color: var(--rule-strong);
+}
+.avatar-controls {
+  display: grid;
+  gap: 18px;
+}
+.look-group {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.look-group legend {
+  margin-bottom: 8px;
+  padding: 0;
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+.look-options {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(66px, 1fr));
+  gap: 6px;
+}
+/* A choice is a little head wearing it; the radio covers the tile so clicks and arrow keys still work. */
+.look-option {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  padding: 12px 4px 6px;
+  background: var(--sheet);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-soft);
+  cursor: pointer;
+  transition: border-color 0.12s;
+}
+.look-option:hover {
+  border-color: var(--rule-strong);
+}
+.look-option input,
+.look-swatch input {
+  position: absolute;
+  z-index: 1;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+.look-option span {
+  font-size: 12px;
+  color: var(--ink-2);
+}
+.look-option:has(input:checked) {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+.look-option:has(input:checked) span {
+  color: var(--ink);
+}
+.look-option:has(input:focus-visible),
+.look-swatch:has(input:focus-visible) {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.look-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+}
+.look-swatch {
+  position: relative;
+  width: 26px;
+  height: 26px;
+  background: var(--swatch);
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 18%, transparent);
+  cursor: pointer;
+}
+.look-swatch:has(input:checked),
+.look-swatch.custom.checked {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+/* Any other color: a color wheel that shows the chosen color in its middle. */
+.look-swatch.custom {
+  background: conic-gradient(#ff5a5a, #ffc35a, #9be15d, #36b0ff, #b59bff, #ff5fa8, #ff5a5a);
+}
+.look-swatch.custom.checked::after {
+  content: "";
+  position: absolute;
+  inset: 6px;
+  background: var(--custom);
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px var(--sheet);
+  pointer-events: none;
+}
+.look-actions {
+  display: flex;
+  gap: 8px;
+}
+.create-avatar { margin-top: 16px; }
 .bot-state {
   flex-shrink: 0;
   width: 6px;
@@ -2800,11 +2943,7 @@ dialog::backdrop {
   }
   .sidebar.collapsed .bot-list-item .bot-row {
     justify-content: center;
-    padding: 7px;
-  }
-  .sidebar.collapsed .bot-row .avatar {
-    width: 36px;
-    height: 36px;
+    padding: 4px;
   }
   /* In the rail, the chief is a larger, accented avatar above a divider. */
   .sidebar.collapsed .chief-card {
@@ -2821,11 +2960,9 @@ dialog::backdrop {
     justify-content: center;
     padding: 4px;
   }
+  /* The chief's head is drawn at 56px; the rail has room for 48. */
   .sidebar.collapsed .chief-main > .avatar {
-    width: 40px;
-    height: 40px;
-    outline: 2px solid var(--accent);
-    outline-offset: 2px;
+    zoom: 0.86;
   }
   .sidebar.collapsed .chief-card.active .chief-main {
     background: var(--sheet);

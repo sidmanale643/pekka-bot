@@ -5,7 +5,8 @@ import type { AddressInfo } from "node:net";
 import { request as httpRequest, type Server } from "node:http";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApiServer } from "./server.ts";
-import { createBot, deleteBot, findBotById, listBots, updateBot, type Bot } from "../bots.ts";
+import { createBot, deleteBot, ensureChiefOfStaff, findBotById, listBots, updateBot, type Bot } from "../bots.ts";
+import { AvatarSchema, BASE_PEKKA, newAvatar } from "../avatars.ts";
 import { BotMemory } from "../bot-memory.ts";
 import { createSqliteDatabase } from "../database/sqlite.ts";
 import { LOCAL_USER } from "../database/database.ts";
@@ -74,7 +75,7 @@ describe("HTTP API", () => {
     expect((await edit("other")).status).toBe(409);
     expect((await edit(" ")).status).toBe(400);
     const changed = await (await edit("Researcher")).json() as Bot;
-    expect(changed).toEqual({ id: bot.id, name: "Researcher", role: "Reviewer", job: "Check sources" });
+    expect(changed).toEqual({ id: bot.id, name: "Researcher", role: "Reviewer", job: "Check sources", avatar: bot.avatar });
     expect(await new BotMemory(changed, database).read("KNOWLEDGE.md")).toBe("Saved knowledge");
     expect(await findBotById(LOCAL_USER, bot.id, database)).toEqual(changed);
     expect((await fetch(`${base}/api/bots/Scout`)).status).toBe(404);
@@ -113,7 +114,7 @@ describe("HTTP API", () => {
     const created = await post("/api/bots", profile);
     expect(created.status).toBe(201);
     const bot = await created.json() as Bot;
-    expect(bot).toEqual({ ...profile, id: expect.stringMatching(/^[0-9a-f]{24}$/) });
+    expect(bot).toEqual({ ...profile, id: expect.stringMatching(/^[0-9a-f]{24}$/), avatar: expect.objectContaining({ kind: "pekka" }) });
     expect(await listBots(LOCAL_USER, database)).toEqual([bot]);
     expect((await post("/api/bots", { ...profile, name: "scout" })).status).toBe(409);
     expect(await (await fetch(`${base}/api/bots/scout`)).json()).toEqual(bot);
@@ -283,6 +284,50 @@ it("validates and persists character settings through the API", async () => {
   expect(await (await fetch(path)).json()).toEqual({ preset: "custom", name: "Nova", description: "A calm explorer" });
   expect((await update({ preset: "normal" })).status).toBe(200);
   expect(await (await fetch(path)).json()).toEqual({ preset: "normal", name: "", description: "" });
+});
+
+it("saves a bot's Pekka look and keeps it through profile edits", async () => {
+  await start();
+  const look = { kind: "pekka", armor: "#7d2f3a", horns: "curled", hornColor: "#f2b134", crest: "plume", eyes: "visor", eyeColor: "#7dffa8" };
+  const created = await post("/api/bots", { name: "Knight", description: "Guards things", avatar: look });
+  expect(created.status).toBe(201);
+  expect(await created.json()).toMatchObject({ avatar: look });
+  const put = (value: unknown) => fetch(`${base}/api/bots/Knight`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(value) });
+  expect((await put({ name: "Knight", role: "Guards", job: "", avatar: { ...look, horns: "antlers" } })).status).toBe(400);
+  expect((await put({ name: "Knight", role: "Guards", job: "" })).status).toBe(200);
+  expect(await (await fetch(`${base}/api/bots/knight`)).json()).toMatchObject({ role: "Guards", avatar: look });
+});
+
+it("gives each new bot its own look, keeps the chief as base Pekka, and gives older bots one when listed", async () => {
+  const chief = await ensureChiefOfStaff(LOCAL_USER, database);
+  expect(chief.avatar).toBeUndefined();
+  const made = await Promise.all(["A", "B", "C"].map(async (name) => createBot(LOCAL_USER, { name, role: "Helper", job: "" }, database)));
+  const looks = made.map((bot) => JSON.stringify(bot.avatar));
+  expect(new Set(looks).size).toBe(3);
+  for (const bot of made) expect(AvatarSchema.parse(bot.avatar)).toEqual(bot.avatar);
+  const chosen = await createBot(LOCAL_USER, { name: "D", role: "Helper", job: "", avatar: { kind: "pekka", horns: "none" } }, database);
+  expect(chosen.avatar).toEqual({ kind: "pekka", horns: "none" });
+  await database.run("UPDATE bot_profiles SET avatar = NULL WHERE id = ?", [made[0]!.id]);
+  const listed = await listBots(LOCAL_USER, database);
+  const older = listed.find((bot) => bot.id === made[0]!.id)!;
+  expect(older.avatar).toMatchObject({ kind: "pekka" });
+  expect(listed.find((bot) => bot.primary)?.avatar).toBeUndefined();
+  expect(await findBotById(LOCAL_USER, older.id, database)).toEqual(older);
+});
+
+it("picks a look unlike the ones already taken", () => {
+  const taken = [BASE_PEKKA, ...Array.from({ length: 12 }, () => newAvatar([BASE_PEKKA]))];
+  const look = newAvatar(taken);
+  expect(taken.map((other) => JSON.stringify(other))).not.toContain(JSON.stringify(look));
+});
+
+it("loads an avatar saved as a robot head as Pekka in the same colors, and drops one it can't read", async () => {
+  const bot = await createBot(LOCAL_USER, { name: "Old", role: "Helper", job: "" }, database);
+  const save = (avatar: unknown) => database.run("UPDATE bot_profiles SET avatar = ? WHERE id = ?", [JSON.stringify(avatar), bot.id]);
+  await save({ kind: "robot", shape: "hexagon", color: "#111111", trimColor: "#222222", screenColor: "#333333" });
+  expect((await findBotById(LOCAL_USER, bot.id, database))?.avatar).toEqual({ kind: "pekka", armor: "#111111", hornColor: "#222222", eyeColor: "#333333" });
+  await save({ kind: "dragon" });
+  expect(await findBotById(LOCAL_USER, bot.id, database)).toEqual({ ...bot, avatar: undefined });
 });
 
 it("returns a bot's greeting", async () => {

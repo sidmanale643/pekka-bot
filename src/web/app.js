@@ -1,5 +1,7 @@
 import { marked } from "/vendor/marked.js";
 import DOMPurify from "/vendor/dompurify.js";
+import "/pekka-head.js";
+import { PEKKA } from "/pekka-renderer.js";
 
 const $ = (selector) => document.querySelector(selector);
 const escapeHtml = (text) => text.replace(/[&<>"]/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[character]);
@@ -154,58 +156,183 @@ function element(tag, className, text) {
   return node;
 }
 
-const avatarColors = ["#151515", "#2a3cf0", "#e4572e", "#f2b134", "#3f8f5f", "#f2a7b8", "#8fb8e8", "#f8f8f5"];
-// Bauhaus tiles drawn in a 20×20 cell; each avatar is a 2×2 grid of them.
-const avatarTiles = [
-  "M0 0H20A20 20 0 0 1 0 20Z",
-  "M0 20A10 10 0 0 1 20 20Z",
-  "M0 0H20L0 20Z",
-  "M3 10a7 7 0 1 0 14 0a7 7 0 1 0-14 0Z",
-  "M0 0H20V20H0Z",
-  "M0 0H20V8H0Z",
-];
+// What the avatar picker offers. Each list starts with base Pekka's choice.
+const lookChoices = {
+  horns: [["classic", "Classic"], ["long", "Long"], ["short", "Short"], ["curled", "Curled"], ["upright", "Upright"], ["none", "None"]],
+  crest: [["none", "None"], ["ridge", "Ridge"], ["fin", "Fin"], ["plume", "Plume"]],
+  eyes: [["slit", "Slits"], ["round", "Round"], ["visor", "Visor"]],
+};
+const lookColors = {
+  armor: [[PEKKA.armor, "Blue steel"], ["#2f3442", "Gunmetal"], ["#b9c0cf", "Silver"], ["#b8913f", "Gold"], ["#7d2f3a", "Crimson"], ["#2f5a48", "Forest"], ["#34408f", "Royal"], ["#e6e0d2", "Ivory"]],
+  hornColor: [[PEKKA.hornColor, "Magenta"], ["#36b0ff", "Ice"], ["#f2b134", "Gold"], ["#ff6a3d", "Ember"], ["#ff5fa8", "Rose"], ["#9be15d", "Lime"], ["#e9e2cf", "Bone"], ["#2a2d36", "Onyx"]],
+  eyeColor: [[PEKKA.eyeColor, "Pink"], ["#84eaff", "Cyan"], ["#ffc35a", "Amber"], ["#ff5a5a", "Red"], ["#7dffa8", "Green"], ["#b59bff", "Violet"], ["#f4f7ff", "White"]],
+};
 
-// Seeds a PRNG (FNV-1a into mulberry32) from the name so a bot always gets the same avatar.
-function avatarRandom(name) {
-  let seed = 2166136261;
-  for (const char of name.toLowerCase())
-    seed = Math.imul(seed ^ char.codePointAt(0), 16777619);
-  return () => {
-    seed = (seed + 0x6d2b79f5) | 0;
-    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
+function dress(head, look) {
+  const { armor, horns, hornColor, crest, eyes, eyeColor } = { ...PEKKA, ...look };
+  for (const [attribute, value] of Object.entries({ armor, horns, "horn-color": hornColor, crest, eyes, "eye-color": eyeColor }))
+    if (head.getAttribute(attribute) !== value) head.setAttribute(attribute, value);
 }
 
-function avatar(name, size) {
-  const random = avatarRandom(name);
-  const pick = (list) => list[Math.floor(random() * list.length)];
-  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-  svg.setAttribute("class", "avatar");
-  svg.setAttribute("viewBox", "0 0 40 40");
-  svg.setAttribute("width", size);
-  svg.setAttribute("height", size);
-  svg.setAttribute("aria-hidden", "true");
-  const shape = (d, fill, transform) => {
-    const path = document.createElementNS(svg.namespaceURI, "path");
-    path.setAttribute("d", d);
-    path.setAttribute("fill", fill);
-    if (transform) path.setAttribute("transform", transform);
-    svg.append(path);
+// A bot's live Pekka head. Without a saved look it's base Pekka; `look` overrides the bot's own.
+function avatar(name, size, look) {
+  const bot = look ? undefined : bots.find((item) => item.name.toLowerCase() === name.toLowerCase());
+  const head = element("pekka-head", "avatar");
+  head.setAttribute("size", size);
+  dress(head, look || bot?.avatar);
+  head.setAttribute("state", bot ? avatarState(bot) : "idle");
+  if (size <= 24) head.setAttribute("paused", "");
+  if (bot) head.dataset.botId = bot.id;
+  head.setAttribute("aria-hidden", "true");
+  return head;
+}
+
+// The sidebar is rebuilt often (selecting a bot, new messages, a run's progress). Its heads are kept between
+// rebuilds so they carry on moving instead of starting over, and a clicked head finishes its hop.
+const sidebarHeads = new Map();
+function sidebarAvatar(bot, size) {
+  const key = `${bot.id}:${size}`;
+  const head = sidebarHeads.get(key);
+  if (!head) {
+    sidebarHeads.set(key, avatar(bot.name, size));
+    return sidebarHeads.get(key);
+  }
+  dress(head, bot.avatar);
+  head.setAttribute("state", avatarState(bot));
+  return head;
+}
+
+let pickers = 0;
+function avatarPicker(saved) {
+  const look = { ...PEKKA, ...saved };
+  delete look.kind;
+  const id = ++pickers;
+  const container = element("div", "avatar-picker");
+
+  const stage = element("div", "avatar-stage");
+  const preview = avatar("Preview", 148, look);
+  preview.title = "Click to make Pekka hop";
+  preview.removeAttribute("aria-hidden");
+  const moods = element("div", "avatar-moods");
+  moods.setAttribute("role", "group");
+  moods.setAttribute("aria-label", "Preview a mood");
+  for (const [state, title] of [["idle", "Idle"], ["thinking", "Thinking"], ["working", "Working"], ["speaking", "Talking"], ["happy", "Happy"], ["sleeping", "Asleep"]]) {
+    const mood = element("button", "avatar-mood", title);
+    mood.type = "button";
+    mood.setAttribute("aria-pressed", String(state === "idle"));
+    mood.addEventListener("click", () => {
+      preview.setAttribute("state", state);
+      for (const other of moods.children) other.setAttribute("aria-pressed", String(other === mood));
+    });
+    moods.append(mood);
+  }
+  stage.append(preview, moods);
+
+  const controls = element("div", "avatar-controls");
+  // Each choice is a small head wearing it, so a tile shows what picking it would do.
+  const tiles = [];
+  for (const [key, title] of [["horns", "Horns"], ["crest", "Crest"], ["eyes", "Eyes"]]) {
+    const group = element("fieldset", "look-group");
+    group.append(element("legend", "", title));
+    const options = element("div", "look-options");
+    for (const [value, label] of lookChoices[key]) {
+      const option = element("label", "look-option");
+      const input = element("input", "");
+      input.type = "radio";
+      input.name = `look-${id}-${key}`;
+      input.value = value;
+      input.addEventListener("change", () => change({ [key]: value }));
+      const tile = avatar("Preview", 40, { ...look, [key]: value });
+      tile.setAttribute("paused", "");
+      tiles.push([tile, key, value]);
+      option.append(input, tile, element("span", "", label));
+      options.append(option);
+    }
+    group.append(options);
+    controls.append(group);
+  }
+  for (const [key, title] of [["armor", "Armor color"], ["hornColor", "Horn color"], ["eyeColor", "Eye glow"]]) {
+    const group = element("fieldset", "look-group");
+    group.append(element("legend", "", title));
+    const swatches = element("div", "look-swatches");
+    for (const [value, label] of lookColors[key]) {
+      const swatch = element("label", "look-swatch");
+      swatch.title = label;
+      swatch.style.setProperty("--swatch", value);
+      const input = element("input", "");
+      input.type = "radio";
+      input.name = `look-${id}-${key}`;
+      input.value = value;
+      input.setAttribute("aria-label", label);
+      input.addEventListener("change", () => change({ [key]: value }));
+      swatch.append(input);
+      swatches.append(swatch);
+    }
+    const custom = element("label", "look-swatch custom");
+    custom.title = "Custom color";
+    const picker = element("input", "");
+    picker.type = "color";
+    picker.name = `look-${id}-${key}-custom`;
+    picker.setAttribute("aria-label", `Custom ${title.toLowerCase()}`);
+    picker.addEventListener("input", () => change({ [key]: picker.value }));
+    custom.append(picker);
+    swatches.append(custom);
+    group.append(swatches);
+    controls.append(group);
+  }
+
+  const actions = element("div", "look-actions");
+  const shuffle = element("button", "button secondary small", "Shuffle");
+  shuffle.type = "button";
+  // The server suggests a look none of the user's bots wear; offline, any preset will do.
+  const pick = (list) => list[Math.floor(Math.random() * list.length)][0];
+  shuffle.addEventListener("click", async () => {
+    shuffle.disabled = true;
+    try {
+      const { kind, ...suggested } = await api("/api/avatars/new");
+      change(suggested);
+    } catch {
+      change(Object.fromEntries([...Object.entries(lookChoices), ...Object.entries(lookColors)].map(([key, list]) => [key, pick(list)])));
+    } finally {
+      shuffle.disabled = false;
+    }
+  });
+  const reset = element("button", "button ghost small", "Reset to Pekka");
+  reset.type = "button";
+  reset.addEventListener("click", () => change(PEKKA));
+  actions.append(shuffle, reset);
+  controls.append(actions);
+
+  const draw = () => {
+    dress(preview, look);
+    for (const [tile, key, value] of tiles) dress(tile, { ...look, [key]: value });
+    for (const input of controls.querySelectorAll("input[type=radio]")) {
+      const key = input.name.split("-").at(-1);
+      input.checked = look[key].toLowerCase() === input.value.toLowerCase();
+    }
+    for (const key of Object.keys(lookColors)) {
+      const custom = controls.querySelector(`input[name="look-${id}-${key}-custom"]`);
+      const preset = lookColors[key].some(([value]) => value.toLowerCase() === look[key].toLowerCase());
+      custom.value = look[key];
+      custom.parentElement.classList.toggle("checked", !preset);
+      custom.parentElement.style.setProperty("--custom", look[key]);
+    }
   };
-  const background = pick(avatarColors);
-  const others = avatarColors.filter((color) => color !== background);
-  const first = pick(others);
-  const inks = [first, pick(others.filter((color) => color !== first))];
-  shape("M0 0H40V40H0Z", background);
-  for (const [x, y] of [[0, 0], [20, 0], [0, 20], [20, 20]])
-    shape(
-      pick(avatarTiles),
-      pick(inks),
-      `translate(${x} ${y}) rotate(${Math.floor(random() * 4) * 90} 10 10)`,
-    );
-  return svg;
+  let changed = false;
+  const change = (parts) => {
+    changed = true;
+    Object.assign(look, parts);
+    draw();
+  };
+  container.append(stage, controls);
+  draw();
+  return {
+    container,
+    value: () => ({ kind: "pekka", ...look }),
+    get changed() { return changed; },
+    /** Shows a suggested look, unless the person has already picked something. */
+    suggest(parts) { if (!changed) change(parts); },
+  };
 }
 
 function entries(bot) {
@@ -268,7 +395,7 @@ function botRow(bot) {
     ? "Running…"
     : (last?.text && plainText(last.text)) || bot.role;
   copy.append(element("strong", "", bot.name), element("small", running.has(bot.name) ? "shimmer" : "", preview));
-  button.append(avatar(bot.name, 28), synced(copy), ...stateDot(bot));
+  button.append(sidebarAvatar(bot, 44), synced(copy), ...stateDot(bot));
   button.addEventListener("click", () => selectBot(bot));
   const row = element("div", "bot-list-item");
   row.append(button);
@@ -313,6 +440,8 @@ function chiefCard(chief, team) {
 }
 
 function renderBots() {
+  syncAvatarStates();
+  for (const key of sidebarHeads.keys()) if (!bots.some((bot) => key.startsWith(`${bot.id}:`))) sidebarHeads.delete(key);
   const list = $("#bot-list");
   list.replaceChildren();
   const chief = bots.find((bot) => bot.primary);
@@ -502,6 +631,7 @@ async function loadGreeting(bot) {
   const key = bot.name.toLowerCase();
   if (greetingRequests.has(key)) return;
   greetingRequests.add(key);
+  syncAvatarStates();
   const base = { signature: `${bot.role}\n${bot.job}`, time: Date.now() };
   try {
     const data = await api(`/api/bots/${encodeURIComponent(bot.name)}/greeting`);
@@ -515,6 +645,7 @@ async function loadGreeting(bot) {
     });
   } finally {
     greetingRequests.delete(key);
+    syncAvatarStates();
     saveGreetings();
     if (selected === bot && currentPage === "workspace" && !entries(bot).length) renderTranscript();
   }
@@ -741,6 +872,25 @@ const liveRuns = new WeakMap();
 // When each tool call of a running reply started and ended, and the detail it was about.
 const toolRuns = new WeakMap();
 
+function avatarState(bot) {
+  const message = entries(bot).at(-1);
+  const phase = message && liveRuns.get(message)?.phase;
+  if (running.has(bot.name)) {
+    if (phase === "tools" && message.tools?.some((tool) => !("isError" in tool) && /search|scrape|browse|tinyfish/.test(tool.name))) return "searching";
+    return ({ writing: "speaking", tools: "working", waiting: "listening" })[phase] || "thinking";
+  }
+  if (message?.role === "error") return "error";
+  return greetingRequests.has(bot.name.toLowerCase()) ? "thinking" : "idle";
+}
+
+function syncAvatarStates() {
+  for (const head of document.querySelectorAll("pekka-head[data-bot-id]")) {
+    const bot = bots.find((item) => item.id === head.dataset.botId);
+    const state = bot ? avatarState(bot) : "idle";
+    if (head.getAttribute("state") !== state) head.setAttribute("state", state);
+  }
+}
+
 function startLive(message) {
   liveRuns.set(message, { phase: "thinking", since: Date.now() });
 }
@@ -748,6 +898,7 @@ function startLive(message) {
 function setPhase(message, phase) {
   const live = liveRuns.get(message);
   if (live && live.phase !== phase) Object.assign(live, { phase, since: Date.now() });
+  syncAvatarStates();
 }
 
 // The transcript is redrawn on every streamed token, which restarts CSS animations.
@@ -1766,6 +1917,12 @@ for (const [key, template] of Object.entries(templates)) {
 
 function openCreate(template) {
   $("#create-form").reset();
+  // A new bot starts in a look no other bot wears; the person can change it before creating.
+  const picker = avatarPicker();
+  createAvatar = picker;
+  api("/api/avatars/new").then(({ kind, ...look }) => picker.suggest(look), () => {});
+  $("#create-avatar").parentElement.open = false;
+  $("#create-avatar").replaceChildren(picker.container);
   $("#create-error").textContent = "";
   if (template)
     for (const [name, value] of Object.entries(template))
@@ -1773,12 +1930,16 @@ function openCreate(template) {
   $("#create-dialog").showModal();
 }
 
+let createAvatar;
 $("#create-form").addEventListener("submit", async (event) => {
   event.preventDefault();
   $("#create-submit").disabled = true;
   $("#create-error").textContent = "";
   try {
-    const input = Object.fromEntries(new FormData(event.currentTarget));
+    // Only the profile fields: the avatar picker's own radios share the form.
+    const { name, description } = Object.fromEntries(new FormData(event.currentTarget));
+    // Without a look in the picker yet, the server gives the bot its own.
+    const input = { name, description, avatar: createAvatar.changed ? createAvatar.value() : undefined };
     const bot = await api("/api/bots", {
       method: "POST",
       body: JSON.stringify(input),
@@ -1863,6 +2024,36 @@ async function clearChat(bot, button) {
 }
 
 const detailViews = {
+  avatar: async (panel, bot) => {
+    const picker = avatarPicker(bot.avatar);
+    const form = element("form", "");
+    const status = element("span", "form-status");
+    status.setAttribute("role", "status");
+    const actions = element("div", "form-actions");
+    const discard = element("button", "button secondary", "Discard changes");
+    discard.type = "button";
+    discard.addEventListener("click", closeBotSetting);
+    const save = element("button", "button primary", "Save avatar");
+    actions.append(status, discard, save);
+    form.append(picker.container, actions);
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      for (const control of form.querySelectorAll("button, input, select")) control.disabled = true;
+      status.textContent = "Saving…";
+      try {
+        const updated = await api(`/api/bots/${encodeURIComponent(bot.name)}`, { method: "PUT", body: JSON.stringify({ name: bot.name, role: bot.role, job: bot.job, avatar: picker.value() }) });
+        Object.assign(bot, updated);
+        renderBots();
+        if (selected === bot && currentPage === "workspace") {
+          $("#heading").replaceChildren(avatar(bot.name, 22), element("strong", "", bot.name));
+          renderTranscript();
+        }
+        status.textContent = "Avatar saved.";
+      } catch (error) { status.textContent = error.message; }
+      finally { for (const control of form.querySelectorAll("button, input, select")) control.disabled = false; }
+    });
+    panel.append(element("p", "muted", "Start from base Pekka and make it this bot's own. The look follows the bot across devices."), form);
+  },
   purpose: async (panel, bot) => {
     const form = element("form", "");
     for (const [name, title] of [["name", "Name"], ["role", "Description"], ["job", "Working instructions"]]) {
@@ -2131,6 +2322,7 @@ let panelVersion = 0;
 const skillSources = { bot: "This bot", shared: "Shared", base: "Built in" };
 const botSettings = {
   purpose: ["Purpose", "Name, description and instructions"],
+  avatar: ["Avatar", "Horns, crest, eyes and colors"],
   memory: ["Memory", "What it has learned about you"],
   skills: ["Skills", "Know-how it loads when a task needs it"],
 };

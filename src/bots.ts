@@ -1,5 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { z } from "zod";
+import { AvatarSchema, newAvatar, type Avatar } from "./avatars.ts";
 import { deleteMessages } from "./chat-history.ts";
 import { ensureSchema, getDatabase, type Database } from "./database/database.ts";
 
@@ -7,6 +8,7 @@ const ProfileSchema = z.object({
   name: z.string().trim().min(1),
   role: z.string().trim().min(1),
   job: z.string().trim(),
+  avatar: AvatarSchema.optional(),
 });
 
 /** What a person provides when creating a bot. */
@@ -33,18 +35,21 @@ export const CHIEF_OF_STAFF: BotProfile = {
   job: "",
 };
 
-const COLUMNS = "id, name, role, job, is_primary";
+const COLUMNS = "id, name, role, job, is_primary, avatar";
 
-function toBot({ is_primary, ...row }: Record<string, unknown>): Bot {
-  return BotSchema.parse(Number(is_primary) === 1 ? { ...row, primary: true } : row);
+function toBot({ is_primary, avatar, ...row }: Record<string, unknown>): Bot {
+  // An avatar that no longer parses falls back to base Pekka rather than hiding the bot.
+  const look = avatar ? AvatarSchema.safeParse(JSON.parse(String(avatar))) : undefined;
+  const value = { ...row, ...(look?.success ? { avatar: look.data } : {}) };
+  return BotSchema.parse(Number(is_primary) === 1 ? { ...value, primary: true } : value);
 }
 
 export async function updateBot(userId: string, id: string, input: BotProfile, database: Database = getDatabase()): Promise<Bot> {
   const bot = BotSchema.parse({ ...ProfileSchema.parse(input), id });
   await ensureSchema(database);
   const { changes } = await database.run(
-    "UPDATE bot_profiles SET name_key = ?, name = ?, role = ?, job = ? WHERE id = ? AND user_id = ? AND NOT EXISTS (SELECT 1 FROM bot_profiles WHERE user_id = ? AND name_key = ? AND id <> ?)",
-    [nameKey(bot.name), bot.name, bot.role, bot.job, id, userId, userId, nameKey(bot.name), id],
+    "UPDATE bot_profiles SET name_key = ?, name = ?, role = ?, job = ?, avatar = COALESCE(NULLIF(?, ''), avatar) WHERE id = ? AND user_id = ? AND NOT EXISTS (SELECT 1 FROM bot_profiles WHERE user_id = ? AND name_key = ? AND id <> ?)",
+    [nameKey(bot.name), bot.name, bot.role, bot.job, bot.avatar ? JSON.stringify(bot.avatar) : "", id, userId, userId, nameKey(bot.name), id],
   );
   const updated = changes ? await findBotById(userId, id, database) : undefined;
   if (!updated) throw new DuplicateBotError(`A bot named "${bot.name}" already exists or the bot was removed.`);
@@ -64,7 +69,17 @@ const nameKey = (name: string) => name.trim().toLowerCase();
 /** The bots `userId` owns, chief of staff first. Each user only ever sees their own. */
 export async function listBots(userId: string, database: Database = getDatabase()): Promise<Bot[]> {
   await ensureSchema(database);
-  return (await database.query(`SELECT ${COLUMNS} FROM bot_profiles WHERE user_id = ? ORDER BY is_primary DESC, rowid`, [userId])).map(toBot);
+  const rows = await database.query(`SELECT ${COLUMNS} FROM bot_profiles WHERE user_id = ? ORDER BY is_primary DESC, rowid`, [userId]);
+  const bots = rows.map(toBot);
+  // Bots made before each new bot got its own look get one now, so no two share a face. The chief stays base Pekka.
+  const bare = bots.filter((bot, i) => rows[i]!.avatar == null && !bot.primary);
+  const taken = bots.flatMap((bot) => (bot.avatar ? [bot.avatar] : bot.primary ? [{ kind: "pekka" } as const] : []));
+  for (const bot of bare) {
+    bot.avatar = newAvatar(taken);
+    taken.push(bot.avatar);
+    await database.run("UPDATE bot_profiles SET avatar = ? WHERE id = ? AND user_id = ? AND avatar IS NULL", [JSON.stringify(bot.avatar), bot.id, userId]);
+  }
+  return bots;
 }
 
 export async function findBot(userId: string, name: string, database: Database = getDatabase()): Promise<Bot | undefined> {
@@ -85,14 +100,27 @@ export async function getBot(userId: string, name: string, database?: Database):
   return bot;
 }
 
-/** `id` is only passed when importing a bot whose sandbox already exists under that ID. */
-export async function createBot(userId: string, input: BotProfile, database: Database = getDatabase(), id = randomBytes(12).toString("hex")): Promise<Bot> {
-  const bot = BotSchema.parse({ ...ProfileSchema.parse(input), id });
+/** The looks a user's bots already wear; a bot without one wears base Pekka. */
+async function takenLooks(userId: string, database: Database): Promise<Avatar[]> {
+  const rows = await database.query("SELECT avatar FROM bot_profiles WHERE user_id = ?", [userId]);
+  return rows.map(({ avatar }) => (avatar ? AvatarSchema.safeParse(JSON.parse(String(avatar))).data : undefined) ?? { kind: "pekka" as const });
+}
+
+/** A look none of the user's bots wear yet, for a new bot. */
+export async function suggestAvatar(userId: string, database: Database = getDatabase()): Promise<Avatar> {
   await ensureSchema(database);
+  return newAvatar(await takenLooks(userId, database));
+}
+
+/** `id` is only passed when importing a bot whose sandbox already exists under that ID. Without a chosen look, a bot gets its own. */
+export async function createBot(userId: string, input: BotProfile, database: Database = getDatabase(), id = randomBytes(12).toString("hex")): Promise<Bot> {
+  const profile = ProfileSchema.parse(input);
+  await ensureSchema(database);
+  const bot = BotSchema.parse({ ...profile, avatar: profile.avatar ?? await suggestAvatar(userId, database), id });
   // The unique (user, name key) pair makes the duplicate check atomic across processes and machines.
   const { changes } = await database.run(
-    "INSERT INTO bot_profiles (id, user_id, name_key, name, role, job, created_at) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT DO NOTHING",
-    [bot.id, userId, nameKey(bot.name), bot.name, bot.role, bot.job, new Date().toISOString()],
+    "INSERT INTO bot_profiles (id, user_id, name_key, name, role, job, created_at, avatar) VALUES (?, ?, ?, ?, ?, ?, ?, NULLIF(?, '')) ON CONFLICT DO NOTHING",
+    [bot.id, userId, nameKey(bot.name), bot.name, bot.role, bot.job, new Date().toISOString(), bot.avatar ? JSON.stringify(bot.avatar) : ""],
   );
   if (!changes) throw new DuplicateBotError(`A bot named "${bot.name}" already exists.`);
   return bot;

@@ -138,6 +138,7 @@ const ADDED_COLUMNS = [
   `ALTER TABLE scheduled_jobs ADD COLUMN user_id TEXT NOT NULL DEFAULT '${LOCAL_USER}'`,
   // 1 marks the user's chief of staff, the primary bot that manages their others.
   "ALTER TABLE bot_profiles ADD COLUMN is_primary INTEGER NOT NULL DEFAULT 0",
+  "ALTER TABLE bot_profiles ADD COLUMN avatar TEXT",
 ];
 
 /** Indexes on added columns, created once those columns exist. */
