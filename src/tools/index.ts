@@ -13,6 +13,7 @@ import { createGmailTools } from "./gmail.ts";
 import { createNotionTools } from "./notion.ts";
 import { createWisprTools } from "./wispr.ts";
 import { createLinearTools } from "./linear.ts";
+import { createTinyFishTools } from "./tinyfish.ts";
 import { createGranolaTools } from "./granola.ts";
 // import { createRetellTools } from "./retell.ts"; // Retell AI, commented out for now
 import { createBlandTools } from "./bland.ts";
@@ -26,7 +27,7 @@ import { updateBotConfig } from "./bot-config.ts";
 import { chiefOfStaffTools } from "./chief-of-staff.ts";
 
 /** The tools every bot gets. To add a tool, write one file and list it here. */
-export const defaultTools: Tool[] = [runCommand, readFile, writeFile, editFile, webSearch, webScrape, readMemory, writeMemory, updateBotConfig, listSkills, loadSkill, writeSkill, ...createSchedulingTools(), ...createEmailTools(), ...createGmailTools(), ...createCalendarTools(), ...createDriveTools(), ...createContactsTools(), ...createNotionTools(), ...createTelegramTools(), ...createGitHubTools(), ...createLinearTools(), ...createGranolaTools(), /* ...createRetellTools(), Retell AI */ ...createBlandTools(), ...createTodoistTools(), ...createWisprTools()];
+export const defaultTools: Tool[] = [runCommand, readFile, writeFile, editFile, webSearch, webScrape, readMemory, writeMemory, updateBotConfig, listSkills, loadSkill, writeSkill, ...createSchedulingTools(), ...createEmailTools(), ...createGmailTools(), ...createCalendarTools(), ...createDriveTools(), ...createContactsTools(), ...createNotionTools(), ...createTelegramTools(), ...createGitHubTools(), ...createLinearTools(), ...createGranolaTools(), ...createTinyFishTools(), /* ...createRetellTools(), Retell AI */ ...createBlandTools(), ...createTodoistTools(), ...createWisprTools()];
 
 /** The chief of staff also manages the user's other bots. */
 export const chiefTools: Tool[] = [...defaultTools, ...chiefOfStaffTools];

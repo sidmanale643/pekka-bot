@@ -32,6 +32,7 @@ import { getGitHubService, GitHubError, type GitHubService } from "../plugins/gi
 import { WisprService, WisprError } from "../plugins/wispr.ts";
 import { getLinearService, LinearError, type LinearService } from "../plugins/linear.ts";
 import { ApiKeyPluginError } from "../plugins/api-key.ts";
+import { createTinyFishService, type TinyFishService } from "../plugins/tinyfish.ts";
 import { createGranolaService, type GranolaService } from "../plugins/granola.ts";
 // import { createRetellService, type RetellService } from "../plugins/retell.ts"; // Retell AI, commented out for now
 import { createBlandService, type BlandService } from "../plugins/bland.ts";
@@ -93,6 +94,7 @@ interface ServerOptions {
   wispr?: WisprService;
   linear?: LinearService;
   granola?: GranolaService;
+  tinyfish?: TinyFishService;
   // retell?: RetellService; // Retell AI
   bland?: BlandService;
   todoist?: TodoistService;
@@ -321,7 +323,7 @@ export function createApiServer(options: ServerOptions = {}) {
         notion: options.notion ?? getNotionService(), gmail: options.gmail ?? getGmailService(), calendar: options.calendar ?? getCalendarService(),
         drive: options.drive ?? getDriveService(), contacts: options.contacts ?? getContactsService(),
         telegram: options.telegram ?? getTelegramService(), github: options.github ?? getGitHubService(), linear: options.linear ?? getLinearService(), wispr: options.wispr ?? new WisprService({ database }),
-        granola: options.granola ?? createGranolaService({ database }), /* retell: options.retell ?? createRetellService({ database }), Retell AI */ bland: options.bland ?? createBlandService({ database }), todoist: options.todoist ?? createTodoistService({ database }),
+        granola: options.granola ?? createGranolaService({ database }), tinyfish: options.tinyfish ?? createTinyFishService({ database }), /* retell: options.retell ?? createRetellService({ database }), Retell AI */ bland: options.bland ?? createBlandService({ database }), todoist: options.todoist ?? createTodoistService({ database }),
       }, access.origin),
       ...modelKeyRoutes(modelKeys, () => { try { const config = loadConfig(); return { model: config.model, key: Boolean(config.openRouterApiKey) }; } catch { return undefined; } }),
     ]),

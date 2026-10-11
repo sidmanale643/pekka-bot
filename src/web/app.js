@@ -50,7 +50,7 @@ const googlePlugins = {
 };
 let googleStatus = {};
 // Plugins connected by pasting the user's own API key share one card layout.
-const apiKeyPlugins = { granola: { name: "Granola", key: "API key" }, /* retell: { name: "Retell AI", key: "API key" }, Retell AI, commented out for now */ bland: { name: "Bland AI", key: "API key" } };
+const apiKeyPlugins = { tinyfish: { name: "TinyFish", key: "API key" }, granola: { name: "Granola", key: "API key" }, /* retell: { name: "Retell AI", key: "API key" }, Retell AI, commented out for now */ bland: { name: "Bland AI", key: "API key" } };
 let apiKeyStatus = {};
 let telegramPlugin;
 let telegramLink;
@@ -646,6 +646,11 @@ const toolAliases = {
   linear_create_issue: ["Creating a Linear issue", "Created a Linear issue"],
   linear_update_issue: ["Updating a Linear issue", "Updated a Linear issue"],
   linear_add_comment: ["Commenting in Linear", "Commented in Linear"],
+  tinyfish_search: ["Searching with TinyFish", "Searched with TinyFish"],
+  tinyfish_fetch: ["Fetching web pages", "Fetched web pages"],
+  tinyfish_agent: ["Starting a browser agent", "Started a browser agent"],
+  tinyfish_get_run: ["Checking a browser run", "Checked a browser run"],
+  tinyfish_cancel_run: ["Stopping a browser run", "Stopped a browser run"],
   granola_list_notes: ["Checking Granola notes", "Checked Granola notes"],
   granola_get_note: ["Reading a meeting note", "Read a meeting note"],
   granola_get_transcript: ["Reading a transcript", "Read a transcript"],

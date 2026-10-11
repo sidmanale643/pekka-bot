@@ -7,8 +7,10 @@ export class ApiKeyPluginError extends Error {}
 export interface ApiKeyPluginOptions {
   id: string;
   name: string;
-  /** Prefix every request path is joined to. */
-  baseUrl: string;
+  /** URL prefix, or a resolver for services with separate product endpoints. */
+  baseUrl: string | ((path: string) => string);
+  apiKeyHeader?: string;
+  timeoutMs?: number;
   /** Checks a pasted key and returns the account name shown on the Plugins page. Throws when the key doesn't work. */
   check(request: (path: string) => Promise<unknown>): Promise<string>;
   database?: () => Database;
@@ -88,15 +90,17 @@ export class ApiKeyPlugin {
   private async send(apiKey: string, path: string, init: { method?: string; body?: unknown } = {}): Promise<unknown> {
     let response: Response;
     try {
-      response = await this.fetcher(`${this.options.baseUrl}${path}`, {
+      const url = typeof this.options.baseUrl === "function" ? this.options.baseUrl(path) : `${this.options.baseUrl}${path}`;
+      response = await this.fetcher(url, {
         method: init.method ?? "GET",
-        headers: { Authorization: `Bearer ${apiKey}`, Accept: "application/json", ...(init.body === undefined ? {} : { "Content-Type": "application/json" }) },
+        headers: { ...(this.options.apiKeyHeader ? { [this.options.apiKeyHeader]: apiKey } : { Authorization: `Bearer ${apiKey}` }), Accept: "application/json", ...(init.body === undefined ? {} : { "Content-Type": "application/json" }) },
         body: init.body === undefined ? undefined : JSON.stringify(init.body),
-        signal: AbortSignal.timeout(30_000),
+        signal: AbortSignal.timeout(this.options.timeoutMs ?? 30_000),
       });
     } catch { throw new ApiKeyPluginError(`Could not reach ${this.name}. A write may have completed; check ${this.name} before retrying.`); }
     const text = await response.text();
-    if (response.status === 401 || response.status === 403) throw new ApiKeyPluginError(`${this.name} rejected the API key. Add a new key in Plugins.`);
+    if (response.status === 401) throw new ApiKeyPluginError(`${this.name} rejected the API key. Add a new key in Plugins.`);
+    if (response.status === 403) throw new ApiKeyPluginError(`${this.name} denied the request. Check your API key, account permissions and credit balance. Do not automatically retry a write.`);
     if (!response.ok) throw new ApiKeyPluginError(`${this.name} request failed (HTTP ${response.status}${text ? `: ${text.slice(0, 500)}` : ""}). Do not automatically retry a write.`);
     if (!text) return { ok: true };
     try { return JSON.parse(text); } catch { return text; }
