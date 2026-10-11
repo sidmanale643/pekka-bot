@@ -543,6 +543,30 @@ label select {
 .profile-link {
   margin-top: 1px;
 }
+.settings-nav {
+  display: flex;
+  flex-shrink: 0;
+  gap: 4px;
+  overflow-x: auto;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--rule);
+}
+.settings-nav a {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: var(--radius);
+  color: var(--ink-2);
+  text-decoration: none;
+  font-size: 13px;
+  white-space: nowrap;
+}
+.settings-nav a:hover,
+.settings-nav a[aria-current] {
+  color: var(--ink);
+  background: var(--sunk);
+}
 .profile-copy {
   min-width: 0;
 }

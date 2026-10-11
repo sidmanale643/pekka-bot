@@ -2473,8 +2473,11 @@ function applyTheme() {
 }
 
 function updateNavigation() {
+  const inSettings = ["settings", "scheduled", "plugins", "activity", "help"].includes(currentPage);
+  $("#settings-nav").hidden = !inSettings;
   for (const link of document.querySelectorAll("[data-page]")) {
-    if (link.dataset.page === currentPage) link.setAttribute("aria-current", "page");
+    const active = link.dataset.page === currentPage || (inSettings && link.dataset.page === "settings" && link.closest("#sidebar"));
+    if (active) link.setAttribute("aria-current", "page");
     else link.removeAttribute("aria-current");
   }
 }
