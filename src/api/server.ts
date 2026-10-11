@@ -23,6 +23,7 @@ import { createAccess, type Access, type Route } from "./auth.ts";
 import { body, fail, HttpError, json } from "./http.ts";
 import { serveAsset } from "./static.ts";
 import { modelKeyRoutes } from "./model-key.ts";
+import { browserKeyRoutes } from "./browser-key.ts";
 import { pluginRoutes } from "./plugins.ts";
 import { getCalendarService, type CalendarService } from "../plugins/calendar.ts";
 import { getContactsService, type ContactsService } from "../plugins/contacts.ts";
@@ -34,6 +35,9 @@ import { WisprService, WisprError } from "../plugins/wispr.ts";
 import { getLinearService, LinearError, type LinearService } from "../plugins/linear.ts";
 import { ApiKeyPluginError } from "../plugins/api-key.ts";
 import { createTinyFishService, type TinyFishService } from "../plugins/tinyfish.ts";
+import { browsers as defaultBrowsers, type BrowserRegistry } from "../browser/browsers.ts";
+import { BrowserKeys } from "../browser/keys.ts";
+import { CdpError } from "../browser/cdp.ts";
 import { createGranolaService, type GranolaService } from "../plugins/granola.ts";
 // import { createRetellService, type RetellService } from "../plugins/retell.ts"; // Retell AI, commented out for now
 import { createBlandService, type BlandService } from "../plugins/bland.ts";
@@ -73,6 +77,7 @@ const publicWorkspaceRoutes: Route[] = [
   ["GET", /^\/api\/plugins$/, async (_request, response) => { json(response, 200, { plugins: [] }); }],
   ...offInPublicWorkspace("Plugins", /^\/api\/plugins\/.+$/),
   ...offInPublicWorkspace("Saved model keys", /^\/api\/model-keys(?:\/.*)?$/),
+  ...offInPublicWorkspace("Saved browser keys", /^\/api\/browser-key$/),
 ];
 
 type Execute = (task: string, owner: RunOwner, onEvent?: EventHandler) => Promise<AgentResult>;
@@ -96,6 +101,9 @@ interface ServerOptions {
   linear?: LinearService;
   granola?: GranolaService;
   tinyfish?: TinyFishService;
+  browserKeys?: BrowserKeys;
+  /** The browsers runs in this process have open, for the live view. */
+  browsers?: BrowserRegistry;
   // retell?: RetellService; // Retell AI
   bland?: BlandService;
   todoist?: TodoistService;
@@ -113,6 +121,8 @@ export function createApiServer(options: ServerOptions = {}) {
   const access = createAccess(options.auth === undefined ? loadAuthConfig() : options.auth ?? undefined, database, { fetch: options.fetch, publicOrigin: options.publicOrigin });
   const shared = Boolean(options.publicOrigin);
   const modelKeys = options.modelKeys ?? new ModelKeyService({ database });
+  const browsers = options.browsers ?? defaultBrowsers;
+  const browserKeys = options.browserKeys ?? new BrowserKeys({ database });
   const greet: Greet = options.greet ?? (async (bot, userId) => {
     let config;
     try { config = loadConfig(); } catch { throw new HttpError(503, "Greetings require valid provider configuration."); }
@@ -300,6 +310,30 @@ export function createApiServer(options: ServerOptions = {}) {
     json(response, 200, value);
   };
 
+  /**
+   * What the browser panel shows: whether the bot's browser is open, on what page, and a Live View link in the asked
+   * mode, unless the page already has one for this session (`session` is its start time). The link is null when the
+   * engine has no Live View, and the panel shows screenshots instead. `enabled` says whether the user saved a browser key.
+   */
+  const browserView: Handler = async (request, response, [name], userId) => {
+    const input = await body(request, z.object({ link: z.enum(["tab", "devtools"]).optional(), session: z.number().optional() }).strict());
+    const bot = await findBot(userId, name!);
+    const session = await browsers.find(userId, bot.id);
+    if (!session) { json(response, 200, { open: false, enabled: await browserKeys.has(userId) }); return; }
+    const status = { open: true, engine: session.engine, started: session.started, page: session.page };
+    if (!input.link || input.session === session.started) { json(response, 200, status); return; }
+    json(response, 200, { ...status, liveView: await session.liveView(input.link).catch(() => null) });
+  };
+
+  const browserScreenshot: Handler = async (_request, response, [name], userId) => {
+    const bot = await findBot(userId, name!);
+    const session = await browsers.find(userId, bot.id);
+    if (!session) throw new HttpError(404, `${bot.name}'s browser isn't open.`);
+    const image = await session.screenshot();
+    response.writeHead(200, { "Content-Type": "image/jpeg", "Content-Length": image.byteLength, "Cache-Control": "no-store" });
+    response.end(image);
+  };
+
   const routes: Route[] = [
     ["POST", /^\/api\/bots\/([^/]+)\/stop$/, async (_request, response, [name], userId) => {
       const bot = await findBot(userId, name!);
@@ -326,6 +360,7 @@ export function createApiServer(options: ServerOptions = {}) {
         telegram: options.telegram ?? getTelegramService(), github: options.github ?? getGitHubService(), linear: options.linear ?? getLinearService(), wispr: options.wispr ?? new WisprService({ database }),
         granola: options.granola ?? createGranolaService({ database }), tinyfish: options.tinyfish ?? createTinyFishService({ database }), /* retell: options.retell ?? createRetellService({ database }), Retell AI */ bland: options.bland ?? createBlandService({ database }), todoist: options.todoist ?? createTodoistService({ database }),
       }, access.origin),
+      ...browserKeyRoutes(browserKeys),
       ...modelKeyRoutes(modelKeys, () => { try { const config = loadConfig(); return { model: config.model, key: Boolean(config.openRouterApiKey) }; } catch { return undefined; } }),
     ]),
     ["GET", /^\/api\/characters$/, async (_request, response) => { json(response, 200, { characters: characters.map(({ style, ...item }) => item) }); }],
@@ -347,6 +382,8 @@ export function createApiServer(options: ServerOptions = {}) {
     ["DELETE", /^\/api\/bots\/([^/]+)\/messages$/, chat],
     ["GET", /^\/api\/bots\/([^/]+)\/memory\/([^/]+)$/, memory],
     ["PUT", /^\/api\/bots\/([^/]+)\/memory\/([^/]+)$/, memory],
+    ["POST", /^\/api\/bots\/([^/]+)\/browser$/, browserView],
+    ["GET", /^\/api\/bots\/([^/]+)\/browser\/screenshot$/, browserScreenshot],
     ["GET", /^\/api\/bots\/([^/]+)\/skills$/, async (_request, response, [name], userId) => {
       json(response, 200, await new SkillStore(await findBot(userId, name!), database()).catalog());
     }],
@@ -365,6 +402,7 @@ export function createApiServer(options: ServerOptions = {}) {
     response.setHeader("X-Frame-Options", "DENY");
     dispatch(request, response, routes, access).catch((error: unknown) => {
       if (error instanceof NotionError || error instanceof GoogleError || error instanceof TelegramError || error instanceof GitHubError || error instanceof LinearError || error instanceof WisprError || error instanceof TodoistError || error instanceof ApiKeyPluginError || error instanceof ModelKeyError) { fail(response, new HttpError(400, error.message)); return; }
+      if (error instanceof CdpError) { fail(response, new HttpError(502, error.message)); return; }
       fail(response, error instanceof DatabaseConfigError ? new HttpError(503, error.message) : error);
     });
   });

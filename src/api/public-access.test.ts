@@ -41,11 +41,12 @@ it("shares one workspace without cookies only when public access is explicitly e
     expect((await listBots(PUBLIC_USER, database)).map((bot) => bot.name)).toEqual(["Chief of Staff", "Shared bot"]);
     expect((await listBots(LOCAL_USER, database)).map((bot) => bot.name)).toEqual(["Owner's bot"]);
 
-    // No visitor can connect an account, save a model key or leave a job running for the next one.
+    // No visitor can connect an account, save a model or browser key or leave a job running for the next one.
     expect(JSON.parse((await call("/api/plugins")).body)).toEqual({ plugins: [] });
     for (const [path, method, body] of [
       ["/api/model-keys", "GET", undefined],
       ["/api/model-keys/openrouter", "PUT", { model: "any/model", apiKey: "sk-or-visitor" }],
+      ["/api/browser-key", "PUT", { accountId: "0123456789abcdef0123456789abcdef", token: "cf-token-abcdefghijklmnop" }],
       ["/api/plugins/github/connect", "POST", {}],
       ["/api/plugins/gmail/callback?code=x&state=y", "GET", undefined],
       ["/api/jobs", "POST", { name: "Spam", task: "Send mail", runAt: new Date(Date.now() + 60_000).toISOString(), intervalSeconds: 60 }],
