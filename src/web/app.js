@@ -2397,10 +2397,7 @@ function renderBotOverview(panel, bot) {
   panelVersion++;
   panel.dataset.view = "";
   const about = element("header", "context-about");
-  const name = element("div", "");
-  name.append(element("h2", "", bot.name));
-  if (bot.primary && bot.name.toLowerCase() !== "chief of staff") name.append(element("span", "context-tag", "Chief of staff"));
-  about.append(avatar(bot.name, 40), name);
+  about.append(element("h2", "", "Bot details"));
 
   const settings = element("nav", "context-settings");
   settings.setAttribute("aria-label", `${bot.name} settings`);
@@ -2410,7 +2407,15 @@ function renderBotOverview(panel, bot) {
     row.dataset.setting = view;
     const copy = element("span", "setting-copy");
     copy.append(element("strong", "", label), element("small", "", hint));
-    row.append(copy);
+    const icon = element("span", "setting-icon");
+    const paths = {
+      purpose: 'M5 5h10v10H5z M8 8h4 M8 11h4',
+      avatar: 'M5 6h10v9H5z M8 10h.01 M12 10h.01 M8 13h4 M10 6V3 M9 3h2',
+      memory: 'M4 5h5a3 3 0 0 1 3 3v8a4 4 0 0 0-3-1H4z M12 8a3 3 0 0 1 3-3h1v10h-1a4 4 0 0 0-3 1',
+      skills: 'm11 2-7 9h5l-1 7 8-10h-5z',
+    };
+    icon.innerHTML = `<svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><path d="${paths[view]}" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" /></svg>`;
+    row.append(icon, copy);
     row.insertAdjacentHTML("beforeend", chevronIcon("right"));
     row.addEventListener("click", () => openBotSetting(bot, view));
     settings.append(row);

@@ -25,7 +25,7 @@
   --radius: 3px;
   --radius-soft: 8px;
   --measure: 816px;
-  --panel: 320px;
+  --panel: 360px;
   --computer-panel: 420px;
   /* The computer view's terminal, matching the site's. */
   --term: #0d0f15;
@@ -1575,7 +1575,7 @@ a.output-card:hover .output-open {
   width: var(--panel);
   flex-shrink: 0;
   overflow-y: auto;
-  padding: 22px 16px 28px;
+  padding: 26px 22px 28px;
   background: var(--paper-2);
   border-left: 1px solid var(--rule);
   scrollbar-width: thin;
@@ -1590,36 +1590,19 @@ a.output-card:hover .output-open {
 .context-about {
   display: flex;
   align-items: center;
-  gap: 12px;
-}
-.context-about .avatar {
-  flex-shrink: 0;
-  border-radius: 6px;
-}
-.context-about div {
-  min-width: 0;
+  gap: 14px;
+  padding-bottom: 4px;
 }
 .context-about h2 {
   overflow-wrap: anywhere;
-  font-size: 16px;
+  font-size: 19px;
   font-weight: 600;
   line-height: 1.3;
   letter-spacing: -0.01em;
 }
-.context-tag {
-  display: inline-block;
-  margin-top: 3px;
-  padding: 0 6px;
-  border: 1px solid var(--rule-strong);
-  border-radius: var(--radius);
-  font-family: var(--mono);
-  font-size: 10.5px;
-  line-height: 17px;
-  color: var(--ink-2);
-}
 .context-role {
   display: -webkit-box;
-  margin-top: 12px;
+  margin-top: 18px;
   overflow: hidden;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 4;
@@ -1630,26 +1613,40 @@ a.output-card:hover .output-open {
 }
 .context-settings {
   display: grid;
-  margin-top: 18px;
+  gap: 4px;
+  margin-top: 24px;
   overflow: hidden;
-  background: var(--sheet);
-  border: 1px solid var(--rule);
-  border-radius: var(--radius-soft);
 }
 .setting-row {
   display: flex;
   align-items: center;
   gap: 10px;
   width: 100%;
-  padding: 10px 10px 10px 14px;
+  padding: 14px 8px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 10px;
   text-align: left;
   transition: background-color 0.12s;
 }
-.setting-row + .setting-row {
-  border-top: 1px solid var(--rule);
-}
 .setting-row:hover {
-  background: var(--paper);
+  background: var(--sheet);
+  border-color: var(--rule);
+}
+.setting-icon {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: 10px;
+  background: var(--sheet);
+}
+.setting-row[data-setting="memory"] .setting-icon { background: var(--accent-soft); }
+.setting-row[data-setting="memory"] .setting-icon svg { color: var(--accent); }
+.setting-row .setting-icon svg {
+  color: var(--ink-2);
+  transform: none;
 }
 .setting-row:focus-visible {
   outline-offset: -2px;
@@ -1670,7 +1667,9 @@ a.output-card:hover .output-open {
   font-weight: 500;
 }
 .setting-copy small {
-  font-size: 12px;
+  margin-top: 3px;
+  font-size: 11px;
+  white-space: normal;
   color: var(--ink-3);
 }
 .setting-row svg {
@@ -1684,6 +1683,8 @@ a.output-card:hover .output-open {
 }
 .context-section {
   margin-top: 26px;
+  padding-top: 18px;
+  border-top: 1px solid var(--rule);
 }
 .context-section-head {
   display: flex;
@@ -1839,7 +1840,22 @@ a.output-card:hover .output-open {
   color: var(--ink-3);
 }
 .panel-body form > label + label {
-  margin-top: 16px;
+  margin-top: 20px;
+}
+.panel-body form > label {
+  padding: 16px;
+  background: var(--sheet);
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 500;
+}
+.panel-body form > label :is(input, textarea) {
+  margin-top: 10px;
+  border-radius: 6px;
+  background: var(--paper);
+  font-weight: 400;
 }
 .panel-body label textarea,
 .panel-body label input:not([type="checkbox"]) {
