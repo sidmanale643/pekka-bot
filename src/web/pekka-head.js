@@ -129,7 +129,9 @@ class PekkaHead extends HTMLElement {
     const key = JSON.stringify([this.lookNow, this.palette.led, this.getAttribute("armor"), this.getAttribute("horn-color"), this.state, f.box, dpr]);
     let frame = stills.get(key);
     if (!frame) {
-      stillRenderer.draw(context, f, dpr, restPose(this.state), null, this.state, this.lookNow, this.palette, { floorShadow: f.box >= 64 });
+      // An idle head faces straight on. The engine's idle pose turns it a little, which only looks right while it moves.
+      const pose = this.state === "idle" ? { ...restPose("idle"), yaw: 0, pitch: 0, roll: 0 } : restPose(this.state);
+      stillRenderer.draw(context, f, dpr, pose, null, this.state, this.lookNow, this.palette, { floorShadow: f.box >= 64 });
       frame = makeCanvas(width, height);
       frame.getContext("2d").drawImage(this.canvas, 0, 0);
       if (stills.size >= 200) stills.delete(stills.keys().next().value);
