@@ -481,6 +481,7 @@ function selectBot(bot) {
   renderBots();
   renderTranscript(true);
   renderComputer();
+  void refreshBrowser(bot);
   void refreshMessages(bot);
 }
 
@@ -764,6 +765,10 @@ const toolAliases = {
   tinyfish_agent: ["Starting a browser agent", "Started a browser agent"],
   tinyfish_get_run: ["Checking a browser run", "Checked a browser run"],
   tinyfish_cancel_run: ["Stopping a browser run", "Stopped a browser run"],
+  browser_open: ["Opening a web page", "Opened a web page"],
+  browser_snapshot: ["Reading the page", "Read the page"],
+  browser_click: ["Clicking on the page", "Clicked on the page"],
+  browser_type: ["Typing on the page", "Typed on the page"],
   granola_list_notes: ["Checking Granola notes", "Checked Granola notes"],
   granola_get_note: ["Reading a meeting note", "Read a meeting note"],
   granola_get_transcript: ["Reading a transcript", "Read a transcript"],
@@ -1227,6 +1232,190 @@ function renderComputer() {
   view.scrollTop = pinned ? view.scrollHeight : (before?.scrollTop ?? 0);
 }
 
+// The browser view: the bot's Cloudflare browser while a task has it open. Page shows Cloudflare's Live View
+// of its tab, where you can click and type, for example to sign in, and DevTools inspects it. A Live View link
+// is good for five minutes to connect, so each one is shown once and a fresh one fetched when the view is redrawn.
+// An engine without Live View shows a screenshot that refreshes instead.
+const browserViews = new Map();
+const engineNames = { kitesurf: "Kitesurf", chromium: "Chromium" };
+const browserShotDelay = 1200;
+
+function browserFor(bot) {
+  if (!browserViews.has(bot.id)) browserViews.set(bot.id, { open: false, tab: "page", page: { title: "", url: "" } });
+  return browserViews.get(bot.id);
+}
+
+/** Follows a run's browser tools, so the button lights up and the panel follows the page. */
+function watchBrowser(bot, event, data) {
+  if (event === "result" || event === "error") return endBrowserRun(bot);
+  if (event !== "tool_result" || !data.name?.startsWith("browser_") || data.isError) return;
+  const view = browserFor(bot);
+  const field = (name) => new RegExp(`^${name}: (.*)$`, "m").exec(data.output ?? "")?.[1] ?? "";
+  Object.assign(view, { open: true, page: { title: field("Title"), url: field("URL") } });
+  // A new session needs a new Live View link, and only the server knows when one started.
+  if (selected?.id === bot.id) void refreshBrowser(bot);
+}
+
+function endBrowserRun(bot) {
+  const view = browserViews.get(bot.id);
+  if (!view?.open) return;
+  Object.assign(view, { open: false, session: undefined, link: undefined, error: "" });
+  if (selected?.id === bot.id) renderBrowser();
+}
+
+function browserRequest(bot, body) {
+  return api(`/api/bots/${encodeURIComponent(bot.name)}/browser`, { method: "POST", body: JSON.stringify(body) });
+}
+
+/**
+ * Asks the server whether the bot's browser is open, for the button's dot, and with the panel showing, for a
+ * Live View link for the shown tab unless this page has an unused one.
+ */
+async function refreshBrowser(bot) {
+  renderBrowser();
+  if (selected?.id !== bot.id || currentPage !== "workspace") return;
+  const view = browserFor(bot);
+  const mode = view.tab === "devtools" ? "devtools" : "tab";
+  const request = (view.request ?? 0) + 1;
+  view.request = request;
+  const link = $("#browser-panel").hidden ? {} : { link: mode, ...(view.link !== undefined && view.linkMode === mode ? { session: view.session } : {}) };
+  try {
+    const status = await browserRequest(bot, link);
+    if (view.request !== request) return;
+    if (!status.open) Object.assign(view, { open: false, enabled: status.enabled, session: undefined, link: undefined, error: "" });
+    else {
+      if (status.started !== view.session) view.link = undefined;
+      Object.assign(view, { open: true, session: status.started, engine: status.engine, page: status.page, error: "" });
+      // null: this engine has no Live View. Each fetched link is counted, since one is shown only once.
+      if ("liveView" in status) Object.assign(view, { link: status.liveView ?? null, linkMode: mode, linkId: (view.linkId ?? 0) + 1 });
+    }
+  } catch (error) {
+    if (view.request !== request) return;
+    view.error = error.message;
+  }
+  if (selected?.id === bot.id) renderBrowser();
+}
+
+/** Refreshes the screenshot while it's on screen, waiting for each to load before asking for the next. */
+function watchScreenshots(image, bot) {
+  const load = () => { image.src = `/api/bots/${encodeURIComponent(bot.name)}/browser/screenshot?at=${Date.now()}`; };
+  // Stops once the image leaves the page, the panel closes or another bot is selected.
+  const next = () => { if (image.isConnected && !$("#browser-panel").hidden && selected?.id === bot.id) load(); };
+  image.addEventListener("load", () => setTimeout(next, browserShotDelay));
+  image.addEventListener("error", () => setTimeout(next, browserShotDelay * 3));
+  load();
+}
+
+function browserScreen(key, view, bot) {
+  const screen = element("div", "browser-screen");
+  screen.dataset.key = key;
+  const message = (...lines) => {
+    screen.classList.add("empty");
+    for (const line of lines) screen.append(element("p", "", line));
+    return screen;
+  };
+  if (key === "off") return message(`${bot.name}'s browser isn't open.`, "Give it a task that needs a website to watch it browse here.");
+  if (key === "setup") {
+    message(`${bot.name} has no browser yet.`, "Add your Cloudflare Browser Run key in Settings to give every bot its own web browser.");
+    const link = element("a", "browser-setup", "Open Settings");
+    link.href = "#settings";
+    screen.append(link);
+    return screen;
+  }
+  if (key === "error") return message("Couldn't reach the browser.", view.error);
+  if (key === "loading") return message("Connecting to the live view…");
+  if (key === "no-devtools") return message(`DevTools needs Cloudflare's Live View, which ${engineNames[view.engine] ?? "this browser"} doesn't offer yet.`, `Ask ${bot.name} to open the page with Chromium to inspect it.`);
+  if (key === "shots") {
+    const image = element("img", "browser-shot");
+    image.alt = `What ${bot.name}'s browser shows now`;
+    screen.append(image, element("p", "browser-caption", `${engineNames[view.engine] ?? "This browser"} has no Live View yet, so this screenshot refreshes every couple of seconds.`));
+    watchScreenshots(image, bot);
+    return screen;
+  }
+  const frame = element("iframe", "browser-live");
+  frame.title = view.tab === "devtools" ? `DevTools for ${bot.name}'s browser` : `${bot.name}'s browser, live`;
+  frame.src = view.link;
+  frame.referrerPolicy = "no-referrer";
+  frame.allow = "clipboard-read; clipboard-write";
+  screen.append(frame);
+  view.shownId = view.linkId;
+  return screen;
+}
+
+/** Draws the selected bot's browser view. The screen is only replaced when what it shows changes, so the live view stays connected. */
+function renderBrowser() {
+  const view = selected && browserViews.get(selected.id);
+  $("#browser").classList.toggle("live", Boolean(view?.open));
+  const panel = $("#browser-panel");
+  if (!selected || panel.hidden || currentPage !== "workspace") return;
+  const bot = selected;
+  const state = browserFor(bot);
+  const tab = state.tab;
+  const key = !state.open ? (state.error ? "error" : state.enabled === false ? "setup" : "off")
+    : state.link ? `live:${state.link}`
+    : state.link === null ? (tab === "devtools" ? "no-devtools" : "shots")
+    : state.error ? "error" : "loading";
+
+  const head = element("header", "computer-head");
+  const title = element("div", "");
+  title.append(element("h2", "", "Browser"), element("p", "", `${bot.name}'s ${engineNames[state.engine] ?? "Kitesurf"} browser on Cloudflare`));
+  head.append(title, element("span", `computer-state${state.open ? " on" : ""}`, state.open ? "Live" : "Off"));
+  const note = element("p", "computer-note", `Opens when a task needs a website and closes when the task ends.${state.link ? " You can click and type in it." : ""}`);
+
+  const tabs = element("div", "computer-tabs");
+  tabs.setAttribute("role", "group");
+  tabs.setAttribute("aria-label", "Browser view");
+  for (const [value, label] of [["page", "Page"], ["devtools", "DevTools"]]) {
+    const button = element("button", tab === value ? "active" : "", label);
+    button.type = "button";
+    button.setAttribute("aria-pressed", String(tab === value));
+    button.addEventListener("click", () => {
+      if (state.tab === value) return;
+      Object.assign(state, { tab: value, link: undefined });
+      void refreshBrowser(bot);
+    });
+    tabs.append(button);
+  }
+
+  const address = element("div", "browser-address");
+  const url = element("span", "browser-url", state.open ? state.page?.url || "about:blank" : "No page open");
+  url.title = state.page?.title || "";
+  address.append(url);
+  if (state.open && state.link) {
+    const popOut = element("button", "browser-pop", "Open in new window");
+    popOut.type = "button";
+    popOut.addEventListener("click", async () => {
+      try {
+        const status = await browserRequest(bot, { link: state.tab === "devtools" ? "devtools" : "tab" });
+        if (status.liveView) window.open(status.liveView, "_blank", "noopener,noreferrer");
+      } catch (error) {
+        alert(error.message);
+      }
+    });
+    address.append(popOut);
+  }
+
+  let top = panel.querySelector(".browser-top");
+  let screen = panel.querySelector(".browser-screen");
+  if (!top || panel.dataset.bot !== bot.id) {
+    top = element("div", "browser-top");
+    screen = undefined;
+    panel.replaceChildren(top);
+    panel.dataset.bot = bot.id;
+  }
+  top.replaceChildren(head, note, tabs, address);
+  if (screen?.dataset.key === key) return;
+  // This link already connected once and may have expired, so the redrawn view gets a fresh one.
+  if (state.link && state.shownId === state.linkId) {
+    state.link = undefined;
+    void refreshBrowser(bot);
+    return;
+  }
+  const next = browserScreen(key, state, bot);
+  if (screen) screen.replaceWith(next);
+  else panel.append(next);
+}
+
 /** Whether you're reading the chat's newest lines, so it follows new ones as they come. */
 function atBottom() {
   const transcript = $("#transcript");
@@ -1470,11 +1659,13 @@ function applyDelegation(event, data, message, chief) {
   const before = delegation.status;
   if (event === "delegation_event") {
     watchComputer(data.bot, data.event.type, data.event);
+    watchBrowser(data.bot, data.event.type, data.event);
     applyEvent(data.event.type, data.event, reply);
     delegation.status = reply.status;
   }
   if (event === "delegation_end") {
     endComputerRun(data.bot);
+    endBrowserRun(data.bot);
     finishReply(reply, data.answer, data.status === "done" ? "" : delegationEndings[data.status]);
     delegatedReplies.delete(data.bot.id);
     delegation.done = true;
@@ -1820,7 +2011,10 @@ async function runTask(bot, task) {
       throw new Error(error.error || "Unable to start this task.");
     }
     await consumeStream(response, (event, data) => {
-      if (!event.startsWith("delegation_")) watchComputer(bot, event, data);
+      if (!event.startsWith("delegation_")) {
+        watchComputer(bot, event, data);
+        watchBrowser(bot, event, data);
+      }
       // A delegated bot's text streams into its own chat, so the chief's only redraws when a status line changes.
       const changed = event.startsWith("delegation_") ? applyDelegation(event, data, message, bot) : (applyEvent(event, data, message), true);
       if (changed && selected === bot) {
@@ -1843,6 +2037,8 @@ async function runTask(bot, task) {
     setPhase(message, "done");
     for (const tool of message.tools ?? []) delete tool.arguments;
     endComputerRun(bot, false);
+    // The server closes the browser when the run ends; if the connection dropped first, the panel asks it.
+    void refreshBrowser(bot);
     // Bots still working when the chief's connection ended may finish on the server.
     for (const delegation of (message.delegations ?? []).filter((item) => !item.done)) {
       const reply = delegatedReplies.get(delegation.id);
@@ -2241,13 +2437,14 @@ mobileSidebar.addEventListener("change", closeDrawer);
 mobileSidebar.addEventListener("change", renderBots);
 syncSidebarToggle();
 
-// One side panel shows at a time: the bot panel ("context") or the computer view ("computer").
+// One side panel shows at a time: the bot panel ("context"), the computer view ("computer") or the browser view ("browser").
 // Wide screens keep it beside the chat, remembered per browser; narrower ones open it over the chat.
 const widePanel = window.matchMedia("(min-width: 1280px)");
 const panelKey = "pekka.bot-panel.v1";
 const sidePanels = {
   context: { panel: "#context-panel", toggle: "#details", name: "bot panel", render: () => renderContext() },
   computer: { panel: "#computer-panel", toggle: "#computer", name: "computer view", render: () => renderComputer() },
+  browser: { panel: "#browser-panel", toggle: "#browser", name: "browser view", render: () => selected && refreshBrowser(selected) },
 };
 // Set this to false to hide the computer view's button and help entry.
 const computerViewEnabled = true;
@@ -2257,7 +2454,7 @@ let overlayPanel = "";
 try {
   // Saved as "open" or "closed" before the computer view existed.
   pinnedPanel =
-    { closed: "", computer: computerViewEnabled ? "computer" : "context" }[localStorage.getItem(panelKey)] ?? "context";
+    { closed: "", computer: computerViewEnabled ? "computer" : "context", browser: "browser" }[localStorage.getItem(panelKey)] ?? "context";
 } catch {}
 
 /** The side panel that is open, or "" for none. */
@@ -2504,7 +2701,7 @@ $(".app > main").addEventListener("click", (event) => {
   if (!event.target.closest("#menu")) closeDrawer();
   // Only clicks in the chat the panel covers close it; the header's buttons, like the sidebar toggle, leave it open.
   // The computer view redraws on its own clicks, so the clicked node may already be gone; the event's path still has it.
-  const inside = event.composedPath().some((node) => node.matches?.("#context-panel, #computer-panel, .topbar"));
+  const inside = event.composedPath().some((node) => node.matches?.("#context-panel, #computer-panel, #browser-panel, .topbar"));
   if (overlayPanel && !inside) setPanel("");
 });
 $("#stop").addEventListener("click", async () => {
@@ -2540,6 +2737,7 @@ $("#jump-latest").addEventListener("click", () => {
 });
 $("#details").addEventListener("click", () => togglePanel("context"));
 $("#computer").addEventListener("click", () => togglePanel("computer"));
+$("#browser").addEventListener("click", () => togglePanel("browser"));
 document
   .querySelectorAll("[data-template]")
   .forEach((button) =>
@@ -2744,7 +2942,10 @@ function openPage(page) {
   closeDrawer();
   if (page === "activity") renderActivity();
   if (page === "plugins") loadPlugins();
-  if (page === "settings") loadModelKey();
+  if (page === "settings") {
+    loadModelKey();
+    loadBrowserKey();
+  }
 }
 
 function route() {
@@ -3585,6 +3786,79 @@ for (const provider of Object.keys(modelProviders)) {
     }
   });
 }
+
+// Settings › Web browser: the user's Cloudflare Browser Run key. While one is saved, every bot has a browser.
+let browserKey = null;
+
+function renderBrowserKey() {
+  const { available, saved, accountId } = browserKey;
+  $("#browser-key-current").textContent = saved
+    ? `Your bots have their own web browser on Cloudflare account ${accountId}. They use Kitesurf, Cloudflare's fast agent browser, and Chromium when a site needs it. Watch one from the globe button above a chat.`
+    : "Give your bots their own web browser, to open pages, click and fill in forms while you watch. Add your Cloudflare account ID and a Browser Run API token. Kitesurf, Cloudflare's agent browser, is free during its beta.";
+  $("#browser-key-setup").hidden = available;
+  const form = $("#browser-key-form");
+  if (saved) form.elements.accountId.value = accountId;
+  form.elements.token.value = "";
+  form.elements.token.placeholder = saved ? "Saved. Enter a new token to replace it." : "";
+  for (const field of form.querySelectorAll("input, button.primary")) field.disabled = !available;
+  form.querySelector("[data-remove]").hidden = !saved;
+}
+
+async function loadBrowserKey() {
+  const section = $("#browser-key");
+  section.setAttribute("aria-busy", "true");
+  try {
+    browserKey = await api("/api/browser-key");
+    renderBrowserKey();
+  } catch (error) {
+    $("#browser-key-current").textContent = error.message;
+  } finally {
+    section.setAttribute("aria-busy", "false");
+  }
+}
+
+$("#browser-key-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const status = form.querySelector(".form-status");
+  const button = form.querySelector("button.primary");
+  const accountId = form.elements.accountId.value.trim();
+  const token = form.elements.token.value.trim();
+  if (!/^[a-f\d]{32}$/i.test(accountId)) {
+    status.textContent = "Enter your 32-character Cloudflare account ID.";
+    form.elements.accountId.focus();
+    return;
+  }
+  if (!token) {
+    status.textContent = "Enter your Cloudflare API token.";
+    form.elements.token.focus();
+    return;
+  }
+  status.textContent = "Checking with Cloudflare…";
+  button.disabled = true;
+  form.setAttribute("aria-busy", "true");
+  try {
+    browserKey = await api("/api/browser-key", { method: "PUT", body: JSON.stringify({ accountId, token }) });
+    renderBrowserKey();
+    status.textContent = "Saved. Your bots now have a web browser.";
+  } catch (error) {
+    status.textContent = error.message;
+  } finally {
+    button.disabled = !browserKey?.available;
+    form.setAttribute("aria-busy", "false");
+  }
+});
+
+$("#browser-key-form [data-remove]").addEventListener("click", async () => {
+  const status = $("#browser-key-form .form-status");
+  try {
+    browserKey = await api("/api/browser-key", { method: "DELETE" });
+    renderBrowserKey();
+    status.textContent = "Key removed. Your bots no longer have a browser.";
+  } catch (error) {
+    status.textContent = error.message;
+  }
+});
 
 const scheduleTemplates = [
   {

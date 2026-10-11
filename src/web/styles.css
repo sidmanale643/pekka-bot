@@ -28,6 +28,7 @@
   --measure: 816px;
   --panel: 360px;
   --computer-panel: 420px;
+  --browser-panel: 560px;
   /* The computer view's terminal, matching the site's. */
   --term: #0d0f15;
   --term-ink: #ecebe6;
@@ -1867,11 +1868,13 @@ a.output-card:hover .output-open {
 }
 
 /* Computer view */
-#computer {
+#computer,
+#browser {
   position: relative;
 }
-/* A dot on the toggle while the bot's computer is on, so it can be found mid-task. */
-#computer.live::after {
+/* A dot on the toggle while the bot's computer or browser is on, so it can be found mid-task. */
+#computer.live::after,
+#browser.live::after {
   content: "";
   position: absolute;
   top: 5px;
@@ -2205,6 +2208,98 @@ a.output-card:hover .output-open {
 .computer-file .computer-empty {
   margin: 6px 8px 12px;
   font-size: 12px;
+}
+
+/* Browser view: the computer panel's frame, wider, around a live tab. */
+.browser-panel {
+  width: var(--browser-panel);
+}
+.browser-panel.overlay {
+  width: min(var(--browser-panel), 96%);
+}
+.browser-top {
+  flex-shrink: 0;
+}
+.browser-address {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 34px;
+  margin-bottom: 10px;
+  padding: 4px 4px 4px 12px;
+  background: var(--sunk);
+  border-radius: 10px;
+}
+.browser-url {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--ink-2);
+}
+.browser-pop {
+  flex-shrink: 0;
+  padding: 4px 10px;
+  border-radius: 7px;
+  font-size: 12px;
+  color: var(--ink-3);
+  transition: color 0.12s, background-color 0.12s;
+}
+.browser-pop:hover {
+  color: var(--ink);
+  background: var(--sheet);
+}
+.browser-screen {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--term);
+  border-radius: var(--radius-soft);
+}
+.browser-screen.empty {
+  display: grid;
+  align-content: center;
+  gap: 8px;
+  padding: 24px;
+  text-align: center;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--term-dim);
+}
+.browser-screen.empty p:first-child {
+  color: var(--term-ink);
+}
+.browser-setup {
+  justify-self: center;
+  margin-top: 6px;
+  color: var(--term-ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.browser-live {
+  flex: 1;
+  width: 100%;
+  border: 0;
+  background: #fff;
+}
+.browser-shot {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  object-fit: contain;
+  object-position: top;
+  background: #fff;
+}
+.browser-caption {
+  padding: 8px 12px;
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--term-dim);
 }
 
 /* Markdown answers */
@@ -2622,6 +2717,10 @@ a.output-card:hover .output-open {
 .model-provider label + label, .model-provider .field-hint + label { margin-top: 16px; }
 .model-provider .form-actions { flex-wrap: wrap; margin-top: 18px; }
 #model-keys > .field-hint { margin-top: 14px; }
+#browser-key-form { margin-top: 18px; }
+#browser-key-form label + label { margin-top: 16px; }
+#browser-key-form .field-hint { margin-top: 8px; }
+#browser-key-form .form-actions { flex-wrap: wrap; margin-top: 18px; }
 @media (max-width: 600px) {
   .model-use-row { flex-wrap: wrap; gap: 10px; }
 }

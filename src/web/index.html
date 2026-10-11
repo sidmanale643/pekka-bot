@@ -105,6 +105,19 @@
               </svg>
             </button>
             <button
+              id="browser"
+              class="icon-button"
+              aria-label="Toggle browser view"
+              aria-controls="browser-panel"
+              aria-expanded="false"
+            >
+              <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true">
+                <circle cx="10" cy="10" r="7" fill="none" stroke="currentColor" stroke-width="1.3" />
+                <ellipse cx="10" cy="10" rx="3" ry="7" fill="none" stroke="currentColor" stroke-width="1.3" />
+                <path d="M3 10h14" fill="none" stroke="currentColor" stroke-width="1.3" />
+              </svg>
+            </button>
+            <button
               id="details"
               class="icon-button"
               aria-label="Toggle bot panel"
@@ -162,6 +175,7 @@
           </div>
           <aside id="context-panel" class="context-panel" aria-label="Bot panel"></aside>
           <aside id="computer-panel" class="computer-panel" aria-label="Computer" hidden></aside>
+          <aside id="browser-panel" class="computer-panel browser-panel" aria-label="Browser" hidden></aside>
         </section>
         <section id="scheduled" class="scheduled" hidden>
           <div class="schedule-sidebar">
@@ -273,6 +287,17 @@
                 </form>
               </details>
               <p class="field-hint">Keys are checked with the provider, then stored encrypted on the Pekka server. Every run uses the picked one, including scheduled tasks, and the provider bills you directly.</p>
+            </section>
+            <section id="browser-key" class="panel-section" aria-busy="true" aria-labelledby="browser-key-title">
+              <h2 id="browser-key-title">Web browser</h2>
+              <p id="browser-key-current" class="muted">Loading…</p>
+              <div id="browser-key-setup" class="plugin-setup" hidden><strong>Server setup required</strong><p>Configure a 64-character hex <code>PEKKA_PLUGIN_KEY</code> on the Pekka server to save your Cloudflare token, then refresh.</p></div>
+              <form id="browser-key-form" novalidate>
+                <label>Cloudflare account ID<input name="accountId" maxlength="32" autocomplete="off" spellcheck="false" aria-describedby="browser-key-hint" /></label>
+                <label>API token<input name="token" type="password" maxlength="900" autocomplete="off" spellcheck="false" aria-describedby="browser-key-hint" /></label>
+                <p id="browser-key-hint" class="field-hint">Your account ID is on the <a href="https://dash.cloudflare.com/" target="_blank" rel="noopener noreferrer">Cloudflare dashboard</a>'s account home. Create a token at <a href="https://dash.cloudflare.com/profile/api-tokens" target="_blank" rel="noopener noreferrer">API Tokens</a> with Account › Browser Rendering › Edit. It's checked with Cloudflare, then stored encrypted on the Pekka server.</p>
+                <div class="form-actions"><span class="form-status" role="status"></span><div class="profile-buttons"><button type="button" class="button secondary" data-remove hidden>Remove key</button><button class="button primary" disabled>Save</button></div></div>
+              </form>
             </section>
             <div class="panel-section">
               <h2>Data</h2>
@@ -458,6 +483,7 @@
               <details open><summary>How do I get started?</summary><p>Start chatting with Chief of Staff, your primary bot. Tell it about yourself and what you want help with, or give it a task straight away. You can also create a bot with a name and description for a particular kind of work.</p></details>
               <details><summary>What does the chief of staff do?</summary><p>Chief of Staff is listed first and manages your other bots. It handles general requests itself and hands work to the bot whose purpose fits, briefing several at once when that helps. It can create a new bot when you ask, change other bots' descriptions and instructions, and schedule work for any of them. You can rename it, but not delete it.</p></details>
               <details data-computer-view><summary>What does the computer view show?</summary><p>Open it with the monitor button above a chat. While the bot works it shows each command it runs on its computer, with the output and exit code, and the files it reads, saves or edits. Sandbox sessions are ephemeral: once a task ends its session is shut down, and the view only shows tasks run while this page is open.</p></details>
+              <details><summary>How do I watch a bot's browser?</summary><p>Add your Cloudflare Browser Run key under Settings › Web browser, and every bot gets its own browser. Open the globe button next to the computer button above a chat. While the bot browses, Page shows its tab. In a Chromium browser that's Cloudflare's Live View, where you can click and type, for example to sign in, and DevTools inspects the page's elements, console and network. Kitesurf, the default, shows a screenshot that refreshes every couple of seconds; ask the bot to use Chromium when you want to step in. The browser closes when the task ends.</p></details>
               <details><summary>What does a bot remember?</summary><p>Open the bot panel with the button at the top right of a chat, then Memory, to read and edit its preferences and knowledge. Conversation history is saved with your account and is separate from bot memory. To start a chat over, open the bot panel and choose Clear chat; its memory is kept.</p></details>
               <details><summary>How do scheduled tasks work?</summary><p>Open Scheduled to create a task for a bot, or ask a bot to schedule one. From there you can pause, resume or cancel tasks and read the latest result. The scheduler (<code>pnpm pekka scheduler</code>) must be running for scheduled tasks to execute.</p></details>
               <details><summary>Where are my settings saved?</summary><p>Your profile and preferences stay in this browser and do not sync between devices. Chat history is saved with your account, so it shows on every device. Export it from Settings to keep a copy.</p></details>
