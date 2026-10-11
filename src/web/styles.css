@@ -2639,17 +2639,88 @@ dialog::backdrop {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
-.memory-file + .memory-file {
-  margin-top: 22px;
+.memory-intro {
+  margin: 4px 2px 26px;
+  font-size: 13px;
+  color: var(--ink-2);
 }
-.memory-file textarea {
+.memory-file {
+  overflow: hidden;
+  background: var(--sheet);
+  border: 1px solid var(--rule);
+  border-radius: 14px;
+  box-shadow: 0 4px 16px -12px rgb(var(--shade) / 0.3);
+}
+.memory-file + .memory-file { margin-top: 20px; }
+.memory-file.editing { border-color: var(--rule-strong); }
+.memory-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 20px 18px 0;
+}
+.memory-kicker {
+  display: block;
+  margin-bottom: 10px;
   font-family: var(--mono);
-  font-size: 12.5px;
-  line-height: 1.6;
+  font-size: 10px;
+  color: var(--accent);
 }
-.memory-file .form-actions {
+.memory-head h3 { font-size: 19px; font-weight: 500; letter-spacing: -0.03em; }
+.memory-head p { margin-top: 4px; font-size: 12px; color: var(--ink-3); }
+.memory-edit {
+  flex-shrink: 0;
+  padding: 4px 0 4px 8px;
+  font-size: 11px;
+  color: var(--ink-2);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  text-decoration-color: var(--rule-strong);
+}
+.memory-edit:hover { color: var(--accent); text-decoration-color: currentColor; }
+.memory-preview {
+  max-height: 340px;
+  overflow: auto;
+  margin: 18px;
+  padding: 16px 0 0;
+  border-top: 1px solid var(--rule);
+  font-size: 13px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+.memory-preview.empty { color: var(--ink-3); font-size: 12px; min-height: 76px; }
+.memory-preview > :first-child { margin-top: 0; }
+.memory-preview > :last-child { margin-bottom: 0; }
+.memory-preview :is(h1, h2, h3, h4) { font-size: 13px; }
+.memory-preview pre { max-width: 100%; overflow: auto; }
+.memory-editor { padding: 18px; }
+.memory-editor-label { font-size: 11px; color: var(--ink-2); }
+.memory-file .memory-editor textarea {
+  display: block;
+  width: 100%;
+  min-height: 240px;
+  max-height: 55dvh;
   margin-top: 8px;
+  padding: 14px;
+  background: var(--paper);
+  border-radius: 8px;
+  resize: vertical;
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.75;
 }
+.memory-status {
+  display: block;
+  min-height: 20px;
+  margin-top: 10px;
+  font-size: 11px;
+  color: var(--ink-3);
+  overflow-wrap: anywhere;
+}
+.memory-file.dirty .memory-status { color: var(--accent); }
+.memory-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
+.memory-actions .button { border-radius: 6px; padding: 7px 12px; }
 .detail-list {
   border-top: 1px solid var(--rule);
 }

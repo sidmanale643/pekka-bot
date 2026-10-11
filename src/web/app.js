@@ -1911,47 +1911,101 @@ const detailViews = {
     panel.append(form);
   },
   memory: async (panel, bot) => {
-    panel.append(element("p", "detail-note", `${bot.name} updates these notes as it learns. Your edits apply from its next task.`));
+    panel.append(element("p", "memory-intro", `${bot.name} learns as you work together. Review what it remembers, or edit a note to guide its next task.`));
     for (const [file, title, hint] of [
       ["PREFERENCES.md", "Preferences", "How you like things done."],
       ["KNOWLEDGE.md", "Knowledge", "Facts about you and your work."],
     ]) {
       const path = `/api/bots/${encodeURIComponent(bot.name)}/memory/${file}`;
       const data = await api(path);
-      const section = element("div", "memory-file");
-      const label = element("label", "", title);
-      label.title = file;
-      label.append(element("small", "", hint));
+      let saved = data.content;
+      const section = element("section", "memory-file");
+      section.setAttribute("aria-label", title);
+      const head = element("div", "memory-head");
+      const heading = element("div", "");
+      heading.append(element("span", "memory-kicker", file === "PREFERENCES.md" ? "01 / How I work" : "02 / What I know"), element("h3", "", title), element("p", "", hint));
+      const edit = element("button", "memory-edit", "Edit note");
+      edit.type = "button";
+      edit.setAttribute("aria-label", `Edit ${title.toLowerCase()}`);
+      head.append(heading, edit);
+      const preview = element("div", "memory-preview markdown");
+      const editor = element("div", "memory-editor");
+      editor.hidden = true;
+      const label = element("label", "memory-editor-label", `${title} notes`);
       const input = element("textarea", "");
-      input.rows = 10;
+      input.rows = 12;
       input.value = data.content;
       input.maxLength = 900000;
       input.spellcheck = false;
+      input.setAttribute("aria-label", `${title} notes`);
       label.append(input);
-      const actions = element("div", "form-actions");
-      const save = element("button", "button secondary small", "Save");
-      const status = element("span", "form-status");
+      const actions = element("div", "memory-actions");
+      const save = element("button", "button primary small", "Save changes");
+      const cancel = element("button", "button secondary small", "Cancel");
+      const status = element("span", "memory-status", "Markdown supported");
       status.setAttribute("role", "status");
+      const renderPreview = () => {
+        const hasNotes = saved.replace(/^\s*#+[^\n]*(?:\n|$)/gm, "").trim();
+        preview.classList.toggle("empty", !hasNotes);
+        if (hasNotes) preview.innerHTML = renderMessage({ role: "assistant", text: saved.replace(new RegExp(`^\\s*# ${title}\\s*(?:\\n|$)`), "") }).innerHTML;
+        else preview.textContent = title === "Preferences" ? "No preferences yet. Add how you like your bot to work." : "No knowledge yet. Add details you want your bot to remember.";
+      };
+      const finishEditing = () => {
+        section.classList.remove("editing", "dirty");
+        editor.hidden = true;
+        preview.hidden = false;
+        edit.hidden = false;
+        edit.focus();
+      };
+      edit.addEventListener("click", () => {
+        input.value = saved;
+        save.disabled = true;
+        status.textContent = "Markdown supported";
+        section.classList.add("editing");
+        preview.hidden = true;
+        edit.hidden = true;
+        editor.hidden = false;
+        input.focus();
+      });
+      cancel.addEventListener("click", () => {
+        input.value = saved;
+        finishEditing();
+      });
       input.addEventListener("input", () => {
-        status.textContent = "Unsaved changes";
+        const dirty = input.value !== saved;
+        section.classList.toggle("dirty", dirty);
+        status.textContent = dirty ? "Unsaved changes" : "Markdown supported";
+        save.disabled = !dirty;
       });
       save.addEventListener("click", async () => {
+        const content = input.value;
         save.disabled = true;
+        cancel.disabled = true;
+        input.disabled = true;
+        status.textContent = "Saving…";
         try {
           await api(path, {
             method: "PUT",
-            body: JSON.stringify({ content: input.value }),
+            body: JSON.stringify({ content }),
           });
+          saved = content;
           forgetGreeting(bot);
           status.textContent = "Saved";
+          renderPreview();
+          finishEditing();
+          heading.querySelector("p").textContent = "Saved · Applies to the next task";
         } catch (error) {
           status.textContent = error.message;
         } finally {
-          save.disabled = false;
+          save.disabled = input.value === saved;
+          cancel.disabled = false;
+          input.disabled = false;
         }
       });
-      actions.append(status, save);
-      section.append(label, actions);
+      actions.append(cancel, save);
+      editor.append(label, status, actions);
+      renderPreview();
+      section.append(head, preview, editor);
       panel.append(section);
     }
   },
