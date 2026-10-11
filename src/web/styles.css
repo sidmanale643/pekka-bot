@@ -423,7 +423,7 @@ label select {
   align-items: center;
   column-gap: 12px;
   width: 100%;
-  padding: 10px 40px 10px 10px;
+  padding: 12px 40px 12px 10px;
   text-align: left;
 }
 .chief-main:hover {
@@ -438,44 +438,6 @@ label select {
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--accent);
-}
-.chief-team {
-  grid-column: 1 / -1;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-  margin-top: 10px;
-  padding-top: 8px;
-  border-top: 1px solid var(--rule);
-  font-family: var(--mono);
-  font-size: 11px;
-  color: var(--ink-3);
-}
-.chief-team > span:last-child {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.chief-team .live {
-  color: var(--accent);
-}
-.chief-faces {
-  display: flex;
-  flex-shrink: 0;
-}
-.chief-faces:empty {
-  display: none;
-}
-.chief-faces .avatar + .avatar {
-  margin-left: -5px;
-}
-.chief-faces .avatar {
-  box-shadow: 0 0 0 2px var(--sheet);
-}
-.chief-faces .avatar.working {
-  box-shadow: 0 0 0 2px var(--sheet), 0 0 0 3px var(--accent);
-  animation: blink 1.1s steps(2, jump-none) infinite;
 }
 .chief-card .bot-edit {
   top: 22px;
@@ -2983,9 +2945,6 @@ dialog::backdrop {
   .sidebar.collapsed .chief-card.active .chief-main {
     background: var(--sheet);
     box-shadow: inset 0 0 0 1px var(--rule);
-  }
-  .sidebar.collapsed .chief-team {
-    display: none;
   }
   .sidebar.collapsed .bot-copy,
   .sidebar.collapsed .profile-copy {

@@ -404,7 +404,7 @@ function botRow(bot) {
   return row;
 }
 
-// The chief of staff sits above the other bots, with the team it runs and who on it is working.
+// The chief of staff sits above the other bots and says which of them it's working with.
 function chiefCard(chief, team) {
   const active = selected === chief && currentPage === "workspace";
   const button = element("button", "chief-main");
@@ -421,18 +421,7 @@ function chiefCard(chief, team) {
   if (chief.name.toLowerCase() !== "chief of staff") copy.append(element("small", "chief-label", "Chief of staff"));
   copy.append(element("strong", "", chief.name), element("small", running.has(chief.name) ? "shimmer" : "", preview));
   synced(copy);
-  const strip = element("span", "chief-team");
-  const faces = element("span", "chief-faces");
-  for (const bot of team.slice(0, 5)) {
-    const face = avatar(bot.name, 18);
-    if (running.has(bot.name)) face.classList.add("working");
-    faces.append(face);
-  }
-  const summary = working.length
-    ? `${working.length === 1 ? working[0].name : `${working.length} bots`} working`
-    : team.length ? `Runs ${team.length} ${team.length === 1 ? "bot" : "bots"}` : "No other bots yet";
-  strip.append(faces, element("span", working.length ? "live" : "", summary));
-  button.append(avatar(chief.name, 34), copy, ...stateDot(chief), strip);
+  button.append(sidebarAvatar(chief, 56), copy, ...stateDot(chief));
   button.addEventListener("click", () => selectBot(chief));
   const card = element("div", `chief-card${active ? " active" : ""}`);
   card.append(button, editButton(chief));
