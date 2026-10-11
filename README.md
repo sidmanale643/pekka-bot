@@ -5,7 +5,7 @@
 <h1 align="center">Pekka</h1>
 
 <p align="center">
-  <strong>An open-source AI workspace where bots do the work on their own cloud computers.</strong>
+  <strong>An open-source clan of AI bots that do the work on their own computers. You sign off.</strong>
 </p>
 
 <p align="center">
@@ -27,29 +27,28 @@
 
 ---
 
-Pekka gives each of your bots a persistent Linux sandbox, a memory, and a set of skills, then lets them run commands, write files, and work with your connected apps until a job is done. A chat assistant tells you what to do. A Pekka bot does it.
+Pekka gives each bot in your clan a persistent Linux sandbox, a memory, and a set of skills, then lets it run commands, write files, and work with your connected apps until a job is done. A chat assistant tells you what to do. A Pekka bot does it.
 
-Every account starts with **Chief of Staff**. You tell it what you need, it splits the work between your specialist bots, runs them side by side, and brings their answers back.
+Give a bot a job you keep coming back to. It takes it on, runs it on a schedule if you like, and comes back with the result or a question only you can answer:
 
-```text
-You:    Get me ready for Thursday's renewal call with Acme.
-
-Chief of Staff  ⇢ Inbox Manager   summarise the Acme threads, find 30 free minutes
-                ⇢ Scout           find Acme news from the last 90 days, with sources
-
-Chief of Staff: Acme still wants a three-year price lock and SSO in the base plan,
-                and it raised a Series C in August. You're free 9:30–10:00 Thursday.
-```
+| For | A bot that |
+| --- | --- |
+| Developers | Reads each new GitHub issue, tries the bug in its own computer, and comments with what it found. |
+| Team leads | Reads the week's pull requests and Linear issues every Monday, writes the update in Notion, and sends you the link on Telegram. |
+| Sales | Reads the email threads and your last Granola notes before each customer call, checks the news, and finds you time to prepare. |
+| Busy inboxes | Sorts what came in overnight and drafts replies to the threads that need you, for you to review. |
+| Paperwork | Reads the signed contracts and scans in your Drive, logs each renewal and notice date in a Sheet, and sets a reminder ahead of each one. |
+| Everyday life | Phones the dentist, the restaurant, or the garage from your brief, and puts the new time in your calendar. |
 
 Pekka is a self-hosted Node.js app. Models run through [OpenRouter](https://openrouter.ai), or OpenAI and Anthropic directly with a key of your own. Each bot's computer is a [Daytona](https://daytona.io) sandbox, or a Docker container on your own machine. Data is stored in [Cloudflare D1](https://developers.cloudflare.com/d1/), or in a SQLite file next to the server. You bring the API keys, and every credential stays on your server.
 
 ## Features
 
 - **A computer per bot.** Each bot has its own persistent [Daytona](https://daytona.io) sandbox, or a Docker container when there's no Daytona key. It stops when a task ends and starts again with its files intact.
-- **Delegation.** Chief of Staff writes each bot a self-contained brief and runs several bots at once. Each bot keeps the work in its own chat, so you can follow up with it directly.
 - **Memory you can read.** Each bot has two Markdown files, `PREFERENCES.md` and `KNOWLEDGE.md`. The bot fills them in as you chat, and you can edit them at any time.
 - **Skills.** Reusable instructions in `SKILL.md` folders. Bots see a short catalog and load the full instructions only when a task needs them, and they can write new skills for themselves.
 - **Schedules.** Say "every Monday at 9" and the bot schedules itself. You can pause, resume, or cancel jobs from **Settings → Scheduled**.
+- **Teamwork.** When a job needs more than one bot, hand it to Chief of Staff, which every account starts with. It writes each bot a self-contained brief, runs several at once, and brings their answers back. Each bot keeps the work in its own chat, so you can follow up with it directly.
 - **Plugins.** Gmail, Google Calendar, Drive, Contacts, Notion, GitHub, Linear, Wispr Flow, Granola, Todoist, TinyFish, Bland AI, and Telegram. Tokens are encrypted in your database and never shown to the model or the sandbox.
 - **Browser agents and phone calls.** With TinyFish, a bot can search the web, read pages, and send a browser agent to do a task on a website. With Bland AI, it can phone someone through a voice agent and report back on the call.
 - **Documents.** PDFs, scans, and images from Drive and Gmail are converted to Markdown on your server, using [LiteParse](https://github.com/run-llama/liteparse) with local OCR.
@@ -59,8 +58,7 @@ Pekka is a self-hosted Node.js app. Models run through [OpenRouter](https://open
 - **Long tasks.** When a prompt fills half of the model's context window, older steps are summarized. Your request and the latest step are kept word for word.
 - **Guardrails.** Deletions, destructive Git commands, `sudo`, and piping a download into a shell are always blocked. Changes that shape future runs, such as a bot's instructions, skills and scheduled jobs, always wait for your approval. You can also turn on approval of every write and send.
 - **Any model.** Use any OpenRouter model that supports tool calling. Each person can also save their own OpenRouter, OpenAI, or Anthropic key in **Settings**, and their runs use it and bill them directly.
-- **Four interfaces.** A web app, a Mac app that runs Pekka on your Mac, a CLI, and an HTTP API that streams events over SSE.
-- **Teams.** Turn on Google sign-in to share one server. Each person gets their own bots, memory, schedules, and plugin connections.
+- **Three interfaces.** A web app, a CLI, and an HTTP API that streams events over SSE.
 - **Tracing.** Optional [Langfuse](https://langfuse.com) traces of every model call, tool call, and delegation.
 
 ## How it works
@@ -75,7 +73,7 @@ flowchart TB
   subgraph Pekka["Pekka, on your server"]
     S[Scheduler]
     A[API server<br/>sign-in, live SSE events]
-    L[Agent loop<br/>Chief of Staff delegates to bots]
+    L[Agent loop<br/>and delegation between bots]
     M[Model router<br/>server key or your own]
     G{Permission<br/>gate}
     T[Tools<br/>shell, files, web, memory, skills,<br/>documents with OCR]
@@ -153,7 +151,7 @@ Open **[http://127.0.0.1:3000](http://127.0.0.1:3000)** and give Chief of Staff 
 
 The web app is where you do most of your work:
 
-- **Bots.** Create specialists, then edit their instructions, avatar, skills, and character (the voice a bot uses with you). Clear one bot's chat from its bot panel.
+- **Bots.** Create specialists, then edit their instructions, avatar, and skills. Clear one bot's chat from its bot panel.
 - **Memory.** A bot's preferences and knowledge show as formatted notes. Choose **Edit note** to change one, and the bot uses your version from its next task.
 - **Chat.** The server saves each chat in its database as the run goes, so a reply keeps coming even if you close the tab, and the chat is the same in every browser.
 - **Computer view.** Open it from a bot's chat to watch that bot's sandbox. Sessions are ephemeral, so it shows only tasks that run while the page is open.
@@ -164,26 +162,6 @@ The web app is where you do most of your work:
   - **Plugins.** Connect an app, then enable access. Access stays off until you turn it on.
   - **Activity.** The tasks you sent to your bots, newest first.
   - **Help.** How bots, delegation, and the computer view work.
-
-### Mac app
-
-The Mac app is the same web app in its own window, with Pekka's server built in. You don't need Node.js, pnpm, or a checkout to use it.
-
-Open the app and Pekka starts. Its server and scheduler run on your Mac while the app is open, with their settings in `~/Library/Application Support/Pekka/.env`. Add your model key in **Settings**, the same as in the web app. Your data is kept in `pekka.db` in the same folder, and bots use Docker containers, so start Docker Desktop before you run a task. To use Daytona sandboxes or Cloudflare D1 instead, add `DAYTONA_API_KEY` or the `CLOUDFLARE_*` settings to that `.env` (**Pekka → Open Data Folder**). Closing the window keeps the server and scheduler running, so tasks and schedules carry on. Quitting stops them.
-
-The app serves Pekka at `http://127.0.0.1:3000`, or at `PEKKA_API_PORT` and `PEKKA_URL` when your `.env` sets them, so the plugin redirect URIs you registered for `pnpm api` keep working. If a Pekka server is already running there, such as `pnpm api`, the app opens that one instead of starting a second. Choose **Pekka → Change Server…** to connect to a Pekka you host instead (if that server has Google sign-in on, you sign in inside the app), and **Pekka → Run Scheduled Tasks** to stop running schedules from this Mac. The server log is in `~/Library/Logs/Pekka/server.log`.
-
-Build the app from a checkout. You get an Apple Silicon DMG in `desktop/dist/`:
-
-```bash
-pnpm install
-pnpm --dir desktop install
-pnpm desktop:dmg
-```
-
-`pnpm desktop` runs the app straight from the checkout instead. Both compile the server from `src/` first.
-
-The app is signed and notarized when electron-builder finds a Developer ID certificate and Apple credentials (`CSC_LINK`, `APPLE_ID`, `APPLE_APP_SPECIFIC_PASSWORD`, `APPLE_TEAM_ID`). Without them it's signed for this Mac only. To open it on another Mac, open it once, then choose **Open Anyway** in **System Settings → Privacy & Security**.
 
 ### CLI
 
@@ -314,9 +292,9 @@ To report a vulnerability, please use [GitHub's private vulnerability reporting]
 
 ## Deployment
 
-### Sign-in for teams
+### Google sign-in
 
-To let several people share one server, turn on Google sign-in:
+To run Pekka anywhere but localhost, turn on Google sign-in:
 
 ```dotenv
 PEKKA_URL=https://pekka.example.com
