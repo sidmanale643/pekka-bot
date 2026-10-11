@@ -7,7 +7,7 @@ const lighten = (rgb, amount) => rgb.map((channel) => channel + (255 - channel) 
 const stills = new Map();
 const stillRenderer = new PekkaRenderer();
 
-/** <pekka-head>: Pekka's helmet, live. Attributes: state, size, paused, armor, horns, horn-color, crest, eyes, eye-color. */
+/** <pekka-head>: Pekka's helmet, live. Attributes: state, size, paused, no-follow, armor, horns, horn-color, crest, eyes, eye-color. */
 class PekkaHead extends HTMLElement {
   static observedAttributes = ["state", "size", "paused", "armor", "horns", "horn-color", "crest", "eyes", "eye-color"];
 
@@ -94,10 +94,14 @@ class PekkaHead extends HTMLElement {
     // Heads in lists are small enough that 30 frames a second looks the same and costs half.
     const everyOther = size < 48;
     this.unsubscribe = subscribe((dt) => {
-      const box = this.getBoundingClientRect();
-      const dx = pointer.x - (box.left + box.width / 2);
-      const dy = pointer.y - (box.top + this.frame.cy - this.frame.padTop);
-      this.sim.pointer = Math.hypot(dx, dy) < 700 ? { x: dx, y: dy } : null;
+      this.sim.pointer = null;
+      // A head watches the pointer when it's near, unless it has no-follow and keeps to its own glances.
+      if (!this.hasAttribute("no-follow")) {
+        const box = this.getBoundingClientRect();
+        const dx = pointer.x - (box.left + box.width / 2);
+        const dy = pointer.y - (box.top + this.frame.cy - this.frame.padTop);
+        if (Math.hypot(dx, dy) < 700) this.sim.pointer = { x: dx, y: dy };
+      }
       this.sim.update(dt);
       this.odd = !this.odd;
       if (!everyOther || this.odd) this.paint(true);

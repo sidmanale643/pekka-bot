@@ -188,13 +188,15 @@ function avatar(name, size, look) {
 }
 
 // The sidebar is rebuilt often (selecting a bot, new messages, a run's progress). Its heads are kept between
-// rebuilds so they carry on moving instead of starting over, and a clicked head finishes its hop.
+// rebuilds so they carry on moving instead of starting over, and a clicked head finishes its hop. They glance around on
+// their own rather than follow the pointer.
 const sidebarHeads = new Map();
 function sidebarAvatar(bot, size) {
   const key = `${bot.id}:${size}`;
   const head = sidebarHeads.get(key);
   if (!head) {
     sidebarHeads.set(key, avatar(bot.name, size));
+    sidebarHeads.get(key).setAttribute("no-follow", "");
     return sidebarHeads.get(key);
   }
   dress(head, bot.avatar);
