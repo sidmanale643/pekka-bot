@@ -12,7 +12,7 @@ export interface ApiKeyPluginOptions {
   apiKeyHeader?: string;
   timeoutMs?: number;
   /** Checks a pasted key and returns the account name shown on the Plugins page. Throws when the key doesn't work. */
-  check(request: (path: string) => Promise<unknown>): Promise<string>;
+  check(request: (path: string) => Promise<unknown>, apiKey: string): Promise<string>;
   database?: () => Database;
   env?: NodeJS.ProcessEnv;
   fetch?: typeof fetch;
@@ -69,7 +69,7 @@ export class ApiKeyPlugin {
   /** Checks the key with the service, saves it and turns access on. */
   async connect(userId: string, apiKey: string): Promise<void> {
     const key = this.sealingKey();
-    const account = await this.options.check((path) => this.send(apiKey, path));
+    const account = await this.options.check((path) => this.send(apiKey, path), apiKey);
     await (await this.database()).run(
       "INSERT INTO plugin_accounts (user_id, plugin, credentials, workspace_name, enabled) VALUES (?, ?, ?, ?, 1) ON CONFLICT(user_id, plugin) DO UPDATE SET credentials = excluded.credentials, workspace_name = excluded.workspace_name, enabled = 1",
       [userId, this.id, seal(key, this.label(userId), apiKey), account.slice(0, 200)],
@@ -106,14 +106,17 @@ export class ApiKeyPlugin {
     try { return JSON.parse(text); } catch { return text; }
   }
 
-  /** Calls the service as `userId`, once they've added a key and allowed access. */
-  async request(userId: string, path: string, init: { method?: string; body?: unknown } = {}): Promise<unknown> {
+  /** The user's saved key, once they've added one and allowed access. For calls `request` can't make, such as WebSockets. */
+  async key(userId: string): Promise<string> {
     const key = this.sealingKey();
     const row = await this.connection(await this.database(), userId);
     if (!row || Number(row.enabled) !== 1) throw new ApiKeyPluginError(`${this.name} access is off. Add your ${this.name} API key and allow Pekka access in Plugins.`);
-    let apiKey: string;
-    try { apiKey = unseal(key, this.label(userId), row.credentials); }
+    try { return unseal(key, this.label(userId), row.credentials); }
     catch { throw new ApiKeyPluginError(`Cannot unlock the saved ${this.name} key. Restore PEKKA_PLUGIN_KEY or add the key again.`); }
-    return this.send(apiKey, path, init);
+  }
+
+  /** Calls the service as `userId`, once they've added a key and allowed access. */
+  async request(userId: string, path: string, init: { method?: string; body?: unknown } = {}): Promise<unknown> {
+    return this.send(await this.key(userId), path, init);
   }
 }

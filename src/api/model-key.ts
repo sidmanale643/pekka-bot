@@ -8,7 +8,7 @@ const PROVIDER_PATH = new RegExp(`^/api/model-keys/(${PROVIDERS.join("|")})$`);
 export const KEY_CHECKS = { limit: 10, windowMs: 10 * 60_000 };
 
 /** Counts a user's key checks over a sliding window, and refuses once they reach the limit. */
-function keyCheckLimiter(now: () => number) {
+export function keyCheckLimiter(now: () => number) {
   const recent = new Map<string, number[]>();
   return (userId: string) => {
     const since = now() - KEY_CHECKS.windowMs;
