@@ -3736,7 +3736,7 @@ function renderScheduleList() {
       if (scheduleView === job.id) row.setAttribute("aria-current", "page");
       const copy = element("span", "bot-copy");
       copy.append(element("strong", "", job.name), element("small", "", jobSummary(job)));
-      row.append(avatar(job.bot?.name || job.name, 28), copy);
+      row.append(copy);
       if (job.status === "running") {
         const state = element("span", "bot-state running");
         state.title = "Running";
@@ -3788,7 +3788,7 @@ function renderScheduleHome(pane) {
     card.addEventListener("click", () => { scheduleDraft = template; });
     const copy = element("span", "");
     copy.append(element("strong", "", template.name), element("small", "", template.summary));
-    card.append(avatar(template.name, 32), copy);
+    card.append(copy);
     grid.append(card);
   }
   pane.append(intro, grid);
@@ -3942,7 +3942,7 @@ function renderScheduleDetail(pane, job) {
   if (job.bot) {
     const link = element(owner ? "a" : "span", "schedule-bot");
     if (owner) link.href = "#bot/" + encodeURIComponent(owner.name);
-    link.append(avatar(job.bot.name, 18), job.bot.name);
+    link.append(job.bot.name);
     fact("Bot", link);
   } else fact("Bot", "No bot (base sandbox)");
   fact("Schedule", describeInterval(job));
