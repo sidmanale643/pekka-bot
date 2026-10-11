@@ -1289,7 +1289,8 @@ function messageRow(message) {
   const meta = element("div", "message-meta");
   // A brief the chief of staff sent this bot is shown as theirs, not the user's.
   const author = message.role === "user" ? message.from || profile.displayName || "You" : selected.name;
-  if (message.role !== "user" || message.from) meta.append(avatar(author, 18));
+  // The bot's own head is in the header, so only a brief from another bot shows its sender's.
+  if (message.from) meta.append(avatar(author, 18));
   const stamp = element("time", "", time);
   stamp.dateTime = new Date(message.time).toISOString();
   meta.append(element("strong", "", author), stamp);
