@@ -127,7 +127,7 @@ function createWindow() {
     minHeight: 520,
     title: "Pekka",
     show: false,
-    backgroundColor: nativeTheme.shouldUseDarkColors ? "#191918" : "#efeee9",
+    backgroundColor: nativeTheme.shouldUseDarkColors ? "#191918" : "#f2f1ec",
     webPreferences: { preload: join(import.meta.dirname, "preload.cjs"), sandbox: true, contextIsolation: true },
   });
   window.once("ready-to-show", () => {
