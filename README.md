@@ -310,7 +310,7 @@ Register `<PEKKA_URL>/api/auth/google/callback` as a redirect URI on the Google 
 
 ### Vercel
 
-The repo deploys the API to Vercel with [`server.ts`](server.ts) and [`vercel.json`](vercel.json). The [deploy workflow](.github/workflows/deploy.yml) ships every push to `main`, using the `VERCEL_TOKEN`, `VERCEL_ORG_ID`, and `VERCEL_PROJECT_ID` secrets. The deployment stays locked until Google sign-in is configured. Scheduled jobs still need `pnpm pekka scheduler` running somewhere.
+The repo deploys the API to Vercel with [`server.ts`](server.ts) and [`vercel.json`](vercel.json). Run `vercel deploy --prod` from the repository root to ship it. The deployment stays locked until Google sign-in is configured. Scheduled jobs still need `pnpm pekka scheduler` running somewhere.
 
 ## Observability
 
