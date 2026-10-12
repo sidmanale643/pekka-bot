@@ -20,6 +20,13 @@ export type LiveViewMode = "tab" | "devtools";
 const TEXT_LIMIT = 12_000;
 const ELEMENT_LIMIT = 150;
 
+/**
+ * The tab's window: the browser panel's narrow, tall shape, at 2x pixels so the live view stays sharp when it's
+ * shrunk to fit. Left alone, Chromium opens at 780x493 and Kitesurf at 1280x720, which the panel shows small and
+ * soft between empty bars. Kitesurf takes the size but keeps 1x pixels.
+ */
+export const WINDOW = { width: 800, height: 1000, deviceScaleFactor: 2, mobile: false };
+
 /** Numbers each visible control with data-pekka-ref, so browser_click and browser_type can find it, and returns the page's text. */
 const READ_PAGE = `(({ textLimit, elementLimit }) => {
   const clean = (value) => String(value ?? "").replace(/\\s+/g, " ").trim();
@@ -152,6 +159,8 @@ export class BrowserSession {
       let targetId = targetInfos.find((target) => target.type === "page")?.targetId;
       if (!targetId) ({ targetId } = await cdp.send<{ targetId: string }>("Target.createTarget", { url: "about:blank" }));
       const { sessionId } = await cdp.send<{ sessionId: string }>("Target.attachToTarget", { targetId, flatten: true });
+      // An engine that can't resize still browses, just at its own size.
+      await cdp.send("Emulation.setDeviceMetricsOverride", WINDOW, sessionId).catch(() => {});
       return new BrowserSession(engine, cdp, sessionId);
     } catch (error) {
       cdp.close();

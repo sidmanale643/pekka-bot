@@ -1,6 +1,6 @@
 import { expect, it } from "vitest";
 import type { CdpClient } from "./cdp.ts";
-import { BrowserSession, browserRunUrl, type PageSnapshot } from "./session.ts";
+import { BrowserSession, WINDOW, browserRunUrl, type PageSnapshot } from "./session.ts";
 
 const credentials = { accountId: "a".repeat(32), token: "token-123" };
 const page: PageSnapshot = { title: "Example Domain", url: "https://example.com/", text: "Example Domain", truncated: false, elements: ['[1] link "Learn more" -> https://iana.org/'], moreElements: false };
@@ -41,8 +41,21 @@ it("starts Kitesurf with the token and attaches to its page, or Chromium with a 
 
   const empty = fakeBrowser({ "Target.getTargets": () => ({ targetInfos: [] }), "Target.createTarget": () => ({ targetId: "T9" }) });
   await BrowserSession.start(credentials, "chromium", empty.connect);
-  expect(empty.calls.map((call) => call.method)).toEqual(["Target.getTargets", "Target.createTarget", "Target.attachToTarget"]);
+  expect(empty.calls.map((call) => call.method)).toEqual(["Target.getTargets", "Target.createTarget", "Target.attachToTarget", "Emulation.setDeviceMetricsOverride"]);
   expect(empty.calls[2]!.params).toEqual({ targetId: "T9", flatten: true });
+});
+
+it("sizes the tab to the browser panel at 2x pixels, and still browses on an engine that can't resize", async () => {
+  const browser = fakeBrowser();
+  await BrowserSession.start(credentials, "chromium", browser.connect);
+  expect(browser.calls.find((call) => call.method === "Emulation.setDeviceMetricsOverride")).toEqual({
+    method: "Emulation.setDeviceMetricsOverride", params: { width: 800, height: 1000, deviceScaleFactor: 2, mobile: false }, sessionId: "S1",
+  });
+  expect(WINDOW.height).toBeGreaterThan(WINDOW.width);
+
+  const fixed = fakeBrowser({ "Emulation.setDeviceMetricsOverride": () => { throw new Error("Emulation.setDeviceMetricsOverride wasn't found"); } });
+  const session = await BrowserSession.start(credentials, "kitesurf", fixed.connect);
+  expect(await session.open("https://example.com")).toEqual(page);
 });
 
 it("explains a browser that won't start", async () => {
