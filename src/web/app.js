@@ -1359,8 +1359,11 @@ function renderBrowser() {
   const head = element("header", "computer-head");
   const title = element("div", "");
   title.append(element("h2", "", "Browser"), element("p", "", `${bot.name}'s ${engineNames[state.engine] ?? "Kitesurf"} browser on Cloudflare`));
-  head.append(title, element("span", `computer-state${state.open ? " on" : ""}`, state.open ? "Live" : "Off"));
-  const note = element("p", "computer-note", `Opens when a task needs a website and closes when the task ends.${state.link ? " You can click and type in it." : ""}`);
+  const pill = element("span", `computer-state${state.open ? " on" : ""}`, state.open ? "Live" : "Off");
+  if (state.link) pill.title = "You can click and type in it.";
+  head.append(title, pill);
+  // The note explains the panel before anything opens; while the browser's live, the page gets its room.
+  const note = state.open ? [] : [element("p", "computer-note", "Opens when a task needs a website and closes when the task ends.")];
 
   const tabs = element("div", "computer-tabs");
   tabs.setAttribute("role", "group");
@@ -1403,7 +1406,7 @@ function renderBrowser() {
     panel.replaceChildren(top);
     panel.dataset.bot = bot.id;
   }
-  top.replaceChildren(head, note, tabs, address);
+  top.replaceChildren(head, ...note, tabs, address);
   if (screen?.dataset.key === key) return;
   // This link already connected once and may have expired, so the redrawn view gets a fresh one.
   if (state.link && state.shownId === state.linkId) {

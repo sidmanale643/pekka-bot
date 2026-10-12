@@ -1896,7 +1896,7 @@ a.output-card:hover .output-open {
   min-height: 0;
   flex-shrink: 0;
   margin: 0 8px 8px 0;
-  padding: 22px 20px 20px;
+  padding: 14px 20px 20px;
   background: var(--tint);
   border-radius: var(--radius-lg);
 }
@@ -1958,7 +1958,7 @@ a.output-card:hover .output-open {
   animation: computer-pulse 1.6s var(--ease-in-out) infinite;
 }
 .computer-note {
-  margin-top: 10px;
+  margin-top: 4px;
   font-size: 12px;
   line-height: 1.5;
   color: var(--ink-3);
@@ -1968,7 +1968,7 @@ a.output-card:hover .output-open {
   gap: 2px;
   width: fit-content;
   max-width: 100%;
-  margin: 12px 0 14px;
+  margin: 10px 0;
   padding: 3px;
   overflow-x: auto;
   background: var(--sunk);
@@ -2225,7 +2225,7 @@ a.output-card:hover .output-open {
   align-items: center;
   gap: 8px;
   min-height: 34px;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
   padding: 4px 4px 4px 12px;
   background: var(--sunk);
   border-radius: 10px;
