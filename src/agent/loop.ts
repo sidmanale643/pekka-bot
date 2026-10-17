@@ -118,6 +118,7 @@ async function runLoop(task: string, options: AgentOptions): Promise<AgentResult
       const active = plugins.tools();
       const toolDefinitions = plugins.definitions();
       context.setTools(toolDefinitions);
+      context.elide();
       if (context.shouldCompact()) {
         emit({ type: "compaction", tokens: context.tokens(), contextWindow });
         addUsage(usage, await context.compact(options.signal));
