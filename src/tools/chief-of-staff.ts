@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { botTemplates, createBotFromTemplate, findTemplate } from "../bot-templates.ts";
 import { createBot, findBot, listBots, updateBot, type Bot } from "../bots.ts";
 import { defineTool, limitOutput, type ToolContext } from "./tool.ts";
 
@@ -47,19 +48,28 @@ export const listTeam = defineTool({
   },
 });
 
+/** Templates that bring their own instructions or skills; the rest only prefill the create form. */
+const readyMade = botTemplates.filter((template) => template.instructions || template.skills.length);
+
 export const createTeammate = defineTool({
   name: "create_bot",
   permission: { effect: "write", confirm: true },
-  description: "Create a new bot for the user. It gets its own workspace and memory. Only create one when the user asks for it or agrees to your suggestion. Give it a clear description and, if known, working instructions; it learns the rest when the user chats with it.",
+  description: `Create a new bot for the user. It gets its own workspace and memory. Only create one when the user asks for it or agrees to your suggestion. Give it a clear description and, if known, working instructions; it learns the rest when the user chats with it. When the user wants one of these ready-made bots, pass its template instead of writing instructions: ${readyMade.map(({ id, name, description }) => `${id} (${name}): ${description}`).join(" ")}`,
   input: z.object({
     name: z.string().trim().min(1).max(200).describe("Short name, unique among the user's bots, e.g. \"Researcher\"."),
-    description: botDescription.describe("What the bot is for."),
-    instructions: botInstructions.optional().describe("How it should do its work. Omit to let it learn from the user."),
+    description: botDescription.optional().describe("What the bot is for. Required unless you pass a template, which has its own."),
+    instructions: botInstructions.optional().describe("How it should do its work. Omit to let it learn from the user. Not used with a template."),
+    template: z.enum(readyMade.map(({ id }) => id) as [string, ...string[]]).optional().describe("A ready-made bot to start from. It brings its own working instructions and skills."),
   }).strict(),
   async run(input, context) {
     chief(context);
-    const bot = await createBot(context.userId, { name: input.name, role: input.description, job: input.instructions ?? "" }, context.database);
-    return JSON.stringify(profile(bot));
+    const template = input.template === undefined ? undefined : findTemplate(input.template);
+    if (template && input.instructions !== undefined) throw new Error("A template brings its own instructions. Leave instructions out; it can be changed afterwards with update_bot.");
+    if (!template && !input.description) throw new Error("Give the bot a description.");
+    const bot = template
+      ? await createBotFromTemplate(context.userId, template, { name: input.name, role: input.description }, context.database)
+      : await createBot(context.userId, { name: input.name, role: input.description!, job: input.instructions ?? "" }, context.database);
+    return JSON.stringify({ ...profile(bot), ...(template ? { skills: template.skills } : {}) });
   },
 });
 

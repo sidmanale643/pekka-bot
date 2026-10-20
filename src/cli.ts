@@ -1,6 +1,7 @@
 import { existsSync } from "node:fs";
 import type { AgentEvent } from "./agent/events.ts";
 import type { AgentResult } from "./agent/loop.ts";
+import { botTemplates, createBotFromTemplate, findTemplate } from "./bot-templates.ts";
 import { createBot, ensureChiefOfStaff, getBot, listBots, type BotProfile } from "./bots.ts";
 import { closeDocuments } from "./documents.ts";
 import { loadConfig } from "./config.ts";
@@ -14,7 +15,7 @@ import { createInterface } from "node:readline/promises";
 import type { ApproveAction } from "./permissions/policy.ts";
 import { shutdownTracing } from "./tracing.ts";
 
-const USAGE = 'Usage:\n  pekka run "<task>"\n  pekka bot create --name "<name>" --description "<description>"\n  pekka bot list\n  pekka bot run "<name>"\n  pekka scheduler [--once]\n  pekka jobs list\n  pekka jobs cancel "<id>"\n  pekka skills add "<folder>" [--bot "<name>"]\n  pekka skills list [--bot "<name>"]\n  pekka skills remove "<name>" [--bot "<name>"]\n  pekka db check\n  pekka db import';
+const USAGE = 'Usage:\n  pekka run "<task>"\n  pekka bot create --name "<name>" --description "<description>"\n  pekka bot create --template <id> [--name "<name>"]\n  pekka bot list\n  pekka bot run "<name>"\n  pekka scheduler [--once]\n  pekka jobs list\n  pekka jobs cancel "<id>"\n  pekka skills add "<folder>" [--bot "<name>"]\n  pekka skills list [--bot "<name>"]\n  pekka skills remove "<name>" [--bot "<name>"]\n  pekka db check\n  pekka db import';
 
 async function main(args: string[]): Promise<void> {
   if (existsSync(".env")) process.loadEnvFile(".env");
@@ -43,6 +44,15 @@ async function main(args: string[]): Promise<void> {
 
 async function manageBots(args: string[]): Promise<void> {
   const [action, ...botArgs] = args;
+  if (action === "create" && botArgs[0] === "--template") {
+    const [, id, ...rest] = botArgs;
+    const template = id ? findTemplate(id) : undefined;
+    if (!template) throw new Error(`Templates: ${botTemplates.map((item) => item.id).join(", ")}.\n${USAGE}`);
+    if (rest.length && (rest.length !== 2 || rest[0] !== "--name" || !rest[1])) throw new Error(USAGE);
+    const bot = await createBotFromTemplate(LOCAL_USER, template, { name: rest[1] });
+    console.log(`Created bot "${bot.name}" from the ${template.name} template${template.skills.length ? `, with skills: ${template.skills.join(", ")}` : ""}.`);
+    return;
+  }
   if (action === "create") {
     const bot = await createBot(LOCAL_USER, parseBotOptions(botArgs));
     console.log(`Created bot "${bot.name}".`);

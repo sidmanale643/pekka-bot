@@ -1,0 +1,53 @@
+id,name,alternate_names,category,serving_description,serving_weight_g,energy_kcal_per_100g,protein_g_per_100g,carbohydrate_g_per_100g,total_fat_g_per_100g,fiber_g_per_100g,energy_kcal_per_serving,protein_g_per_serving,carbohydrate_g_per_serving,total_fat_g_per_serving,dietary_tags,allergens,confidence
+idli,Idli (Plain),Steamed Rice Cake,grains_and_staples,3 medium idlis,90,130,6.4,25.0,0.3,2.1,117,5.8,22.5,0.3,vegetarian; vegan; gluten_free; nut_free,,high
+masala_dosa,Masala Dosa,Dosa with Potato Filling,grains_and_staples,1 medium masala dosa,150,165,3.3,19.6,7.8,2.5,248,5.0,29.4,11.7,vegetarian; vegan; gluten_free; nut_free,,medium
+paneer,Paneer (Indian Cottage Cheese),Indian Cottage Cheese,dairy,100g paneer,100,265,18.3,1.2,20.8,0,265,18.3,1.2,20.8,vegetarian; gluten_free; nut_free,dairy,high
+curd_dahi,Curd (Dahi/Yogurt),Dahi; Yogurt; Plain Yogurt,dairy,1 bowl curd,150,60,3.1,4.6,3.3,0,90,4.7,6.9,5.0,vegetarian; gluten_free; nut_free,dairy,high
+cow_milk,"Cow Milk (Whole, Raw)",Whole Milk; Full-Fat Milk,dairy,1 glass milk,200,61,3.2,4.5,3.4,0,122,6.4,9.0,6.8,vegetarian; gluten_free; nut_free,dairy,high
+toned_milk,Toned Milk,Double Toned Milk,dairy,1 glass toned milk,200,45,3.0,4.5,1.5,0,90,6.0,9.0,3.0,vegetarian; gluten_free; nut_free,dairy,high
+ghee,Ghee (Clarified Butter),Clarified Butter; Desi Ghee,dairy,1 tablespoon ghee,14,876,0.3,0,99.5,0,123,0.04,0,13.9,vegetarian; gluten_free; nut_free,dairy,high
+buttermilk_lassi,Buttermilk (Chaas/Majjiga),Chaas; Majjiga; Spiced Buttermilk,dairy,1 glass buttermilk,250,15,0.8,1.5,0.5,0,38,2.0,3.8,1.3,vegetarian; gluten_free; nut_free,dairy,medium
+plain_roti,Plain Roti (Chapati/Phulka),Chapati; Phulka; Roti,grains_and_staples,1 medium roti,40,202,5.9,35.6,3.6,6.3,81,2.4,14.2,1.4,vegetarian; vegan; nut_free,gluten,high
+cooked_white_rice,Cooked White Rice,Plain Rice; Steamed Rice,grains_and_staples,1 bowl cooked rice,150,130,2.7,28.2,0.3,0.4,195,4.1,42.3,0.5,vegetarian; vegan; gluten_free; nut_free,,high
+plain_paratha,Plain Paratha,Paratha; Parantha,grains_and_staples,1 medium paratha,100,298,5.1,30.7,16.9,5.4,298,5.1,30.7,16.9,vegetarian; nut_free,gluten; dairy,high
+naan_plain,Naan (Plain),Plain Naan,grains_and_staples,1 piece naan,90,291,9.6,50.4,5.7,2.2,262,8.6,45.4,5.1,vegetarian; nut_free,gluten; dairy,high
+poori,Poori (Puri),Puri; Deep-fried Wheat Bread,grains_and_staples,2 medium pooris,80,296,7.5,46.7,9.4,4.7,237,6.0,37.4,7.5,vegetarian; nut_free,gluten,high
+dalia_broken_wheat,Dalia (Broken Wheat Porridge),Broken Wheat; Lapsi,grains_and_staples,1 bowl cooked dalia,200,125,3.5,23.0,2.0,3.0,250,7.0,46.0,4.0,vegetarian; vegan; nut_free; high_protein,gluten,medium
+dal_tadka,Dal Tadka (Toor Dal),Toor Dal Tadka; Arhar Dal; Pigeon Pea Dal,lentils_and_legumes,1 bowl cooked dal,200,128,7.5,21.5,0.4,,256,15.0,43.0,0.8,vegetarian; vegan; gluten_free; nut_free; high_protein,,medium
+cooked_chicken_breast,Cooked Chicken Breast (Skinless),Chicken Breast; Grilled Chicken Breast,meat_fish_and_eggs,1 medium chicken breast (cooked),120,165,31.0,0,3.6,0,198,37.2,0,4.3,gluten_free; dairy_free; nut_free; high_protein,,high
+chicken_curry,Chicken Curry (Homestyle),Murgh Curry; Chicken Gravy,meat_fish_and_eggs,1 bowl chicken curry (with gravy),200,124,11.5,4.7,6.7,,248,23.0,9.4,13.4,gluten_free; dairy_free; nut_free; high_protein; halal,,medium
+boiled_egg,Boiled Egg (Whole),Hard Boiled Egg; Egg,meat_fish_and_eggs,1 boiled egg,50,155,12.6,1.1,10.6,0,78,6.3,0.6,5.3,gluten_free; nut_free; high_protein,eggs,high
+egg_bhurji,Egg Bhurji,Anda Bhurji; Spiced Scrambled Eggs,meat_fish_and_eggs,1 serving egg bhurji,150,154,11.5,3.2,10.2,0.5,231,17.3,4.8,15.3,gluten_free; nut_free; high_protein,eggs,medium
+mutton_curry,Mutton Curry (Goat Meat),Mutton Gravy; Goat Curry,meat_fish_and_eggs,1 bowl mutton curry,200,165,13.5,3.8,10.5,,330,27.0,7.6,21.0,gluten_free; dairy_free; nut_free; high_protein; halal,,medium
+fish_curry,Fish Curry (Indian Style),Machli Curry; Fish Gravy,meat_fish_and_eggs,1 bowl fish curry,200,110,15.0,2.5,4.5,,220,30.0,5.0,9.0,gluten_free; nut_free; high_protein,fish,medium
+prawn_curry,Prawn Curry (Indian Style),Shrimp Curry; Jhinga Curry,meat_fish_and_eggs,1 bowl prawn curry,200,105,16.0,2.0,3.5,,210,32.0,4.0,7.0,gluten_free; nut_free; high_protein,shellfish,medium
+samosa,Samosa (Potato & Peas),Aloo Samosa; Vegetable Samosa,snacks_and_street_food,1 medium samosa,100,309,5.1,33.1,17.4,1.8,309,5.1,33.1,17.4,vegetarian; vegan; nut_free,gluten,medium
+vada_pav,Vada Pav,Wada Pav; Bombay Burger,snacks_and_street_food,1 vada pav,180,273,5.5,34.2,12.4,2.8,491,9.9,61.6,22.3,vegetarian; nut_free,gluten,medium
+pav_bhaji,Pav Bhaji,Pav Bhaji Masala,snacks_and_street_food,1 plate pav bhaji,300,150,3.2,18.5,7.2,2.5,450,9.6,55.5,21.6,vegetarian; nut_free,gluten; dairy,medium
+pani_puri,Pani Puri (Gol Gappa),Gol Gappa; Puchka; Pani Puri,snacks_and_street_food,6 pani puri,180,148,3.2,18.5,6.8,2.1,266,5.8,33.3,12.2,vegetarian; nut_free,gluten,medium
+bhel_puri,Bhel Puri,Bhelpuri,snacks_and_street_food,1 plate bhel puri,150,135,3.0,22.0,4.2,1.8,203,4.5,33.0,6.3,vegetarian; vegan; nut_free,gluten,medium
+dhokla,Dhokla,Khaman Dhokla; Steamed Dhokla,snacks_and_street_food,1 plate dhokla,120,128,6.2,18.5,3.5,1.2,154,7.4,22.2,4.2,vegetarian; vegan; nut_free,gluten,medium
+medu_vada,Medu Vada,Uzhunnu Vada; Garelu,snacks_and_street_food,2 medu vada,100,292,12.5,28.0,14.5,2.5,292,12.5,28.0,14.5,vegetarian; vegan; nut_free; high_protein,,medium
+aloo_tikki,Aloo Tikki,Potato Cutlet; Aloo Tikki Chaat,snacks_and_street_food,2 aloo tikki,120,185,3.5,22.0,9.5,2.0,222,4.2,26.4,11.4,vegetarian; nut_free,gluten,medium
+pakora,Pakora (Vegetable Fritters),Pakoda; Bhajia; Vegetable Pakora,snacks_and_street_food,1 plate pakora,100,252,5.8,22.0,15.8,2.5,252,5.8,22.0,15.8,vegetarian; vegan; nut_free,gluten,medium
+chole_bhature,Chole Bhature,Chana Bhatura; Chole Bhature,snacks_and_street_food,1 plate chole bhature,350,195,6.5,22.0,8.5,3.5,683,22.8,77.0,29.8,vegetarian; nut_free,gluten,medium
+chai_milk_sugar,Chai (Tea with Milk and Sugar),Indian Milk Tea; Masala Chai,sweets_and_drinks,1 cup chai,150,17,0.5,2.8,0.5,0,26,0.8,4.2,0.7,vegetarian; gluten_free; nut_free,dairy,high
+filter_coffee,Filter Coffee (Kaapi),South Indian Coffee; Kaapi; Madras Coffee,sweets_and_drinks,1 cup filter coffee,150,18,0.5,3.0,0.5,0,27,0.8,4.5,0.8,vegetarian; gluten_free; nut_free,dairy,medium
+coconut_water,Coconut Water,Nariyal Pani; Tender Coconut Water,sweets_and_drinks,1 tender coconut,300,19,0.7,3.7,0.2,1.1,57,2.1,11.1,0.6,vegetarian; vegan; gluten_free; nut_free,,high
+lassi_sweet,Sweet Lassi,Lassi; Sweet Yogurt Drink,sweets_and_drinks,1 glass sweet lassi,300,45,1.5,7.0,1.2,0,135,4.5,21.0,3.6,vegetarian; gluten_free; nut_free,dairy,medium
+gulab_jamun,Gulab Jamun,Gulabjam; Lal Mohan,sweets_and_drinks,2 pieces gulab jamun,80,310,4.0,50.0,11.0,0,248,3.2,40.0,8.8,vegetarian; nut_free,dairy; gluten,medium
+jalebi,Jalebi,Jilapi; Zilapi,sweets_and_drinks,2 pieces jalebi,80,320,3.5,55.0,10.0,0.5,256,2.8,44.0,8.0,vegetarian; vegan; nut_free,gluten,medium
+rasgulla,Rasgulla,Rosogulla,sweets_and_drinks,2 pieces rasgulla,80,186,3.5,35.0,3.0,0,149,2.8,28.0,2.4,vegetarian; nut_free,dairy,medium
+kheer,Kheer (Rice Pudding),Payasam; Rice Kheer,sweets_and_drinks,1 bowl kheer,200,97,2.5,14.0,3.2,0.3,194,5.0,28.0,6.4,vegetarian; gluten_free; nut_free,dairy,medium
+masala_chai,Masala Chai (with Spices),Spiced Tea; Kadak Chai,sweets_and_drinks,1 cup masala chai,150,18,0.5,3.0,0.5,0,27,0.8,4.5,0.8,vegetarian; gluten_free; nut_free,dairy,high
+aloo_sabzi,Aloo Sabzi (Potato Curry),Potato Curry; Aloo Tamatar,vegetables_and_curries,1 bowl aloo sabzi,150,115,1.8,16.5,5.0,2.5,173,2.7,24.8,7.5,vegetarian; vegan; gluten_free; nut_free,,medium
+palak-paneer,Palak Paneer,Spinach Cottage Cheese,vegetables_and_curries,1 bowl palak paneer,200,160,10.0,5.5,11.0,2.0,320,20.0,11.0,22.0,vegetarian; gluten_free; nut_free; high_protein,dairy,medium
+bhindi_masala,Bhindi Masala (Okra Stir Fry),Okra Curry; Lady's Finger,vegetables_and_curries,1 bowl bhindi masala,150,100,2.5,10.0,5.5,3.0,150,3.8,15.0,8.3,vegetarian; vegan; gluten_free; nut_free,,medium
+mixed_veg_curry,Mixed Vegetable Curry,Mix Veg; Seasonal Vegetable Curry,vegetables_and_curries,1 bowl mixed veg curry,200,85,2.0,10.0,4.0,3.0,170,4.0,20.0,8.0,vegetarian; vegan; gluten_free; nut_free,,medium
+chole_chickpea_curry,Chole (Chickpea Curry),Chana Masala; Chickpea Curry,lentils_and_legumes,1 bowl chole,200,145,7.0,18.0,5.0,5.0,290,14.0,36.0,10.0,vegetarian; vegan; gluten_free; nut_free; high_protein,,medium
+rajma_kidney_bean_curry,Rajma (Kidney Bean Curry),Kidney Bean Curry; Rajma Masala,lentils_and_legumes,1 bowl rajma,200,130,7.5,18.0,3.0,5.5,260,15.0,36.0,6.0,vegetarian; vegan; gluten_free; nut_free; high_protein,,medium
+sambar,Sambar,Sambar Curry,lentils_and_legumes,1 bowl sambar,200,65,3.0,10.0,1.5,2.5,130,6.0,20.0,3.0,vegetarian; vegan; gluten_free; nut_free,,medium
+paneer_butter_masala,Paneer Butter Masala,Paneer Makhani,vegetables_and_curries,1 bowl paneer butter masala,200,210,10.0,8.5,15.0,1.2,420,20.0,17.0,30.0,vegetarian; gluten_free; nut_free; high_protein,dairy,medium
+chicken_tikka,Chicken Tikka,Tandoori Chicken Tikka,meat_fish_and_eggs,4-5 chicken tikka pieces,150,170,25.0,3.0,6.5,0.5,255,37.5,4.5,9.8,gluten_free; dairy_free; nut_free; high_protein; halal,,medium
+chicken_biryani,Chicken Biryani,Murg Biryani,complete_meals,1 plate chicken biryani,300,180,12.0,22.0,5.5,1.0,540,36.0,66.0,16.5,gluten_free; nut_free; halal,,medium
+dal_chawal,Dal Chawal (Lentils and Rice),Dal Rice,complete_meals,1 bowl dal + 1 bowl rice,300,110,5.0,18.0,0.5,2.0,330,15.0,54.0,1.5,vegetarian; vegan; gluten_free; nut_free; high_protein,,high
