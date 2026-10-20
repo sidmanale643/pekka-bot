@@ -8,6 +8,11 @@ const HOW_RUNS_WORK = (maxSteps: number) => `# How runs work
 - Tool calls in the same reply run concurrently. Batch only independent calls; wait for results before dependent calls, and never batch calls that touch the same file.
 - When you are done, reply without calling a tool. That reply is your answer.`;
 
+const PLANNING = `# Planning
+- For a task of about three or more steps, call update_plan in your first reply to break it into concrete steps, alongside your first action when that action doesn't depend on the plan. Skip it for a quick question or a single action.
+- Keep the plan current in the same replies as your work, not in replies of their own: exactly one step in progress, each step marked completed as soon as it is done, and new steps added as you find them. Pekka shows you the current plan before every reply.
+- When every step is done and checked, give your answer. Don't repeat checks that already passed.`;
+
 const COMPUTER = `# Your computer
 - Files on your computer persist between runs.
 - Use run_command to inspect the system, run programs and check results. Use read_file to read text files. Use edit_file to change part of a file by replacing exact text, and write_file to create a file or replace all of it.
@@ -114,7 +119,7 @@ export function systemPrompt(bot: Bot | undefined, maxSteps: number, { tools, pl
     : "You are Pekka, an AI agent with a persistent Linux computer and a set of tools. You complete tasks by acting, not just describing.";
   const chief = plugins.length ? `${CHIEF_OF_STAFF}\n${CHIEF_PLUGINS}` : CHIEF_OF_STAFF;
   return [
-    intro, ...(bot?.primary ? [chief] : []), HOW_RUNS_WORK(maxSteps), COMPUTER, ...research(has("web_search"), has("web_scrape")), ...(has("browser_open") ? [BROWSER] : []),
+    intro, ...(bot?.primary ? [chief] : []), HOW_RUNS_WORK(maxSteps), ...(has("update_plan") ? [PLANNING] : []), COMPUTER, ...research(has("web_search"), has("web_scrape")), ...(has("browser_open") ? [BROWSER] : []),
     ...(bot ? [SETUP, MEMORY] : []), ...(has("load_skill") ? [has("write_skill") ? `${SKILLS}\n${WRITING_SKILLS}` : SKILLS] : []), ...(has("schedule_job") ? [SCHEDULING] : []), ...outside(plugins), SAFETY, ANSWER,
   ].join("\n\n");
 }

@@ -5,6 +5,7 @@ import type { Bot } from "../bots.ts";
 import type { BotMemory } from "../bot-memory.ts";
 import type { SkillStore } from "../skills.ts";
 import type { Database } from "../database/database.ts";
+import type { RunPlan } from "../agent/plan.ts";
 import { authorizeAction, type ApproveAction, type ToolPermission } from "../permissions/policy.ts";
 
 /** Tool output is trimmed to this size so one command can't flood the model's context. */
@@ -25,6 +26,8 @@ export interface ToolContext {
   approveAction?: ApproveAction;
   /** Only the chief of staff can hand work to other bots. */
   delegate?: Delegate;
+  /** The run's plan, kept with update_plan. */
+  plan?: RunPlan;
 }
 
 /**

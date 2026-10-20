@@ -6,6 +6,7 @@ import type { Delegate, Tool } from "../tools/tool.ts";
 import { ContextManager, DEFAULT_CONTEXT_WINDOW } from "./context.ts";
 import type { EventHandler } from "./events.ts";
 import { executeToolCall } from "./execute-tool-call.ts";
+import { RunPlan } from "./plan.ts";
 import { sentAt, systemPrompt } from "./system-prompt.ts";
 import type { Bot } from "../bots.ts";
 import { BotMemory } from "../bot-memory.ts";
@@ -109,6 +110,7 @@ async function runLoop(task: string, options: AgentOptions): Promise<AgentResult
     { role: "user", content: request },
   ], { model, tools: plugins.definitions(), contextWindow, task: request });
 
+  const plan = new RunPlan();
   let steps = 0;
   try {
     for (let step = 1; step <= maxSteps; step++) {
@@ -125,7 +127,10 @@ async function runLoop(task: string, options: AgentOptions): Promise<AgentResult
       }
       emit({ type: "step", step });
 
-      const reply = await model.reply(context.messages, toolDefinitions, (text) => emit({ type: "message_delta", text }), options.signal);
+      // The plan goes at the end of this prompt only, so the history holds no stale copies and the cached prefix is unchanged.
+      const planNote = plan.reminder();
+      const prompt = planNote ? [...context.messages, { role: "user" as const, content: planNote }] : context.messages;
+      const reply = await model.reply(prompt, toolDefinitions, (text) => emit({ type: "message_delta", text }), options.signal);
       addUsage(usage, reply.usage);
       context.addReply(reply.message, reply.usage);
       options.signal?.throwIfAborted();
@@ -145,7 +150,7 @@ async function runLoop(task: string, options: AgentOptions): Promise<AgentResult
         const unloaded = active.some((tool) => tool.name === call.function.name) ? undefined : plugins.pluginOf(call.function.name);
         const result = unloaded
           ? { output: `Error: ${call.function.name} is not loaded. Call load_plugin with plugin "${unloaded}", then call ${call.function.name} again in your next reply.`, isError: true }
-          : await executeToolCall(call, active, { computer, database, userId: options.userId, bot: options.bot, memory, skills, approveAction: options.approveAction, delegate, signal: options.signal });
+          : await executeToolCall(call, active, { computer, database, userId: options.userId, bot: options.bot, memory, skills, approveAction: options.approveAction, delegate, plan, signal: options.signal });
         emit({ type: "tool_result", id: call.id, name: call.function.name, ...result });
         return { role: "tool", tool_call_id: call.id, content: result.output };
       }));
