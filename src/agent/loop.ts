@@ -5,8 +5,9 @@ import { createPluginLoader } from "../tools/load-plugin.ts";
 import type { Delegate, Tool } from "../tools/tool.ts";
 import { ContextManager, DEFAULT_CONTEXT_WINDOW } from "./context.ts";
 import type { EventHandler } from "./events.ts";
-import { executeToolCall } from "./execute-tool-call.ts";
+import { executeToolCall, type ToolCallResult } from "./execute-tool-call.ts";
 import { RunPlan } from "./plan.ts";
+import { StuckDetector, type StuckCheck } from "./stuck.ts";
 import { sentAt, systemPrompt } from "./system-prompt.ts";
 import type { Bot } from "../bots.ts";
 import { BotMemory } from "../bot-memory.ts";
@@ -51,6 +52,8 @@ export interface AgentResult {
   steps: number;
   usage: Usage;
   messages: ChatMessage[];
+  /** Set when Pekka ended the run early because this tool kept failing the same way. */
+  stoppedRepeating?: string;
 }
 
 /**
@@ -72,8 +75,9 @@ export async function runAgent(task: string, options: AgentOptions): Promise<Age
     }
     update({
       output: result.answer,
-      metadata: { botId: options.bot?.id, botName: options.bot?.name, maxSteps: options.maxSteps, status: result.status, steps: result.steps, usage: result.usage },
-      ...(result.status === "step_limit" ? { level: "WARNING", statusMessage: "Agent reached its step limit." } : {}),
+      metadata: { botId: options.bot?.id, botName: options.bot?.name, maxSteps: options.maxSteps, status: result.status, steps: result.steps, usage: result.usage, stoppedRepeating: result.stoppedRepeating },
+      ...(result.status === "step_limit" ? { level: "WARNING", statusMessage: "Agent reached its step limit." }
+        : result.stoppedRepeating ? { level: "WARNING", statusMessage: `Stopped after repeated identical failures of ${result.stoppedRepeating}.` } : {}),
     });
     return result;
   }, options.userId, options.sessionId);
@@ -111,6 +115,9 @@ async function runLoop(task: string, options: AgentOptions): Promise<AgentResult
   ], { model, tools: plugins.definitions(), contextWindow, task: request });
 
   const plan = new RunPlan();
+  const stuck = new StuckDetector();
+  /** Set once a call has failed the same way too often: the next reply is the run's answer. */
+  let stopped: StuckCheck | undefined;
   let steps = 0;
   try {
     for (let step = 1; step <= maxSteps; step++) {
@@ -138,12 +145,16 @@ async function runLoop(task: string, options: AgentOptions): Promise<AgentResult
       const text = reply.message.content ?? "";
       if (text) emit({ type: "message", text });
 
+      // Once stopped, any further calls are ignored rather than run.
+      if (stopped) {
+        return { status: "done", answer: text.trim() ? text : stopped.fallback!, steps: step, usage, messages: context.messages, stoppedRepeating: stopped.tool };
+      }
       const calls = reply.message.tool_calls ?? [];
       if (calls.length === 0) {
         return { status: "done", answer: text, steps: step, usage, messages: context.messages };
       }
 
-      const results = await Promise.all(calls.map(async (call): Promise<ChatMessage> => {
+      const results = await Promise.all(calls.map(async (call): Promise<{ result: ToolCallResult; message: ChatMessage }> => {
         options.signal?.throwIfAborted();
         emit({ type: "tool_call", id: call.id, name: call.function.name, arguments: call.function.arguments });
         // Checked against this step's tools, so a load_plugin in the same reply doesn't race it.
@@ -152,9 +163,14 @@ async function runLoop(task: string, options: AgentOptions): Promise<AgentResult
           ? { output: `Error: ${call.function.name} is not loaded. Call load_plugin with plugin "${unloaded}", then call ${call.function.name} again in your next reply.`, isError: true }
           : await executeToolCall(call, active, { computer, database, userId: options.userId, bot: options.bot, memory, skills, approveAction: options.approveAction, delegate, plan, signal: options.signal });
         emit({ type: "tool_result", id: call.id, name: call.function.name, ...result });
-        return { role: "tool", tool_call_id: call.id, content: result.output };
+        return { result, message: { role: "tool", tool_call_id: call.id, content: result.output } };
       }));
-      context.add(...results);
+      context.add(...results.map(({ message }) => message));
+      results.forEach(({ result }, index) => stuck.record(calls[index]!.function.name, calls[index]!.function.arguments, result));
+      const check = stuck.check();
+      if (check.stop) stopped = check;
+      const note = check.stop ?? check.reminder;
+      if (note) context.add({ role: "user", content: note });
       options.signal?.throwIfAborted();
     }
   } catch (error) {
