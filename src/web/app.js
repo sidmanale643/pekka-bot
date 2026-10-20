@@ -2083,29 +2083,43 @@ async function runTask(bot, task) {
   }
 }
 
-const templates = {
-  research: {
-    name: "Research Scout",
-    description: "Help me research topics and find authoritative sources.",
-  },
-  build: {
-    name: "Builder",
-    description: "Help turn my ideas into working software.",
-  },
-  review: {
-    name: "Fresh Eyes",
-    description: "Review my work and suggest focused improvements.",
-  },
-};
+// Templates come from the server, since some bring their own instructions and skills.
+async function loadTemplates() {
+  const { templates } = await api("/api/templates");
+  $("#templates").replaceChildren(...templates.map((template) => {
+    const button = element("button", "");
+    button.append(
+      element("strong", "", template.name),
+      element("span", "", template.description),
+    );
+    button.addEventListener("click", () => openCreate(template));
+    return button;
+  }));
+  // The welcome screen rarely shows once the chief of staff exists, so the create form offers them too.
+  const choices = [{ id: undefined, name: "Blank" }, ...templates];
+  $("#create-templates").replaceChildren(...choices.map((template) => {
+    const button = element("button", "", template.name);
+    button.type = "button";
+    button.dataset.template = template.id ?? "";
+    button.addEventListener("click", () => chooseTemplate(template.id ? template : undefined));
+    return button;
+  }));
+  $("#create-templates").hidden = false;
+}
 
-for (const [key, template] of Object.entries(templates)) {
-  const button = element("button", "");
-  button.dataset.template = key;
-  button.append(
-    element("strong", "", template.name),
-    element("span", "", template.description),
-  );
-  $("#templates").append(button);
+/** The template the open create form started from, sent with the new bot. */
+let createTemplate;
+
+function chooseTemplate(template) {
+  createTemplate = template?.id;
+  for (const button of $("#create-templates").children)
+    button.setAttribute("aria-pressed", String(button.dataset.template === (template?.id ?? "")));
+  const form = $("#create-form");
+  form.elements.name.value = template?.name ?? "";
+  form.elements.description.value = template?.description ?? "";
+  const note = $("#create-template-note");
+  note.hidden = !template?.skills?.length;
+  note.textContent = template?.skills?.length ? `Comes with its own working instructions and skills: ${template.skills.join(", ")}.` : "";
 }
 
 function openCreate(template) {
@@ -2117,9 +2131,7 @@ function openCreate(template) {
   $("#create-avatar").parentElement.open = false;
   $("#create-avatar").replaceChildren(picker.container);
   $("#create-error").textContent = "";
-  if (template)
-    for (const [name, value] of Object.entries(template))
-      $("#create-form").elements[name].value = value;
+  chooseTemplate(template);
   $("#create-dialog").showModal();
 }
 
@@ -2132,7 +2144,7 @@ $("#create-form").addEventListener("submit", async (event) => {
     // Only the profile fields: the avatar picker's own radios share the form.
     const { name, description } = Object.fromEntries(new FormData(event.currentTarget));
     // Without a look in the picker yet, the server gives the bot its own.
-    const input = { name, description, avatar: createAvatar.changed ? createAvatar.value() : undefined };
+    const input = { name, description, avatar: createAvatar.changed ? createAvatar.value() : undefined, template: createTemplate };
     const bot = await api("/api/bots", {
       method: "POST",
       body: JSON.stringify(input),
@@ -2744,13 +2756,6 @@ $("#details").addEventListener("click", () => togglePanel("context"));
 $("#computer").addEventListener("click", () => togglePanel("computer"));
 $("#browser").addEventListener("click", () => togglePanel("browser"));
 document
-  .querySelectorAll("[data-template]")
-  .forEach((button) =>
-    button.addEventListener("click", () =>
-      openCreate(templates[button.dataset.template]),
-    ),
-  );
-document
   .querySelectorAll(".close-dialog")
   .forEach((button) =>
     button.addEventListener("click", () => button.closest("dialog").close()),
@@ -2789,6 +2794,8 @@ window.addEventListener("beforeunload", (event) => {
 });
 
 async function initialize() {
+  // Without templates the welcome screen still offers a blank bot.
+  loadTemplates().catch(() => {});
   try {
     bots = (await api("/api/bots")).bots;
   } catch (error) {
