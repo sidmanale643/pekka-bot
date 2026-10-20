@@ -47,7 +47,7 @@ weekly-update/
 
 - SKILL.md starts with YAML frontmatter holding `name` and `description`. The name is lowercase letters, digits and single hyphens, up to 64 characters, and must equal the skill's name. The description is plain text, up to 1,024 characters.
 - Link each supporting file from SKILL.md by its relative path and say when to read it, for example "For the email layout, read template.md." Keep each fact in one place.
-- Skills are stored by Pekka, not on your computer. A script in a skill is stored text: to run it, write it into your workspace first, and say so where SKILL.md uses it. Add a script only when the same code would otherwise be rewritten each time or must behave exactly the same way.
+- Skills are stored by Pekka, not on your computer. A script in a skill is stored text: to run it, copy it into your workspace with copy_skill_file first, and say so where SKILL.md uses it. Add a script only when the same code would otherwise be rewritten each time or must behave exactly the same way.
 - Don't add a README, changelog, placeholders or files nothing links to.
 
 A starting shape, to adapt rather than fill in:

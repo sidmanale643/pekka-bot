@@ -41,6 +41,24 @@ export const loadSkill = defineTool({
   },
 });
 
+export const copySkillFile = defineTool({
+  name: "copy_skill_file",
+  permission: { effect: "write" },
+  description: "Copy one of a skill's supporting files, such as a script or data table, onto your Linux computer exactly as stored, when the skill says to install or run it. Replaces any file already at the destination. Copying doesn't run anything.",
+  input: z.object({
+    name: skillName.describe("The skill's name."),
+    file: z.string().min(1).describe("File to copy, relative to the skill's folder, such as scripts/report.py."),
+    path: z.string().min(1).describe("Destination path on the Linux computer. A relative path starts in your workspace, the folder commands start in, so pass it as the skill gives it."),
+  }).strict(),
+  async run({ name, file, path }, { skills, computer }) {
+    if (!skills) throw new Error("Skill storage is unavailable.");
+    await skills.metadata(name);
+    const content = await skills.read(name, file);
+    await computer.writeFile(path, content);
+    return `copied ${content.length} characters from ${name}/${file} to ${path}`;
+  },
+});
+
 export const writeSkill = defineTool({
   name: "write_skill",
   permission: { effect: "write", confirm: true },

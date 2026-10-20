@@ -693,6 +693,7 @@ const toolAliases = {
   write_file: ["Saving a file", "Saved a file"],
   edit_file: ["Editing a file", "Edited a file"],
   run_command: ["Running a command", "Ran a command"],
+  copy_skill_file: ["Copying a skill file", "Copied a skill file"],
   read_memory: ["Checking memory", "Checked memory"],
   write_memory: ["Updating memory", "Updated memory"],
   list_skills: ["Looking through skills", "Looked through skills"],
