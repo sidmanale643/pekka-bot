@@ -8,6 +8,7 @@ import { BotMemory, memoryFiles } from "../bot-memory.ts";
 import { deleteMessages, listMessages } from "../chat-history.ts";
 import { ChatRecorder } from "../chat-recorder.ts";
 import { createBot, deleteBot, updateBot, DuplicateBotError, ensureChiefOfStaff, findBot as findStoredBot, listBots, suggestAvatar, type Bot } from "../bots.ts";
+import { botTemplates, createBotFromTemplate, findTemplate } from "../bot-templates.ts";
 import { loadConfig } from "../config.ts";
 import { DatabaseConfigError } from "../database/d1.ts";
 import { getDatabase, type Database } from "../database/database.ts";
@@ -50,8 +51,10 @@ import { PermissionManager } from "../permissions/manager.ts";
 const text = z.string().trim().min(1).max(100_000);
 const botInput = z.object({ name: text.max(200), role: text, job: z.string().trim().max(100_000), character: CharacterSchema.optional(), avatar: AvatarSchema.optional() }).strict();
 const createBotInput = z.union([
-  z.object({ name: text.max(200), description: text, avatar: AvatarSchema.optional() }).strict().transform(({ name, description, avatar }) => ({ name, role: description, job: "", character: undefined, avatar })),
-  botInput,
+  // From the create form, optionally starting from a template, which brings its own instructions and skills.
+  z.object({ name: text.max(200), description: text, avatar: AvatarSchema.optional(), template: z.string().max(100).optional() }).strict()
+    .transform(({ name, description, avatar, template }) => ({ name, role: description, job: "", character: undefined, avatar, template })),
+  botInput.transform((input) => ({ ...input, template: undefined })),
 ]);
 const conversationInput = z.array(z.object({ role: z.enum(["user", "assistant"]), content: text.max(4000) }).strict()).max(20);
 const messageId = z.string().regex(/^[\w-]{1,100}$/);
@@ -151,9 +154,13 @@ export function createApiServer(options: ServerOptions = {}) {
   }
 
   const create: Handler = async (request, response, _params, userId) => {
-    const { character, ...input } = await body(request, createBotInput);
+    const { character, template: templateId, ...input } = await body(request, createBotInput);
+    const template = templateId === undefined ? undefined : findTemplate(templateId);
+    if (templateId !== undefined && !template) throw new HttpError(400, "Unknown template.");
     try {
-      const bot = await createBot(userId, input, database());
+      const bot = template
+        ? await createBotFromTemplate(userId, template, { name: input.name, role: input.role, avatar: input.avatar }, database())
+        : await createBot(userId, input, database());
       if (character) await saveCharacter(bot.id, character, database());
       json(response, 201, bot);
     } catch (error) {
@@ -364,6 +371,9 @@ export function createApiServer(options: ServerOptions = {}) {
       ...modelKeyRoutes(modelKeys, () => { try { const config = loadConfig(); return { model: config.model, key: Boolean(config.openRouterApiKey) }; } catch { return undefined; } }),
     ]),
     ["GET", /^\/api\/characters$/, async (_request, response) => { json(response, 200, { characters: characters.map(({ style, ...item }) => item) }); }],
+    ["GET", /^\/api\/templates$/, async (_request, response) => {
+      json(response, 200, { templates: botTemplates.map(({ id, name, description, skills }) => ({ id, name, description, skills })) });
+    }],
     ["GET", /^\/api\/bots\/([^/]+)\/character$/, character],
     ["PUT", /^\/api\/bots\/([^/]+)\/character$/, character],
     ["GET", /^\/api\/health$/, async (_request, response) => { json(response, 200, { status: "ok" }); }, true],
